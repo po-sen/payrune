@@ -1,10 +1,42 @@
 services:
-  payrune:
+  postgres:
+    image: postgres:18
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: payrune
+      POSTGRES_USER: payrune
+      POSTGRES_PASSWORD: payrune
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payrune -d payrune"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+  migrate:
+    build:
+      context: ../..
+      dockerfile: build/migrate/Dockerfile
+    command: ["up"]
+    environment:
+      DATABASE_URL: postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable
+      MIGRATIONS_SOURCE: file:///app/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+  app:
     build:
       context: ../..
       dockerfile: build/app/Dockerfile
     ports:
       - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
   swagger:
     image: swaggerapi/swagger-ui:latest
@@ -16,5 +48,8 @@ services:
     volumes:
       - ../swagger/openapi.yaml:/usr/share/nginx/html/openapi.yaml:ro
     depends_on:
-      - payrune
+      - app
     restart: unless-stopped
+
+volumes:
+  postgres_data:
