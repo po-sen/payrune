@@ -1,5 +1,9 @@
 COMPOSE_FILE := deployments/compose/compose.yaml
-COMPOSE := docker compose -f $(COMPOSE_FILE)
+COMPOSE_OVERRIDE ?=
+comma := ,
+COMPOSE_OVERRIDE_LIST := $(strip $(subst $(comma), ,$(COMPOSE_OVERRIDE)))
+COMPOSE_FILES := -f $(COMPOSE_FILE) $(foreach file,$(COMPOSE_OVERRIDE_LIST),-f $(file))
+COMPOSE := docker compose $(COMPOSE_FILES)
 
 .PHONY: up down
 

@@ -26,6 +26,253 @@ paths:
                     timestamp: "2026-03-03T03:53:25Z"
         "500":
           description: Internal server error
+  /v1/chains/{chain}/address-policies:
+    get:
+      summary: List address policies for a chain
+      operationId: listAddressPolicies
+      tags:
+        - Addresses
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - bitcoin
+      responses:
+        "200":
+          description: Address policies listed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListAddressPoliciesResponse"
+              examples:
+                default:
+                  value:
+                    chain: bitcoin
+                    addressPolicies:
+                      - addressPolicyId: bitcoin-mainnet-legacy
+                        chain: bitcoin
+                        network: mainnet
+                        scheme: legacy
+                        minorUnit: satoshi
+                        decimals: 8
+                        enabled: true
+                      - addressPolicyId: bitcoin-mainnet-segwit
+                        chain: bitcoin
+                        network: mainnet
+                        scheme: segwit
+                        minorUnit: satoshi
+                        decimals: 8
+                        enabled: true
+                      - addressPolicyId: bitcoin-mainnet-native-segwit
+                        chain: bitcoin
+                        network: mainnet
+                        scheme: nativeSegwit
+                        minorUnit: satoshi
+                        decimals: 8
+                        enabled: true
+                      - addressPolicyId: bitcoin-mainnet-taproot
+                        chain: bitcoin
+                        network: mainnet
+                        scheme: taproot
+                        minorUnit: satoshi
+                        decimals: 8
+                        enabled: false
+        "404":
+          description: Chain not supported.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: chain is not supported
+        "405":
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: method not allowed
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: internal server error
+  /v1/chains/{chain}/addresses:
+    get:
+      summary: Derive payment address from address policy
+      operationId: deriveAddress
+      tags:
+        - Addresses
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - bitcoin
+        - name: addressPolicyId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Address policy identifier.
+        - name: index
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 2147483647
+          description: Non-hardened child index to derive.
+      responses:
+        "200":
+          description: Address generated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - addressPolicyId
+                  - chain
+                  - network
+                  - scheme
+                  - minorUnit
+                  - decimals
+                  - index
+                  - address
+                properties:
+                  addressPolicyId:
+                    type: string
+                    example: bitcoin-mainnet-native-segwit
+                  chain:
+                    type: string
+                    example: bitcoin
+                  network:
+                    type: string
+                    example: mainnet
+                  scheme:
+                    type: string
+                    enum:
+                      - legacy
+                      - segwit
+                      - nativeSegwit
+                      - taproot
+                    example: nativeSegwit
+                  minorUnit:
+                    type: string
+                    example: satoshi
+                  decimals:
+                    type: integer
+                    minimum: 0
+                    maximum: 18
+                    example: 8
+                  index:
+                    type: integer
+                    minimum: 0
+                    maximum: 2147483647
+                    example: 12
+                  address:
+                    type: string
+                    example: "1ExampleAddress123"
+              examples:
+                default:
+                  value:
+                    addressPolicyId: bitcoin-mainnet-native-segwit
+                    chain: bitcoin
+                    network: mainnet
+                    scheme: nativeSegwit
+                    minorUnit: satoshi
+                    decimals: 8
+                    index: 12
+                    address: "1ExampleAddress123"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: invalid index
+              examples:
+                invalidPolicy:
+                  value:
+                    error: address policy is not supported
+        "404":
+          description: Chain not supported.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: chain is not supported
+        "405":
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: method not allowed
+        "501":
+          description: Address policy is currently disabled.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: address policy is not enabled
+              examples:
+                disabled:
+                  value:
+                    error: address policy is not enabled
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: internal server error
 components:
   schemas:
     HealthResponse:
@@ -41,3 +288,55 @@ components:
           type: string
           format: date-time
           example: "2026-03-03T03:53:25Z"
+    AddressPolicy:
+      type: object
+      required:
+        - addressPolicyId
+        - chain
+        - network
+        - scheme
+        - minorUnit
+        - decimals
+        - enabled
+      properties:
+        addressPolicyId:
+          type: string
+          example: bitcoin-mainnet-native-segwit
+        chain:
+          type: string
+          example: bitcoin
+        network:
+          type: string
+          example: mainnet
+        scheme:
+          type: string
+          enum:
+            - legacy
+            - segwit
+            - nativeSegwit
+            - taproot
+          example: nativeSegwit
+        minorUnit:
+          type: string
+          example: satoshi
+        decimals:
+          type: integer
+          minimum: 0
+          maximum: 18
+          example: 8
+        enabled:
+          type: boolean
+          example: true
+    ListAddressPoliciesResponse:
+      type: object
+      required:
+        - chain
+        - addressPolicies
+      properties:
+        chain:
+          type: string
+          example: bitcoin
+        addressPolicies:
+          type: array
+          items:
+            $ref: "#/components/schemas/AddressPolicy"

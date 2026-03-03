@@ -14,6 +14,7 @@ func Run(ctx context.Context, addr string) error {
 	container := di.NewContainer()
 	mux := http.NewServeMux()
 	container.HealthController.RegisterRoutes(mux)
+	container.ChainAddressController.RegisterRoutes(mux)
 	handler := middleware.CORS(mux)
 
 	httpServer := &http.Server{

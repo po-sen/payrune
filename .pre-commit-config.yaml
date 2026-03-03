@@ -22,6 +22,13 @@ repos:
       - id: markdownlint
         args: ["--config", ".markdownlint.json"]
         files: "\\.(md|markdown)$"
+  - repo: https://github.com/APIDevTools/swagger-cli
+    rev: v4.0.4
+    hooks:
+      - id: swagger-validation
+        pass_filenames: false
+        always_run: true
+        args: ["validate", "deployments/swagger/openapi.yaml"]
   - repo: local
     hooks:
       - id: goimports
@@ -47,6 +54,24 @@ repos:
         language: system
         pass_filenames: false
         types: [go]
+      - id: spec-lint
+        name: spec lint
+        entry: bash
+        args:
+          - -c
+          - |
+            set -euo pipefail
+            spec_dirs="$(printf "%s\n" "$@" | awk -F/ '$1=="specs" && NF>=2 {print $1"/"$2}' | sort -u)"
+            if [ -z "$spec_dirs" ]; then
+              exit 0
+            fi
+            while IFS= read -r dir; do
+              [ -n "$dir" ] || continue
+              SPEC_DIR="$dir" bash scripts/spec-lint.sh
+            done <<< "$spec_dirs"
+          - --
+        language: system
+        files: '^specs/[^/]+/.+\.md$'
   - repo: local
     hooks:
       - id: go-mod-tidy

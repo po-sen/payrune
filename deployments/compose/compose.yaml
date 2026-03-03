@@ -45,10 +45,10 @@ services:
     ports:
       - "8081:8080"
     environment:
-      SWAGGER_JSON_URL: /openapi.yaml
+      SWAGGER_JSON_URL: /specs/openapi.yaml
       TRY_IT_OUT_ENABLED: "true"
     volumes:
-      - ../swagger/openapi.yaml:/usr/share/nginx/html/openapi.yaml:ro
+      - ../swagger:/usr/share/nginx/html/specs:ro
     depends_on:
       - app
     restart: unless-stopped
