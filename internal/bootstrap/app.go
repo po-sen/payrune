@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"payrune/internal/adapters/inbound/http/middleware"
 	"payrune/internal/infrastructure/di"
 )
 
@@ -13,10 +14,11 @@ func Run(ctx context.Context, addr string) error {
 	container := di.NewContainer()
 	mux := http.NewServeMux()
 	container.HealthController.RegisterRoutes(mux)
+	handler := middleware.CORS(mux)
 
 	httpServer := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

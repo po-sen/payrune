@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: Payrune Local API
+  version: "1.0.0"
+  description: OpenAPI spec for local testing through Swagger UI.
+servers:
+  - url: http://localhost:8080
+paths:
+  /health:
+    get:
+      summary: Service health check
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              examples:
+                default:
+                  value:
+                    status: up
+                    timestamp: "2026-03-03T03:53:25Z"
+        "500":
+          description: Internal server error
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: up
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-03-03T03:53:25Z"
