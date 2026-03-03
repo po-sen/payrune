@@ -1,3 +1,5 @@
+name: payrune
+
 services:
   postgres:
     image: postgres:18
