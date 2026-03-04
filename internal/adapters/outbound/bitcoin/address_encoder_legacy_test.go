@@ -31,3 +31,29 @@ func TestLegacyAddressEncoderEncodeMainnetType(t *testing.T) {
 		t.Fatalf("unexpected address type: %T", address)
 	}
 }
+
+func TestLegacyAddressEncoderProvidedVectors(t *testing.T) {
+	deriver := newVectorTestDeriver()
+	vectors := []providedAddressVector{
+		{
+			name:     "mainnet legacy",
+			network:  value_objects.BitcoinNetworkMainnet,
+			scheme:   value_objects.BitcoinAddressSchemeLegacy,
+			xpub:     "xpub6DUmTFpDUjs36einPToqDQXgUNXWZgUP7TFxsP1ToiBqmbNyyNusGnEdjKfaBr7TL66E9AoEWY6ap5Ra7a5cC6scE4gG4u31fJL1HFmrQ2a",
+			expected: "1KpBQPxVLPqPfPvF9ozignj53hPJEMQEmw",
+		},
+		{
+			name:     "testnet4 legacy",
+			network:  value_objects.BitcoinNetworkTestnet4,
+			scheme:   value_objects.BitcoinAddressSchemeLegacy,
+			xpub:     "tpubDDoLYVq7AUqYP63QvYZxnxk1pCJnWDWdzu9w3BYTP9dJAX47xknZiEKUheaAahn6zBNT5ndCzY2x6MQ8iVj7QpFwuhm5bDF6Ggt3q1Rn2Qs",
+			expected: "mtFJ951QbSd5FtBsD8JSfSnizqHBJY3SAB",
+		},
+	}
+
+	for _, tc := range vectors {
+		t.Run(tc.name, func(t *testing.T) {
+			assertProvidedVector(t, deriver, tc)
+		})
+	}
+}

@@ -31,3 +31,29 @@ func TestTaprootAddressEncoderEncodeMainnetType(t *testing.T) {
 		t.Fatalf("unexpected address type: %T", address)
 	}
 }
+
+func TestTaprootAddressEncoderProvidedVectors(t *testing.T) {
+	deriver := newVectorTestDeriver()
+	vectors := []providedAddressVector{
+		{
+			name:     "mainnet taproot",
+			network:  value_objects.BitcoinNetworkMainnet,
+			scheme:   value_objects.BitcoinAddressSchemeTaproot,
+			xpub:     "xpub6BmoyGVa8shrEFn34McKpK8fkEXijKSuhXQbt4UsJzbZWRrLBkxJLptnuvivSbZA2zWBxvHFgaLs1iB9PMH9Frnse8jpNzZB8Q4k6hFw9c6",
+			expected: "bc1pu3k4ewj2a6gsllcfjpge5hdg52gsaljdpzmufjgx00xkgp2alfnq7v330g",
+		},
+		{
+			name:     "testnet4 taproot",
+			network:  value_objects.BitcoinNetworkTestnet4,
+			scheme:   value_objects.BitcoinAddressSchemeTaproot,
+			xpub:     "tpubDCEp3dYAyqnXrXPDSw4bhmj6cB6KmM2SkpDXzJWmQ595tPFobRSxhajfz7Yq5ZJvZaQ2qzQDWgaFiihSEQQJn12qtweLnveaA7FYLcpcF97",
+			expected: "tb1pzwwf9c7vavp45647p7eg5fe64xm4u4qcwzvsaudw8a8n0hmvpm5ssqd7um",
+		},
+	}
+
+	for _, tc := range vectors {
+		t.Run(tc.name, func(t *testing.T) {
+			assertProvidedVector(t, deriver, tc)
+		})
+	}
+}
