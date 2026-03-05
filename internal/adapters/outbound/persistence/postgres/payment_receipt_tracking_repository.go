@@ -21,21 +21,17 @@ func NewPaymentReceiptTrackingRepository(executor Executor) *PaymentReceiptTrack
 	return &PaymentReceiptTrackingRepository{executor: executor}
 }
 
-func (r *PaymentReceiptTrackingRepository) RegisterMissingIssued(
+func (r *PaymentReceiptTrackingRepository) RegisterIssuedAllocation(
 	ctx context.Context,
-	now time.Time,
+	paymentAddressID int64,
 	defaultRequiredConfirmations int32,
-	chain string,
-	network string,
-) (int, error) {
+) (bool, error) {
+	if paymentAddressID <= 0 {
+		return false, errors.New("payment address id must be greater than zero")
+	}
 	if defaultRequiredConfirmations <= 0 {
-		return 0, errors.New("default required confirmations must be greater than zero")
+		return false, errors.New("default required confirmations must be greater than zero")
 	}
-	if now.IsZero() {
-		return 0, errors.New("now is required")
-	}
-	chainFilter := strings.ToLower(strings.TrimSpace(chain))
-	networkFilter := strings.ToLower(strings.TrimSpace(network))
 
 	result, err := r.executor.ExecContext(
 		ctx,
@@ -60,28 +56,25 @@ func (r *PaymentReceiptTrackingRepository) RegisterMissingIssued(
 		          a.expected_amount_minor,
 		          $1,
 		          'watching',
-		          $2
+		          NOW()
 		   FROM address_policy_allocations a
-		   WHERE a.allocation_status = 'issued'
+		   WHERE a.id = $2
+		     AND a.allocation_status = 'issued'
 		     AND a.network IS NOT NULL
 		     AND a.address IS NOT NULL
-		     AND ($3 = '' OR a.chain = $3)
-		     AND ($4 = '' OR a.network = $4)
 		   ON CONFLICT (payment_address_id) DO NOTHING`,
 		defaultRequiredConfirmations,
-		now,
-		chainFilter,
-		networkFilter,
+		paymentAddressID,
 	)
 	if err != nil {
-		return 0, err
+		return false, err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return 0, err
+		return false, err
 	}
-	return int(rowsAffected), nil
+	return rowsAffected > 0, nil
 }
 
 func (r *PaymentReceiptTrackingRepository) ClaimDue(

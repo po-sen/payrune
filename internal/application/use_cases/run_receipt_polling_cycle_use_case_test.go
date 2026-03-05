@@ -21,17 +21,11 @@ func (f *fakeReceiptPollingClock) NowUTC() time.Time {
 }
 
 type fakePaymentReceiptTrackingRepository struct {
-	registerCount int
-	registerErr   error
-	claimRows     []entities.PaymentReceiptTracking
-	claimErr      error
-	saveErr       error
-	savePollErr   error
+	claimRows   []entities.PaymentReceiptTracking
+	claimErr    error
+	saveErr     error
+	savePollErr error
 
-	lastRegisterNow                   time.Time
-	lastRegisterDefaultConfirmations  int32
-	lastRegisterChain                 string
-	lastRegisterNetwork               string
 	lastClaimInput                    outport.ClaimPaymentReceiptTrackingsInput
 	savedObservationTrackings         []entities.PaymentReceiptTracking
 	savedObservationNextPollAtValues  []time.Time
@@ -42,21 +36,12 @@ type fakePaymentReceiptTrackingRepository struct {
 	savedPollingErrorPolledAt         []time.Time
 }
 
-func (f *fakePaymentReceiptTrackingRepository) RegisterMissingIssued(
+func (f *fakePaymentReceiptTrackingRepository) RegisterIssuedAllocation(
 	_ context.Context,
-	now time.Time,
-	defaultRequiredConfirmations int32,
-	chain string,
-	network string,
-) (int, error) {
-	f.lastRegisterNow = now
-	f.lastRegisterDefaultConfirmations = defaultRequiredConfirmations
-	f.lastRegisterChain = chain
-	f.lastRegisterNetwork = network
-	if f.registerErr != nil {
-		return 0, f.registerErr
-	}
-	return f.registerCount, nil
+	_ int64,
+	_ int32,
+) (bool, error) {
+	return true, nil
 }
 
 func (f *fakePaymentReceiptTrackingRepository) ClaimDue(
@@ -155,8 +140,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	}
 
 	repository := &fakePaymentReceiptTrackingRepository{
-		registerCount: 2,
-		claimRows:     []entities.PaymentReceiptTracking{tracking},
+		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{repository: repository}
 	observer := &fakeBlockchainReceiptObserver{
@@ -179,18 +163,14 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:                    10,
-		PollInterval:                 20 * time.Second,
-		ClaimTTL:                     9 * time.Second,
-		DefaultRequiredConfirmations: 3,
+		BatchSize:    10,
+		PollInterval: 20 * time.Second,
+		ClaimTTL:     9 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
 	}
 
-	if output.RegisteredCount != 2 {
-		t.Fatalf("unexpected registered count: got %d", output.RegisteredCount)
-	}
 	if output.ClaimedCount != 1 {
 		t.Fatalf("unexpected claimed count: got %d", output.ClaimedCount)
 	}
@@ -199,15 +179,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	}
 	if output.FailedCount != 0 {
 		t.Fatalf("unexpected failed count: got %d", output.FailedCount)
-	}
-	if repository.lastRegisterDefaultConfirmations != 3 {
-		t.Fatalf("unexpected default confirmations: got %d", repository.lastRegisterDefaultConfirmations)
-	}
-	if repository.lastRegisterChain != "" {
-		t.Fatalf("unexpected register chain: got %q", repository.lastRegisterChain)
-	}
-	if repository.lastRegisterNetwork != "" {
-		t.Fatalf("unexpected register network: got %q", repository.lastRegisterNetwork)
 	}
 	if repository.lastClaimInput.Limit != 10 {
 		t.Fatalf("unexpected claim limit: got %d", repository.lastClaimInput.Limit)
@@ -249,8 +220,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 	}
 
 	repository := &fakePaymentReceiptTrackingRepository{
-		registerCount: 0,
-		claimRows:     []entities.PaymentReceiptTracking{tracking},
+		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{repository: repository}
 	observer := &fakeBlockchainReceiptObserver{
@@ -375,8 +345,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected nil error for custom chain scope, got %v", err)
 	}
-	if repository.lastRegisterChain != "eth" {
-		t.Fatalf("unexpected normalized custom chain: got %q", repository.lastRegisterChain)
+	if repository.lastClaimInput.Chain != "eth" {
+		t.Fatalf("unexpected normalized custom chain: got %q", repository.lastClaimInput.Chain)
 	}
 
 	_, err = useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -408,8 +378,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 func TestRunReceiptPollingCycleUseCaseExecuteWithScope(t *testing.T) {
 	now := time.Date(2026, 3, 5, 14, 20, 0, 0, time.UTC)
 	repository := &fakePaymentReceiptTrackingRepository{
-		registerCount: 0,
-		claimRows:     []entities.PaymentReceiptTracking{},
+		claimRows: []entities.PaymentReceiptTracking{},
 	}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{repository: repository}
 	observer := &fakeBlockchainReceiptObserver{
@@ -432,12 +401,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteWithScope(t *testing.T) {
 		t.Fatalf("Execute returned error: %v", err)
 	}
 
-	if repository.lastRegisterChain != "bitcoin" {
-		t.Fatalf("unexpected register chain: got %q", repository.lastRegisterChain)
-	}
-	if repository.lastRegisterNetwork != "mainnet" {
-		t.Fatalf("unexpected register network: got %q", repository.lastRegisterNetwork)
-	}
 	if repository.lastClaimInput.Chain != "bitcoin" {
 		t.Fatalf("unexpected claim chain: got %q", repository.lastClaimInput.Chain)
 	}

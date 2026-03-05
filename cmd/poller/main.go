@@ -44,11 +44,6 @@ func loadPollerConfigFromEnv() (bootstrap.PollerConfig, error) {
 	if err != nil {
 		return bootstrap.PollerConfig{}, err
 	}
-
-	requiredConfirmations, err := parseInt32Env("POLL_REQUIRED_CONFIRMATIONS")
-	if err != nil {
-		return bootstrap.PollerConfig{}, err
-	}
 	chain, err := parseChainEnv("POLL_CHAIN")
 	if err != nil {
 		return bootstrap.PollerConfig{}, err
@@ -62,12 +57,11 @@ func loadPollerConfigFromEnv() (bootstrap.PollerConfig, error) {
 	}
 
 	return bootstrap.PollerConfig{
-		Interval:                     interval,
-		BatchSize:                    batchSize,
-		ClaimTTL:                     claimTTL,
-		DefaultRequiredConfirmations: requiredConfirmations,
-		Chain:                        chain,
-		Network:                      network,
+		Interval:  interval,
+		BatchSize: batchSize,
+		ClaimTTL:  claimTTL,
+		Chain:     chain,
+		Network:   network,
 	}, nil
 }
 
@@ -101,22 +95,6 @@ func parseIntEnv(key string) (int, error) {
 		return 0, fmt.Errorf("%s must be greater than zero", key)
 	}
 	return value, nil
-}
-
-func parseInt32Env(key string) (int32, error) {
-	raw := strings.TrimSpace(os.Getenv(key))
-	if raw == "" {
-		return 0, nil
-	}
-
-	value, err := strconv.ParseInt(raw, 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
-	}
-	if value <= 0 {
-		return 0, fmt.Errorf("%s must be greater than zero", key)
-	}
-	return int32(value), nil
 }
 
 func parseChainEnv(key string) (string, error) {

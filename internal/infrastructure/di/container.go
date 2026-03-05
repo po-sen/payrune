@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +19,12 @@ import (
 	"payrune/internal/adapters/outbound/system"
 	"payrune/internal/application/use_cases"
 	"payrune/internal/domain/value_objects"
+)
+
+const (
+	envBitcoinMainnetRequiredConfirmations  = "BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS"
+	envBitcoinTestnet4RequiredConfirmations = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
+	defaultBitcoinRequiredConfirmations     = int32(1)
 )
 
 type Container struct {
@@ -47,6 +54,11 @@ func NewContainer() (*Container, error) {
 	clock := system.NewClock()
 	healthUseCase := use_cases.NewCheckHealthUseCase(clock)
 	healthController := httpcontroller.NewHealthController(healthUseCase)
+	requiredConfirmationsByNetwork, err := loadBitcoinRequiredConfirmationsFromEnv()
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 
 	bitcoinDeriver := bitcoin.NewHDXPubAddressDeriver(
 		bitcoin.NewLegacyAddressEncoder(),
@@ -143,6 +155,7 @@ func NewContainer() (*Container, error) {
 		unitOfWork,
 		bitcoinDeriver,
 		addressPolicyReader,
+		requiredConfirmationsByNetwork,
 	)
 	chainAddressController := httpcontroller.NewChainAddressController(
 		listAddressPoliciesUseCase,
@@ -162,4 +175,42 @@ func (c *Container) Close() error {
 		return nil
 	}
 	return c.closeFn()
+}
+
+func loadBitcoinRequiredConfirmationsFromEnv() (map[value_objects.BitcoinNetwork]int32, error) {
+	mainnetConfirmations, err := parsePositiveInt32EnvWithDefault(
+		envBitcoinMainnetRequiredConfirmations,
+		defaultBitcoinRequiredConfirmations,
+	)
+	if err != nil {
+		return nil, err
+	}
+	testnet4Confirmations, err := parsePositiveInt32EnvWithDefault(
+		envBitcoinTestnet4RequiredConfirmations,
+		defaultBitcoinRequiredConfirmations,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[value_objects.BitcoinNetwork]int32{
+		value_objects.BitcoinNetworkMainnet:  mainnetConfirmations,
+		value_objects.BitcoinNetworkTestnet4: testnet4Confirmations,
+	}, nil
+}
+
+func parsePositiveInt32EnvWithDefault(key string, fallback int32) (int32, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
+	}
+	if parsed <= 0 {
+		return 0, fmt.Errorf("%s must be greater than zero", key)
+	}
+	return int32(parsed), nil
 }

@@ -14,9 +14,8 @@ import (
 )
 
 const (
-	defaultReceiptPollingInterval       = 15 * time.Second
-	defaultReceiptPollingClaimTTL       = 30 * time.Second
-	defaultRequiredConfirmations  int32 = 1
+	defaultReceiptPollingInterval = 15 * time.Second
+	defaultReceiptPollingClaimTTL = 30 * time.Second
 )
 
 type runReceiptPollingCycleUseCase struct {
@@ -63,34 +62,16 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 	if claimTTL <= 0 {
 		claimTTL = defaultReceiptPollingClaimTTL
 	}
-	requiredConfirmations := input.DefaultRequiredConfirmations
-	if requiredConfirmations <= 0 {
-		requiredConfirmations = defaultRequiredConfirmations
-	}
 	chainFilter, networkFilter, err := resolveReceiptPollingScope(input.Chain, input.Network)
 	if err != nil {
 		return dto.RunReceiptPollingCycleOutput{}, err
 	}
 
-	var (
-		registeredCount int
-		trackings       []entities.PaymentReceiptTracking
-	)
+	var trackings []entities.PaymentReceiptTracking
 	err = uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
 		repository := txRepositories.PaymentReceiptTracking
 		if repository == nil {
 			return errors.New("payment receipt tracking repository is not configured")
-		}
-
-		count, err := repository.RegisterMissingIssued(
-			ctx,
-			now,
-			requiredConfirmations,
-			chainFilter,
-			networkFilter,
-		)
-		if err != nil {
-			return err
 		}
 
 		claimedTrackings, err := repository.ClaimDue(ctx, outport.ClaimPaymentReceiptTrackingsInput{
@@ -104,7 +85,6 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			return err
 		}
 
-		registeredCount = count
 		trackings = claimedTrackings
 		return nil
 	})
@@ -112,10 +92,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 		return dto.RunReceiptPollingCycleOutput{}, err
 	}
 
-	output := dto.RunReceiptPollingCycleOutput{
-		RegisteredCount: registeredCount,
-		ClaimedCount:    len(trackings),
-	}
+	output := dto.RunReceiptPollingCycleOutput{ClaimedCount: len(trackings)}
 
 	for _, tracking := range trackings {
 		if tracking.IssuedAt.IsZero() {

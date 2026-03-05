@@ -8,7 +8,6 @@ func TestLoadPollerConfigFromEnvSuccess(t *testing.T) {
 	t.Setenv("POLL_INTERVAL", "5s")
 	t.Setenv("POLL_CLAIM_TTL", "8s")
 	t.Setenv("POLL_BATCH_SIZE", "12")
-	t.Setenv("POLL_REQUIRED_CONFIRMATIONS", "2")
 
 	config, err := loadPollerConfigFromEnv()
 	if err != nil {
@@ -23,9 +22,6 @@ func TestLoadPollerConfigFromEnvSuccess(t *testing.T) {
 	}
 	if config.BatchSize != 12 {
 		t.Fatalf("unexpected batch size: got %d", config.BatchSize)
-	}
-	if config.DefaultRequiredConfirmations != 2 {
-		t.Fatalf("unexpected confirmations: got %d", config.DefaultRequiredConfirmations)
 	}
 }
 

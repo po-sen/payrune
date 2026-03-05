@@ -10,19 +10,17 @@ import (
 )
 
 const (
-	defaultPollerInterval              = 15 * time.Second
-	defaultPollerClaimTTL              = 30 * time.Second
-	defaultPollerBatchSize             = 50
-	defaultPollerRequiredConfirmations = int32(1)
+	defaultPollerInterval  = 15 * time.Second
+	defaultPollerClaimTTL  = 30 * time.Second
+	defaultPollerBatchSize = 50
 )
 
 type PollerConfig struct {
-	Interval                     time.Duration
-	BatchSize                    int
-	ClaimTTL                     time.Duration
-	DefaultRequiredConfirmations int32
-	Chain                        string
-	Network                      string
+	Interval  time.Duration
+	BatchSize int
+	ClaimTTL  time.Duration
+	Chain     string
+	Network   string
 }
 
 func RunPoller(ctx context.Context, config PollerConfig) error {
@@ -35,10 +33,6 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 	if config.ClaimTTL <= 0 {
 		config.ClaimTTL = defaultPollerClaimTTL
 	}
-	if config.DefaultRequiredConfirmations <= 0 {
-		config.DefaultRequiredConfirmations = defaultPollerRequiredConfirmations
-	}
-
 	container, err := di.NewPollerContainer()
 	if err != nil {
 		return err
@@ -49,12 +43,11 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 
 	runCycle := func() {
 		output, err := container.RunReceiptPollingCycleUseCase.Execute(ctx, dto.RunReceiptPollingCycleInput{
-			BatchSize:                    config.BatchSize,
-			PollInterval:                 config.Interval,
-			ClaimTTL:                     config.ClaimTTL,
-			DefaultRequiredConfirmations: config.DefaultRequiredConfirmations,
-			Chain:                        config.Chain,
-			Network:                      config.Network,
+			BatchSize:    config.BatchSize,
+			PollInterval: config.Interval,
+			ClaimTTL:     config.ClaimTTL,
+			Chain:        config.Chain,
+			Network:      config.Network,
 		})
 		if err != nil {
 			log.Printf("poll cycle failed: err=%v", err)
@@ -62,8 +55,7 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 		}
 
 		log.Printf(
-			"poll cycle complete registered=%d claimed=%d updated=%d failed=%d",
-			output.RegisteredCount,
+			"poll cycle complete claimed=%d updated=%d failed=%d",
 			output.ClaimedCount,
 			output.UpdatedCount,
 			output.FailedCount,

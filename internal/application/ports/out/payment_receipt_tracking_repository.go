@@ -16,13 +16,11 @@ type ClaimPaymentReceiptTrackingsInput struct {
 }
 
 type PaymentReceiptTrackingRepository interface {
-	RegisterMissingIssued(
+	RegisterIssuedAllocation(
 		ctx context.Context,
-		now time.Time,
+		paymentAddressID int64,
 		defaultRequiredConfirmations int32,
-		chain string,
-		network string,
-	) (int, error)
+	) (bool, error)
 	ClaimDue(
 		ctx context.Context,
 		input ClaimPaymentReceiptTrackingsInput,

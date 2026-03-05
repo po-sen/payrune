@@ -14,20 +14,34 @@ import (
 )
 
 type allocatePaymentAddressUseCase struct {
-	unitOfWork   outport.UnitOfWork
-	deriver      outport.BitcoinAddressDeriver
-	policyReader outport.AddressPolicyReader
+	unitOfWork                     outport.UnitOfWork
+	deriver                        outport.BitcoinAddressDeriver
+	policyReader                   outport.AddressPolicyReader
+	requiredConfirmationsByNetwork map[value_objects.BitcoinNetwork]int32
 }
+
+const defaultIssueReceiptRequiredConfirmations int32 = 1
 
 func NewAllocatePaymentAddressUseCase(
 	unitOfWork outport.UnitOfWork,
 	deriver outport.BitcoinAddressDeriver,
 	policyReader outport.AddressPolicyReader,
+	requiredConfirmationsByNetwork ...map[value_objects.BitcoinNetwork]int32,
 ) inport.AllocatePaymentAddressUseCase {
+	confirmationsByNetwork := make(map[value_objects.BitcoinNetwork]int32)
+	if len(requiredConfirmationsByNetwork) > 0 {
+		for network, confirmations := range requiredConfirmationsByNetwork[0] {
+			if confirmations <= 0 {
+				continue
+			}
+			confirmationsByNetwork[network] = confirmations
+		}
+	}
 	return &allocatePaymentAddressUseCase{
-		unitOfWork:   unitOfWork,
-		deriver:      deriver,
-		policyReader: policyReader,
+		unitOfWork:                     unitOfWork,
+		deriver:                        deriver,
+		policyReader:                   policyReader,
+		requiredConfirmationsByNetwork: confirmationsByNetwork,
 	}
 }
 
@@ -72,19 +86,23 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 	if err := uc.unitOfWork.WithinTransaction(ctx, func(
 		txRepositories outport.TxRepositories,
 	) error {
-		repository := txRepositories.PaymentAddressAllocation
-		if repository == nil {
+		allocationRepository := txRepositories.PaymentAddressAllocation
+		if allocationRepository == nil {
 			return errors.New("payment address allocation repository is not configured")
 		}
+		receiptTrackingRepository := txRepositories.PaymentReceiptTracking
+		if receiptTrackingRepository == nil {
+			return errors.New("payment receipt tracking repository is not configured")
+		}
 
-		reopenedAllocation, reopened, reopenErr := repository.ReopenFailedReservation(ctx, reserveInput)
+		reopenedAllocation, reopened, reopenErr := allocationRepository.ReopenFailedReservation(ctx, reserveInput)
 		if reopenErr != nil {
 			return reopenErr
 		}
 		if reopened {
 			allocation = reopenedAllocation
 		} else {
-			freshAllocation, reserveErr := repository.ReserveFresh(ctx, reserveInput)
+			freshAllocation, reserveErr := allocationRepository.ReserveFresh(ctx, reserveInput)
 			if reserveErr != nil {
 				return reserveErr
 			}
@@ -102,7 +120,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 			if markErr != nil {
 				return markErr
 			}
-			if err := repository.MarkDerivationFailed(ctx, failedAllocation); err != nil {
+			if err := allocationRepository.MarkDerivationFailed(ctx, failedAllocation); err != nil {
 				return err
 			}
 			businessErr = deriveErr
@@ -115,7 +133,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 			if markErr != nil {
 				return markErr
 			}
-			if err := repository.MarkDerivationFailed(ctx, failedAllocation); err != nil {
+			if err := allocationRepository.MarkDerivationFailed(ctx, failedAllocation); err != nil {
 				return err
 			}
 			businessErr = pathErr
@@ -128,7 +146,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 			if markErr != nil {
 				return markErr
 			}
-			if err := repository.MarkDerivationFailed(ctx, failedAllocation); err != nil {
+			if err := allocationRepository.MarkDerivationFailed(ctx, failedAllocation); err != nil {
 				return err
 			}
 			businessErr = markIssuedErr
@@ -136,7 +154,14 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 		}
 		issuedAllocation = updatedAllocation
 
-		if err := repository.Complete(ctx, issuedAllocation); err != nil {
+		if err := allocationRepository.Complete(ctx, issuedAllocation); err != nil {
+			return err
+		}
+		if _, err := receiptTrackingRepository.RegisterIssuedAllocation(
+			ctx,
+			issuedAllocation.PaymentAddressID,
+			uc.requiredConfirmationsForNetwork(policy.Network),
+		); err != nil {
 			return err
 		}
 		return nil
@@ -165,4 +190,14 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 		Address:             issuedAllocation.Address,
 		CustomerReference:   customerReference,
 	}, nil
+}
+
+func (uc *allocatePaymentAddressUseCase) requiredConfirmationsForNetwork(network value_objects.BitcoinNetwork) int32 {
+	if uc.requiredConfirmationsByNetwork == nil {
+		return defaultIssueReceiptRequiredConfirmations
+	}
+	if configured, ok := uc.requiredConfirmationsByNetwork[network]; ok && configured > 0 {
+		return configured
+	}
+	return defaultIssueReceiptRequiredConfirmations
 }

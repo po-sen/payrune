@@ -114,6 +114,25 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.completeCalls != 1 {
 		t.Fatalf("expected complete allocation call count 1, got %d", allocator.completeCalls)
 	}
+	trackingRepository, ok := txManager.receiptTrackingRepository.(*fakeAllocatePaymentReceiptTrackingRepository)
+	if !ok {
+		t.Fatal("expected fake receipt tracking repository")
+	}
+	if trackingRepository.registerCalls != 1 {
+		t.Fatalf("expected register issued allocation call count 1, got %d", trackingRepository.registerCalls)
+	}
+	if trackingRepository.lastRegisterPaymentAddressID != 44 {
+		t.Fatalf(
+			"unexpected payment address id passed to tracking register: got %d",
+			trackingRepository.lastRegisterPaymentAddressID,
+		)
+	}
+	if trackingRepository.lastRegisterConfirmations != defaultIssueReceiptRequiredConfirmations {
+		t.Fatalf(
+			"unexpected required confirmations passed to tracking register: got %d",
+			trackingRepository.lastRegisterConfirmations,
+		)
+	}
 	if allocator.lastCompleteInput.PaymentAddressID != 44 {
 		t.Fatalf("unexpected payment address id in complete input: got %d", allocator.lastCompleteInput.PaymentAddressID)
 	}
@@ -140,6 +159,63 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	}
 	if response.CustomerReference != "order-001" {
 		t.Fatalf("unexpected customer reference: got %q", response.CustomerReference)
+	}
+}
+
+func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t *testing.T) {
+	allocator := &fakePaymentAddressAllocationRepository{}
+	txManager := newFakeUnitOfWork(allocator)
+	deriver := &fakePolicyBitcoinAddressDeriver{
+		address:        "bc1qnetworkconfirmations",
+		derivationPath: "0/15",
+	}
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressPolicy{
+		newAllocationPolicy(
+			"bitcoin-mainnet-native-segwit",
+			value_objects.BitcoinNetworkMainnet,
+			value_objects.BitcoinAddressSchemeNativeSegwit,
+			"xpub-main",
+			"fingerprint-main-native-segwit",
+			"m/84'/0'/0'",
+		),
+	})
+	allocator.freshReservation = entities.PaymentAddressAllocation{
+		PaymentAddressID:    66,
+		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+		DerivationIndex:     15,
+		ExpectedAmountMinor: 25000,
+		CustomerReference:   "order-66",
+	}
+
+	useCase := NewAllocatePaymentAddressUseCase(
+		txManager,
+		deriver,
+		catalog,
+		map[value_objects.BitcoinNetwork]int32{
+			value_objects.BitcoinNetworkMainnet:  6,
+			value_objects.BitcoinNetworkTestnet4: 2,
+		},
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               value_objects.ChainBitcoin,
+		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+		ExpectedAmountMinor: 25000,
+		CustomerReference:   "order-66",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+
+	trackingRepository, ok := txManager.receiptTrackingRepository.(*fakeAllocatePaymentReceiptTrackingRepository)
+	if !ok {
+		t.Fatal("expected fake receipt tracking repository")
+	}
+	if trackingRepository.registerCalls != 1 {
+		t.Fatalf("expected register issued allocation call count 1, got %d", trackingRepository.registerCalls)
+	}
+	if trackingRepository.lastRegisterConfirmations != 6 {
+		t.Fatalf("unexpected required confirmations: got %d", trackingRepository.lastRegisterConfirmations)
 	}
 }
 
@@ -192,6 +268,19 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 	if allocator.completeCalls != 1 {
 		t.Fatalf("expected complete allocation call count 1, got %d", allocator.completeCalls)
 	}
+	trackingRepository, ok := txManager.receiptTrackingRepository.(*fakeAllocatePaymentReceiptTrackingRepository)
+	if !ok {
+		t.Fatal("expected fake receipt tracking repository")
+	}
+	if trackingRepository.registerCalls != 1 {
+		t.Fatalf("expected register issued allocation call count 1, got %d", trackingRepository.registerCalls)
+	}
+	if trackingRepository.lastRegisterPaymentAddressID != 55 {
+		t.Fatalf(
+			"unexpected payment address id passed to tracking register: got %d",
+			trackingRepository.lastRegisterPaymentAddressID,
+		)
+	}
 	if allocator.lastCompleteInput.PaymentAddressID != 55 {
 		t.Fatalf("unexpected payment address id in complete input: got %d", allocator.lastCompleteInput.PaymentAddressID)
 	}
@@ -221,8 +310,8 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 		},
 	}
 	txManager := &fakeUnitOfWork{
-		err:        expectedErr,
-		repository: allocator,
+		err:                  expectedErr,
+		allocationRepository: allocator,
 	}
 	useCase := NewAllocatePaymentAddressUseCase(
 		txManager,
@@ -240,6 +329,54 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 	}
 	if allocator.reopenCalls != 0 {
 		t.Fatalf("expected reopen not to be called when transaction manager fails, got %d", allocator.reopenCalls)
+	}
+}
+
+func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testing.T) {
+	expectedErr := errors.New("register tracking failed")
+	allocator := &fakePaymentAddressAllocationRepository{
+		freshReservation: entities.PaymentAddressAllocation{
+			PaymentAddressID:    88,
+			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+			DerivationIndex:     4,
+			ExpectedAmountMinor: 500,
+		},
+	}
+	txManager := newFakeUnitOfWork(allocator)
+	trackingRepository, ok := txManager.receiptTrackingRepository.(*fakeAllocatePaymentReceiptTrackingRepository)
+	if !ok {
+		t.Fatal("expected fake receipt tracking repository")
+	}
+	trackingRepository.registerErr = expectedErr
+	deriver := &fakePolicyBitcoinAddressDeriver{
+		address:        "bc1qtrackingerror",
+		derivationPath: "0/4",
+	}
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressPolicy{
+		newAllocationPolicy(
+			"bitcoin-mainnet-native-segwit",
+			value_objects.BitcoinNetworkMainnet,
+			value_objects.BitcoinAddressSchemeNativeSegwit,
+			"xpub-main",
+			"fingerprint-main-native-segwit",
+			"m/84'/0'/0'",
+		),
+	})
+	useCase := NewAllocatePaymentAddressUseCase(txManager, deriver, catalog)
+
+	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               value_objects.ChainBitcoin,
+		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+		ExpectedAmountMinor: 500,
+	})
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected %v, got %v", expectedErr, err)
+	}
+	if allocator.completeCalls != 1 {
+		t.Fatalf("expected complete allocation call count 1, got %d", allocator.completeCalls)
+	}
+	if trackingRepository.registerCalls != 1 {
+		t.Fatalf("expected register issued allocation call count 1, got %d", trackingRepository.registerCalls)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	outport "payrune/internal/application/ports/out"
 	"payrune/internal/domain/entities"
@@ -170,13 +171,17 @@ func (f *fakePaymentAddressAllocationRepository) MarkDerivationFailed(
 }
 
 type fakeUnitOfWork struct {
-	err        error
-	calls      int
-	repository outport.PaymentAddressAllocationRepository
+	err                       error
+	calls                     int
+	allocationRepository      outport.PaymentAddressAllocationRepository
+	receiptTrackingRepository outport.PaymentReceiptTrackingRepository
 }
 
 func newFakeUnitOfWork(repository outport.PaymentAddressAllocationRepository) *fakeUnitOfWork {
-	return &fakeUnitOfWork{repository: repository}
+	return &fakeUnitOfWork{
+		allocationRepository:      repository,
+		receiptTrackingRepository: &fakeAllocatePaymentReceiptTrackingRepository{},
+	}
 }
 
 func (f *fakeUnitOfWork) WithinTransaction(
@@ -187,10 +192,61 @@ func (f *fakeUnitOfWork) WithinTransaction(
 	if f.err != nil {
 		return f.err
 	}
-	if f.repository == nil {
+	if f.allocationRepository == nil {
 		return errors.New("payment address allocation repository is not configured")
 	}
+	if f.receiptTrackingRepository == nil {
+		return errors.New("payment receipt tracking repository is not configured")
+	}
 	return fn(outport.TxRepositories{
-		PaymentAddressAllocation: f.repository,
+		PaymentAddressAllocation: f.allocationRepository,
+		PaymentReceiptTracking:   f.receiptTrackingRepository,
 	})
+}
+
+type fakeAllocatePaymentReceiptTrackingRepository struct {
+	registerErr                  error
+	registerCalls                int
+	lastRegisterPaymentAddressID int64
+	lastRegisterConfirmations    int32
+}
+
+func (f *fakeAllocatePaymentReceiptTrackingRepository) RegisterIssuedAllocation(
+	_ context.Context,
+	paymentAddressID int64,
+	defaultRequiredConfirmations int32,
+) (bool, error) {
+	f.registerCalls++
+	f.lastRegisterPaymentAddressID = paymentAddressID
+	f.lastRegisterConfirmations = defaultRequiredConfirmations
+	if f.registerErr != nil {
+		return false, f.registerErr
+	}
+	return true, nil
+}
+
+func (f *fakeAllocatePaymentReceiptTrackingRepository) ClaimDue(
+	_ context.Context,
+	_ outport.ClaimPaymentReceiptTrackingsInput,
+) ([]entities.PaymentReceiptTracking, error) {
+	return nil, nil
+}
+
+func (f *fakeAllocatePaymentReceiptTrackingRepository) SaveObservation(
+	_ context.Context,
+	_ entities.PaymentReceiptTracking,
+	_ time.Time,
+	_ time.Time,
+) error {
+	return nil
+}
+
+func (f *fakeAllocatePaymentReceiptTrackingRepository) SavePollingError(
+	_ context.Context,
+	_ int64,
+	_ string,
+	_ time.Time,
+	_ time.Time,
+) error {
+	return nil
 }
