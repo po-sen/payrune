@@ -70,6 +70,23 @@ func (d *HDXPubAddressDeriver) DeriveAddress(
 	return address.EncodeAddress(), nil
 }
 
+func (d *HDXPubAddressDeriver) DerivationPath(xpub string, index uint32) (string, error) {
+	extendedKey, err := hdkeychain.NewKeyFromString(xpub)
+	if err != nil {
+		return "", fmt.Errorf("parse xpub: %w", err)
+	}
+
+	// Return path relative to account level (m/purpose'/coin_type'/account').
+	if extendedKey.Depth() <= 3 {
+		return fmt.Sprintf("0/%d", index), nil
+	}
+	if extendedKey.Depth() == 4 {
+		return fmt.Sprintf("%d/%d", extendedKey.ChildIndex(), index), nil
+	}
+
+	return fmt.Sprintf("%d", index), nil
+}
+
 func deriveAddressExtendedKey(
 	extendedKey *hdkeychain.ExtendedKey,
 	index uint32,

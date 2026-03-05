@@ -97,6 +97,32 @@ func TestHDXPubAddressDeriverChangeXPubUsesDirectIndex(t *testing.T) {
 	}
 }
 
+func TestHDXPubAddressDeriverDerivationPathAccountLevelXPub(t *testing.T) {
+	xpub := newAccountLevelXPub(t, &chaincfg.MainNetParams)
+	deriver := newTestDeriver()
+
+	path, err := deriver.DerivationPath(xpub, 9)
+	if err != nil {
+		t.Fatalf("DerivationPath returned error: %v", err)
+	}
+	if path != "0/9" {
+		t.Fatalf("unexpected derivation path: got %q, want %q", path, "0/9")
+	}
+}
+
+func TestHDXPubAddressDeriverDerivationPathChangeLevelXPub(t *testing.T) {
+	xpub := newChangeLevelXPub(t, &chaincfg.MainNetParams)
+	deriver := newTestDeriver()
+
+	path, err := deriver.DerivationPath(xpub, 9)
+	if err != nil {
+		t.Fatalf("DerivationPath returned error: %v", err)
+	}
+	if path != "0/9" {
+		t.Fatalf("unexpected derivation path: got %q, want %q", path, "0/9")
+	}
+}
+
 func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 	tests := []struct {
 		name       string

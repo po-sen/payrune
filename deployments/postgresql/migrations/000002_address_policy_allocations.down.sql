@@ -1,0 +1,5 @@
+DROP INDEX IF EXISTS idx_address_policy_allocations_customer_reference;
+DROP INDEX IF EXISTS idx_address_policy_allocations_policy_fp_reserved_at;
+DROP INDEX IF EXISTS idx_address_policy_allocations_chain_address;
+DROP TABLE IF EXISTS address_policy_allocations;
+DROP TABLE IF EXISTS address_policy_cursors;

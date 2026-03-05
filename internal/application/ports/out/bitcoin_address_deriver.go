@@ -9,4 +9,5 @@ type BitcoinAddressDeriver interface {
 		xpub string,
 		index uint32,
 	) (string, error)
+	DerivationPath(xpub string, index uint32) (string, error)
 }

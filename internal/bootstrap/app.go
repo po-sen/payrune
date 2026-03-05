@@ -11,7 +11,14 @@ import (
 )
 
 func Run(ctx context.Context, addr string) error {
-	container := di.NewContainer()
+	container, err := di.NewContainer()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = container.Close()
+	}()
+
 	mux := http.NewServeMux()
 	container.HealthController.RegisterRoutes(mux)
 	container.ChainAddressController.RegisterRoutes(mux)
@@ -30,7 +37,7 @@ func Run(ctx context.Context, addr string) error {
 		_ = httpServer.Shutdown(shutdownCtx)
 	}()
 
-	err := httpServer.ListenAndServe()
+	err = httpServer.ListenAndServe()
 	if errors.Is(err, http.ErrServerClosed) {
 		return nil
 	}

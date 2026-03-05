@@ -12,6 +12,8 @@ var (
 	ErrChainNotSupported       = errors.New("chain is not supported")
 	ErrAddressPolicyNotFound   = errors.New("address policy is not supported")
 	ErrAddressPolicyNotEnabled = errors.New("address policy is not enabled")
+	ErrAddressPoolExhausted    = errors.New("address pool is exhausted")
+	ErrInvalidExpectedAmount   = errors.New("expected amount is invalid")
 )
 
 type ListAddressPoliciesUseCase interface {
@@ -20,4 +22,11 @@ type ListAddressPoliciesUseCase interface {
 
 type GenerateAddressUseCase interface {
 	Execute(ctx context.Context, input dto.GenerateAddressInput) (dto.GenerateAddressResponse, error)
+}
+
+type AllocatePaymentAddressUseCase interface {
+	Execute(
+		ctx context.Context,
+		input dto.AllocatePaymentAddressInput,
+	) (dto.AllocatePaymentAddressResponse, error)
 }

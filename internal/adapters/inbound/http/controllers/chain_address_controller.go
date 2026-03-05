@@ -1,7 +1,9 @@
 package controllers
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,17 +16,20 @@ import (
 const maxNonHardenedIndex = uint64(0x7fffffff)
 
 type ChainAddressController struct {
-	listAddressPolicies inport.ListAddressPoliciesUseCase
-	generateAddress     inport.GenerateAddressUseCase
+	listAddressPolicies    inport.ListAddressPoliciesUseCase
+	generateAddress        inport.GenerateAddressUseCase
+	allocatePaymentAddress inport.AllocatePaymentAddressUseCase
 }
 
 func NewChainAddressController(
 	listAddressPolicies inport.ListAddressPoliciesUseCase,
 	generateAddress inport.GenerateAddressUseCase,
+	allocatePaymentAddress inport.AllocatePaymentAddressUseCase,
 ) *ChainAddressController {
 	return &ChainAddressController{
-		listAddressPolicies: listAddressPolicies,
-		generateAddress:     generateAddress,
+		listAddressPolicies:    listAddressPolicies,
+		generateAddress:        generateAddress,
+		allocatePaymentAddress: allocatePaymentAddress,
 	}
 }
 
@@ -49,6 +54,8 @@ func (c *ChainAddressController) handleChainsV1(w http.ResponseWriter, r *http.R
 		c.handleListAddressPolicies(w, r, chain)
 	case "addresses":
 		c.handleGenerateAddress(w, r, chain)
+	case "payment-addresses":
+		c.handleAllocatePaymentAddress(w, r, chain)
 	default:
 		http.NotFound(w, r)
 	}
@@ -76,6 +83,72 @@ func (c *ChainAddressController) handleListAddressPolicies(
 	}
 
 	writeJSON(w, http.StatusOK, response)
+}
+
+type allocatePaymentAddressRequest struct {
+	AddressPolicyID     string `json:"addressPolicyId"`
+	ExpectedAmountMinor *int64 `json:"expectedAmountMinor"`
+	CustomerReference   string `json:"customerReference,omitempty"`
+}
+
+func (c *ChainAddressController) handleAllocatePaymentAddress(
+	w http.ResponseWriter,
+	r *http.Request,
+	chain value_objects.Chain,
+) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		writeJSON(w, http.StatusMethodNotAllowed, dto.ErrorResponse{Error: "method not allowed"})
+		return
+	}
+
+	var request allocatePaymentAddressRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request body"})
+		return
+	}
+
+	addressPolicyID := strings.TrimSpace(request.AddressPolicyID)
+	if addressPolicyID == "" {
+		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "addressPolicyId is required"})
+		return
+	}
+	if request.ExpectedAmountMinor == nil {
+		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "expectedAmountMinor is required"})
+		return
+	}
+
+	response, err := c.allocatePaymentAddress.Execute(r.Context(), dto.AllocatePaymentAddressInput{
+		Chain:               chain,
+		AddressPolicyID:     addressPolicyID,
+		ExpectedAmountMinor: *request.ExpectedAmountMinor,
+		CustomerReference:   strings.TrimSpace(request.CustomerReference),
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, inport.ErrChainNotSupported):
+			writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: err.Error()})
+		case errors.Is(err, inport.ErrAddressPolicyNotFound):
+			writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		case errors.Is(err, inport.ErrAddressPolicyNotEnabled):
+			writeJSON(w, http.StatusNotImplemented, dto.ErrorResponse{Error: err.Error()})
+		case errors.Is(err, inport.ErrAddressPoolExhausted):
+			writeJSON(w, http.StatusConflict, dto.ErrorResponse{Error: err.Error()})
+		case errors.Is(err, inport.ErrInvalidExpectedAmount):
+			writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		default:
+			writeJSON(w, http.StatusInternalServerError, dto.ErrorResponse{Error: "internal server error"})
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, response)
 }
 
 func (c *ChainAddressController) handleGenerateAddress(

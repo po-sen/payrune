@@ -33,3 +33,23 @@ type GenerateAddressResponse struct {
 	Index           uint32 `json:"index"`
 	Address         string `json:"address"`
 }
+
+type AllocatePaymentAddressInput struct {
+	Chain               value_objects.Chain
+	AddressPolicyID     string
+	ExpectedAmountMinor int64
+	CustomerReference   string
+}
+
+type AllocatePaymentAddressResponse struct {
+	PaymentAddressID    string `json:"paymentAddressId"`
+	AddressPolicyID     string `json:"addressPolicyId"`
+	ExpectedAmountMinor int64  `json:"expectedAmountMinor"`
+	Chain               string `json:"chain"`
+	Network             string `json:"network"`
+	Scheme              string `json:"scheme"`
+	MinorUnit           string `json:"minorUnit"`
+	Decimals            uint8  `json:"decimals"`
+	Address             string `json:"address"`
+	CustomerReference   string `json:"customerReference,omitempty"`
+}
