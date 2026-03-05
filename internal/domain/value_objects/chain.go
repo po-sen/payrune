@@ -1,7 +1,5 @@
 package value_objects
 
-import "strings"
-
 type Chain string
 
 const (
@@ -9,8 +7,13 @@ const (
 )
 
 func ParseChain(raw string) (Chain, bool) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case string(ChainBitcoin):
+	chainID, ok := ParseChainID(raw)
+	if !ok {
+		return "", false
+	}
+
+	switch chainID {
+	case ChainIDBitcoin:
 		return ChainBitcoin, true
 	default:
 		return "", false

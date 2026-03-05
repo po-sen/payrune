@@ -1,0 +1,143 @@
+package blockchain
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	outport "payrune/internal/application/ports/out"
+	"payrune/internal/domain/value_objects"
+)
+
+type fakeChainObserver struct {
+	output    outport.ObservePaymentAddressOutput
+	err       error
+	lastInput outport.ObservePaymentAddressInput
+	calls     int
+}
+
+func (f *fakeChainObserver) ObserveAddress(
+	_ context.Context,
+	input outport.ObservePaymentAddressInput,
+) (outport.ObservePaymentAddressOutput, error) {
+	f.calls++
+	f.lastInput = input
+	if f.err != nil {
+		return outport.ObservePaymentAddressOutput{}, f.err
+	}
+	return f.output, nil
+}
+
+func TestNewChainRouterReceiptObserverValidation(t *testing.T) {
+	_, err := NewChainRouterReceiptObserver(nil)
+	if err == nil {
+		t.Fatal("expected error for empty observer map")
+	}
+
+	_, err = NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+		value_objects.ChainIDBitcoin: nil,
+	})
+	if err == nil {
+		t.Fatal("expected error for nil observer")
+	}
+
+	_, err = NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+		value_objects.ChainID("eth/mainnet"): &fakeChainObserver{},
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid chain key")
+	}
+}
+
+func TestChainRouterReceiptObserverObserveAddress(t *testing.T) {
+	bitcoinObserver := &fakeChainObserver{
+		output: outport.ObservePaymentAddressOutput{
+			ObservedTotalMinor: 123,
+		},
+	}
+	router, err := NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+		value_objects.ChainIDBitcoin: bitcoinObserver,
+	})
+	if err != nil {
+		t.Fatalf("setup router: %v", err)
+	}
+
+	output, err := router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
+		Chain:                 value_objects.ChainID("BitCoin"),
+		Network:               value_objects.NetworkID("testnet4"),
+		Address:               "tb1qexample",
+		RequiredConfirmations: 1,
+	})
+	if err != nil {
+		t.Fatalf("ObserveAddress returned error: %v", err)
+	}
+	if output.ObservedTotalMinor != 123 {
+		t.Fatalf("unexpected observed total: got %d", output.ObservedTotalMinor)
+	}
+	if bitcoinObserver.calls != 1 {
+		t.Fatalf("unexpected observer calls: got %d", bitcoinObserver.calls)
+	}
+	if bitcoinObserver.lastInput.Network != value_objects.NetworkID("testnet4") {
+		t.Fatalf("unexpected normalized network: got %q", bitcoinObserver.lastInput.Network)
+	}
+}
+
+func TestChainRouterReceiptObserverObserveAddressValidation(t *testing.T) {
+	bitcoinObserver := &fakeChainObserver{}
+	router, err := NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+		value_objects.ChainIDBitcoin: bitcoinObserver,
+	})
+	if err != nil {
+		t.Fatalf("setup router: %v", err)
+	}
+
+	_, err = router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
+		Chain:                 value_objects.ChainID("eth/mainnet"),
+		Network:               value_objects.NetworkID("testnet4"),
+		Address:               "tb1qexample",
+		RequiredConfirmations: 1,
+	})
+	if err == nil {
+		t.Fatal("expected invalid chain error")
+	}
+
+	_, err = router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
+		Chain:                 value_objects.ChainIDBitcoin,
+		Network:               value_objects.NetworkID("main/net"),
+		Address:               "tb1qexample",
+		RequiredConfirmations: 1,
+	})
+	if err == nil {
+		t.Fatal("expected invalid network error")
+	}
+
+	_, err = router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
+		Chain:                 value_objects.ChainID("ethereum"),
+		Network:               value_objects.NetworkID("mainnet"),
+		Address:               "0x123",
+		RequiredConfirmations: 1,
+	})
+	if err == nil {
+		t.Fatal("expected missing observer error")
+	}
+}
+
+func TestChainRouterReceiptObserverObserveAddressPassThroughError(t *testing.T) {
+	bitcoinObserver := &fakeChainObserver{err: errors.New("boom")}
+	router, err := NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+		value_objects.ChainIDBitcoin: bitcoinObserver,
+	})
+	if err != nil {
+		t.Fatalf("setup router: %v", err)
+	}
+
+	_, err = router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
+		Chain:                 value_objects.ChainIDBitcoin,
+		Network:               value_objects.NetworkID("mainnet"),
+		Address:               "bc1qexample",
+		RequiredConfirmations: 1,
+	})
+	if err == nil {
+		t.Fatal("expected downstream observer error")
+	}
+}

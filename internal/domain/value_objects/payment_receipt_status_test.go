@@ -1,0 +1,67 @@
+package value_objects
+
+import "testing"
+
+func TestParsePaymentReceiptStatus(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		want   PaymentReceiptStatus
+		wantOK bool
+	}{
+		{
+			name:   "watching",
+			input:  "watching",
+			want:   PaymentReceiptStatusWatching,
+			wantOK: true,
+		},
+		{
+			name:   "partially paid",
+			input:  "partially_paid",
+			want:   PaymentReceiptStatusPartiallyPaid,
+			wantOK: true,
+		},
+		{
+			name:   "paid unconfirmed",
+			input:  "paid_unconfirmed",
+			want:   PaymentReceiptStatusPaidUnconfirmed,
+			wantOK: true,
+		},
+		{
+			name:   "paid confirmed",
+			input:  "paid_confirmed",
+			want:   PaymentReceiptStatusPaidConfirmed,
+			wantOK: true,
+		},
+		{
+			name:   "double spend suspected",
+			input:  "double_spend_suspected",
+			want:   PaymentReceiptStatusDoubleSpendSuspected,
+			wantOK: true,
+		},
+		{
+			name:   "mixed case",
+			input:  "  Paid_Confirmed ",
+			want:   PaymentReceiptStatusPaidConfirmed,
+			wantOK: true,
+		},
+		{
+			name:   "unknown",
+			input:  "settled",
+			want:   "",
+			wantOK: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := ParsePaymentReceiptStatus(tc.input)
+			if ok != tc.wantOK {
+				t.Fatalf("unexpected ok: got %v, want %v", ok, tc.wantOK)
+			}
+			if got != tc.want {
+				t.Fatalf("unexpected status: got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

@@ -15,11 +15,6 @@ const maxNonHardenedIndex int64 = 0x7fffffff
 
 var errAllocationNotReserved = errors.New("address allocation is not reserved")
 
-type Executor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
 type PaymentAddressAllocationRepository struct {
 	executor Executor
 }

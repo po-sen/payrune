@@ -4,6 +4,7 @@ import "context"
 
 type TxRepositories struct {
 	PaymentAddressAllocation PaymentAddressAllocationRepository
+	PaymentReceiptTracking   PaymentReceiptTrackingRepository
 }
 
 type UnitOfWork interface {
