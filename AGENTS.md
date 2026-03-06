@@ -22,6 +22,111 @@
 - Pre-commit validation command:
   - `bash scripts/precommit-run.sh`
 
+## Repo-Specific Agent Guidance
+
+This section is written for the coding agent. Treat it as the repo-specific override layer for the
+generic skill snapshots below.
+
+### Precedence
+
+- Use this section to narrow and interpret the generic skills below for this repository.
+- Unless a statement here is explicitly wrong, preserve its meaning when rewriting or extending it.
+- When a generic skill and this section differ, follow this section for repo-local decisions.
+
+### What this repo optimizes for
+
+- Clear responsibility boundaries over abstract purity.
+- Small, explicit Go services over reusable-looking frameworks.
+- Concrete names over premature generalization.
+- Specs as the source of truth for feature work.
+- Code that is easy to review and reason about without long explanation.
+
+### Architecture boundaries
+
+#### `internal/domain`
+
+- Own business rules, invariants, state transitions, validation of domain concepts, and business
+  errors.
+- Must stay independent from SQL, HTTP, RPC, env parsing, framework types, and transport details.
+- If a rule decides what is valid, payable, expired, retryable, or transitionable, it probably
+  belongs here.
+
+#### `internal/application`
+
+- Own use-case orchestration only.
+- Coordinate transaction boundaries, invoke domain behavior, call outbound ports, and return DTOs.
+- May compose multiple steps, but should not become the home for business policy.
+- If a use case grows many private helpers or computes state transitions directly, review whether
+  domain logic is leaking upward.
+
+#### `internal/adapters`
+
+- Inbound adapters parse and validate transport input, map to commands/DTOs, call application
+  ports, and map outputs/errors back to the transport.
+- Outbound adapters implement outbound ports and translate core needs into SQL, HTTP, RPC, files,
+  or other IO.
+- Adapters may do technical validation and protocol mapping, but must not decide business outcomes.
+
+#### `internal/infrastructure/di`, `internal/bootstrap`, `cmd/`
+
+- Own dependency wiring, env parsing, process startup, schedulers, and concrete client
+  construction.
+- Keep them procedural and thin.
+- Do not move policy or business branching into bootstrap code just because it is convenient.
+
+### Port design
+
+- Shape outbound ports around what the application needs, not around vendor SDKs or transport APIs.
+- Keep ports small and use-case-focused.
+- Separate write-side persistence from read/query concerns when that improves clarity.
+- If something is really a delivery pipeline, queue state, or technical process state, the port name
+  should reflect that instead of pretending to be a classic aggregate repository.
+
+### Modeling rules
+
+- Use an `Entity` only when the concept has identity, lifecycle, and meaningful business behavior.
+- If something mostly mirrors a row, queue item, or delivery state and the rules live elsewhere, do
+  not force it into a domain entity.
+- Use `Value Object` for small validated concepts defined by value rather than identity.
+- Do not create generic abstractions for concepts that only have one real implementation today.
+
+### Persistence naming and transactions
+
+- Use `Repository` when the main job is loading and saving aggregate-like domain objects.
+- Use `Store` for technical or process persistence that is not really an aggregate collection.
+- Use `Outbox` when the data exists specifically for reliable asynchronous delivery.
+- Use `UnitOfWork` to define one transaction boundary across multiple repositories or stores.
+- Reusing a shared SQL executor is acceptable when it keeps transaction boundaries clean.
+- Repository/store code may enforce persistence invariants, but must not silently own business
+  policy.
+
+### Naming and abstraction rules
+
+- Prefer names that describe what the code is today, not what it might support later.
+- Prefer explicit chain-specific code over premature multi-chain abstractions.
+- Prefer explicit network-specific config over prefix-driven indirection when readability improves.
+- Do not introduce routers, registries, or polymorphic wrappers unless there is a real second
+  implementation that benefits from them now.
+- If a type or function needs a long explanation, assume the model is not clear enough yet.
+
+### Operational preferences
+
+- Prefer domain behavior over large use-case helper chains.
+- Prefer bounded due queries over full-table polling scans.
+- Prefer Compose-native required env handling over shell-entrypoint validation hacks.
+- Prefer committed local test env files for fake non-secret values.
+
+### Review triggers
+
+Stop and reconsider if any of these are true:
+
+- A repository or adapter is deciding business outcomes.
+- A use case is calculating state transitions that should live in domain.
+- A table-shaped record is being modeled as an entity without domain behavior.
+- A generic abstraction exists only for a hypothetical future chain or provider.
+- Config becomes harder to read because of prefixes, indirection, or hidden defaults.
+- The user says the design feels too abstract or too hard to understand.
+
 ## Embedded Skills (Frozen Snapshot)
 
 The following skill definitions are copied into this project so future work does not depend on an external skill registry.
