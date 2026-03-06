@@ -35,6 +35,7 @@ func (r stubSQLResult) RowsAffected() (int64, error) {
 type stubNotificationExecutor struct {
 	execResult sql.Result
 	execErr    error
+	queryErr   error
 	lastQuery  string
 	lastArgs   []any
 }
@@ -52,6 +53,9 @@ func (s *stubNotificationExecutor) ExecContext(_ context.Context, query string, 
 }
 
 func (s *stubNotificationExecutor) QueryContext(context.Context, string, ...any) (*sql.Rows, error) {
+	if s.queryErr != nil {
+		return nil, s.queryErr
+	}
 	panic("unexpected QueryContext call")
 }
 
@@ -195,5 +199,110 @@ func TestPaymentReceiptStatusNotificationRepositoryEnqueueStatusChangedExecError
 	})
 	if err == nil {
 		t.Fatal("expected exec error")
+	}
+}
+
+func TestPaymentReceiptStatusNotificationRepositoryClaimPendingValidation(t *testing.T) {
+	repository := NewPaymentReceiptStatusNotificationRepository(&stubNotificationExecutor{})
+
+	_, err := repository.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
+		Now:        time.Time{},
+		Limit:      1,
+		ClaimUntil: time.Now().UTC(),
+	})
+	if err == nil {
+		t.Fatal("expected missing now error")
+	}
+
+	_, err = repository.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
+		Now:        time.Now().UTC(),
+		Limit:      0,
+		ClaimUntil: time.Now().UTC(),
+	})
+	if err == nil {
+		t.Fatal("expected invalid limit error")
+	}
+}
+
+func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T) {
+	now := time.Date(2026, 3, 6, 16, 0, 0, 0, time.UTC)
+	deliveredAt := now.Add(2 * time.Minute)
+
+	notification, err := scanPaymentReceiptStatusNotification(stubScanner{
+		values: []any{
+			int64(1),
+			int64(11),
+			"order-1",
+			"watching",
+			"paid_confirmed",
+			int64(1000),
+			int64(1000),
+			int64(0),
+			int64(0),
+			now,
+			"sent",
+			int32(2),
+			now.Add(5 * time.Minute),
+			"",
+			sql.NullTime{Valid: true, Time: deliveredAt},
+		},
+	})
+	if err != nil {
+		t.Fatalf("scanPaymentReceiptStatusNotification returned error: %v", err)
+	}
+	if notification.DeliveryStatus != value_objects.PaymentReceiptNotificationDeliveryStatusSent {
+		t.Fatalf("unexpected delivery status: got %q", notification.DeliveryStatus)
+	}
+	if notification.DeliveredAt == nil || !notification.DeliveredAt.Equal(deliveredAt) {
+		t.Fatalf("unexpected delivered at: got %+v", notification.DeliveredAt)
+	}
+}
+
+func TestPaymentReceiptStatusNotificationRepositoryMarkSentValidation(t *testing.T) {
+	repository := NewPaymentReceiptStatusNotificationRepository(&stubNotificationExecutor{})
+
+	err := repository.MarkSent(context.Background(), 0, time.Now().UTC())
+	if err == nil {
+		t.Fatal("expected invalid id error")
+	}
+}
+
+func TestPaymentReceiptStatusNotificationRepositoryMarkRetryScheduledSuccess(t *testing.T) {
+	executor := &stubNotificationExecutor{
+		execResult: stubSQLResult{rowsAffected: 1},
+	}
+	repository := NewPaymentReceiptStatusNotificationRepository(executor)
+	nextAttemptAt := time.Date(2026, 3, 6, 17, 0, 0, 0, time.UTC)
+
+	err := repository.MarkRetryScheduled(context.Background(), outport.MarkPaymentReceiptStatusNotificationRetryInput{
+		NotificationID: 99,
+		Attempts:       2,
+		LastError:      "timeout",
+		NextAttemptAt:  nextAttemptAt,
+	})
+	if err != nil {
+		t.Fatalf("MarkRetryScheduled returned error: %v", err)
+	}
+	if !strings.Contains(executor.lastQuery, "delivery_status = 'pending'") {
+		t.Fatalf("unexpected query: %s", executor.lastQuery)
+	}
+}
+
+func TestPaymentReceiptStatusNotificationRepositoryMarkFailedSuccess(t *testing.T) {
+	executor := &stubNotificationExecutor{
+		execResult: stubSQLResult{rowsAffected: 1},
+	}
+	repository := NewPaymentReceiptStatusNotificationRepository(executor)
+
+	err := repository.MarkFailed(context.Background(), outport.MarkPaymentReceiptStatusNotificationFailureInput{
+		NotificationID: 99,
+		Attempts:       3,
+		LastError:      "webhook returned status 500",
+	})
+	if err != nil {
+		t.Fatalf("MarkFailed returned error: %v", err)
+	}
+	if !strings.Contains(executor.lastQuery, "delivery_status = 'failed'") {
+		t.Fatalf("unexpected query: %s", executor.lastQuery)
 	}
 }

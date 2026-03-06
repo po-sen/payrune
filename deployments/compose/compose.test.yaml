@@ -1,0 +1,11 @@
+services:
+  receipt-webhook-dispatcher:
+    depends_on:
+      receipt-webhook-mock:
+        condition: service_started
+
+  receipt-webhook-mock:
+    build:
+      context: ../..
+      dockerfile: build/fake-webhook-receiver/Dockerfile
+    restart: unless-stopped

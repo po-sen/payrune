@@ -42,6 +42,25 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+  receipt-webhook-dispatcher:
+    build:
+      context: ../..
+      dockerfile: build/webhook-dispatcher/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable}
+      RECEIPT_WEBHOOK_DISPATCH_INTERVAL: ${RECEIPT_WEBHOOK_DISPATCH_INTERVAL:-15s}
+      RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE: ${RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE:-50}
+      RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL: ${RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL:-30s}
+      RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS: ${RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS:-10}
+      RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY: ${RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY:-1m}
+      PAYMENT_RECEIPT_WEBHOOK_URL: ${PAYMENT_RECEIPT_WEBHOOK_URL:?PAYMENT_RECEIPT_WEBHOOK_URL is required}
+      PAYMENT_RECEIPT_WEBHOOK_SECRET: ${PAYMENT_RECEIPT_WEBHOOK_SECRET:?PAYMENT_RECEIPT_WEBHOOK_SECRET is required}
+      PAYMENT_RECEIPT_WEBHOOK_TIMEOUT: ${PAYMENT_RECEIPT_WEBHOOK_TIMEOUT:-10s}
+      PAYMENT_RECEIPT_WEBHOOK_INSECURE_SKIP_VERIFY: ${PAYMENT_RECEIPT_WEBHOOK_INSECURE_SKIP_VERIFY:-false}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
   swagger:
     image: swaggerapi/swagger-ui:latest
     ports:

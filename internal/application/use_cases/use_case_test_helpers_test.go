@@ -265,3 +265,32 @@ func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) EnqueueStatusCh
 ) error {
 	return nil
 }
+
+func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) ClaimPending(
+	_ context.Context,
+	_ outport.ClaimPaymentReceiptStatusNotificationsInput,
+) ([]entities.PaymentReceiptStatusNotification, error) {
+	return nil, nil
+}
+
+func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) MarkSent(
+	_ context.Context,
+	_ int64,
+	_ time.Time,
+) error {
+	return nil
+}
+
+func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) MarkRetryScheduled(
+	_ context.Context,
+	_ outport.MarkPaymentReceiptStatusNotificationRetryInput,
+) error {
+	return nil
+}
+
+func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) MarkFailed(
+	_ context.Context,
+	_ outport.MarkPaymentReceiptStatusNotificationFailureInput,
+) error {
+	return nil
+}

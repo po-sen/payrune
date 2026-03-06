@@ -97,6 +97,35 @@ func (f *fakePaymentReceiptStatusNotificationRepository) EnqueueStatusChanged(
 	return f.enqueueErr
 }
 
+func (f *fakePaymentReceiptStatusNotificationRepository) ClaimPending(
+	_ context.Context,
+	_ outport.ClaimPaymentReceiptStatusNotificationsInput,
+) ([]entities.PaymentReceiptStatusNotification, error) {
+	return nil, nil
+}
+
+func (f *fakePaymentReceiptStatusNotificationRepository) MarkSent(
+	_ context.Context,
+	_ int64,
+	_ time.Time,
+) error {
+	return nil
+}
+
+func (f *fakePaymentReceiptStatusNotificationRepository) MarkRetryScheduled(
+	_ context.Context,
+	_ outport.MarkPaymentReceiptStatusNotificationRetryInput,
+) error {
+	return nil
+}
+
+func (f *fakePaymentReceiptStatusNotificationRepository) MarkFailed(
+	_ context.Context,
+	_ outport.MarkPaymentReceiptStatusNotificationFailureInput,
+) error {
+	return nil
+}
+
 type fakeBlockchainReceiptObserver struct {
 	outputsByAddress map[string]outport.ObservePaymentAddressOutput
 	errorsByAddress  map[string]error
