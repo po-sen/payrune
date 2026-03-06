@@ -2,6 +2,7 @@ package di
 
 import (
 	"testing"
+	"time"
 
 	"payrune/internal/domain/value_objects"
 )
@@ -57,5 +58,59 @@ func TestLoadBitcoinRequiredConfirmationsFromEnvNonPositive(t *testing.T) {
 	_, err := loadBitcoinRequiredConfirmationsFromEnv()
 	if err == nil {
 		t.Fatal("expected validation error for non-positive confirmations")
+	}
+}
+
+func TestLoadBitcoinReceiptExpiresAfterByNetworkFromEnvDefaults(t *testing.T) {
+	t.Setenv(envBitcoinMainnetReceiptExpiresAfter, "")
+	t.Setenv(envBitcoinTestnet4ReceiptExpiresAfter, "")
+
+	config, err := loadBitcoinReceiptExpiresAfterByNetworkFromEnv()
+	if err != nil {
+		t.Fatalf("loadBitcoinReceiptExpiresAfterByNetworkFromEnv returned error: %v", err)
+	}
+
+	if got := config[value_objects.BitcoinNetworkMainnet]; got != defaultBitcoinReceiptExpiresAfter {
+		t.Fatalf("unexpected mainnet receipt expires after: got %s", got)
+	}
+	if got := config[value_objects.BitcoinNetworkTestnet4]; got != defaultBitcoinReceiptExpiresAfter {
+		t.Fatalf("unexpected testnet4 receipt expires after: got %s", got)
+	}
+}
+
+func TestLoadBitcoinReceiptExpiresAfterByNetworkFromEnvCustom(t *testing.T) {
+	t.Setenv(envBitcoinMainnetReceiptExpiresAfter, "240h")
+	t.Setenv(envBitcoinTestnet4ReceiptExpiresAfter, "36h")
+
+	config, err := loadBitcoinReceiptExpiresAfterByNetworkFromEnv()
+	if err != nil {
+		t.Fatalf("loadBitcoinReceiptExpiresAfterByNetworkFromEnv returned error: %v", err)
+	}
+
+	if got := config[value_objects.BitcoinNetworkMainnet]; got != 240*time.Hour {
+		t.Fatalf("unexpected mainnet receipt expires after: got %s", got)
+	}
+	if got := config[value_objects.BitcoinNetworkTestnet4]; got != 36*time.Hour {
+		t.Fatalf("unexpected testnet4 receipt expires after: got %s", got)
+	}
+}
+
+func TestLoadBitcoinReceiptExpiresAfterByNetworkFromEnvInvalid(t *testing.T) {
+	t.Setenv(envBitcoinMainnetReceiptExpiresAfter, "abc")
+	t.Setenv(envBitcoinTestnet4ReceiptExpiresAfter, "36h")
+
+	_, err := loadBitcoinReceiptExpiresAfterByNetworkFromEnv()
+	if err == nil {
+		t.Fatal("expected parse error for mainnet receipt expires after")
+	}
+}
+
+func TestLoadBitcoinReceiptExpiresAfterByNetworkFromEnvNonPositive(t *testing.T) {
+	t.Setenv(envBitcoinMainnetReceiptExpiresAfter, "0s")
+	t.Setenv(envBitcoinTestnet4ReceiptExpiresAfter, "36h")
+
+	_, err := loadBitcoinReceiptExpiresAfterByNetworkFromEnv()
+	if err == nil {
+		t.Fatal("expected validation error for non-positive receipt expires after")
 	}
 }

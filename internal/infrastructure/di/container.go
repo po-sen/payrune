@@ -24,7 +24,10 @@ import (
 const (
 	envBitcoinMainnetRequiredConfirmations  = "BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS"
 	envBitcoinTestnet4RequiredConfirmations = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
+	envBitcoinMainnetReceiptExpiresAfter    = "BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER"
+	envBitcoinTestnet4ReceiptExpiresAfter   = "BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER"
 	defaultBitcoinRequiredConfirmations     = int32(1)
+	defaultBitcoinReceiptExpiresAfter       = 7 * 24 * time.Hour
 )
 
 type Container struct {
@@ -55,6 +58,11 @@ func NewContainer() (*Container, error) {
 	healthUseCase := use_cases.NewCheckHealthUseCase(clock)
 	healthController := httpcontroller.NewHealthController(healthUseCase)
 	requiredConfirmationsByNetwork, err := loadBitcoinRequiredConfirmationsFromEnv()
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	receiptExpiresAfterByNetwork, err := loadBitcoinReceiptExpiresAfterByNetworkFromEnv()
 	if err != nil {
 		_ = db.Close()
 		return nil, err
@@ -151,11 +159,14 @@ func NewContainer() (*Container, error) {
 	listAddressPoliciesUseCase := use_cases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	generateAddressUseCase := use_cases.NewGenerateAddressUseCase(bitcoinDeriver, addressPolicyReader)
 	unitOfWork := postgresadapter.NewUnitOfWork(db, postgresadapter.NewTxRepositories)
-	allocatePaymentAddressUseCase := use_cases.NewAllocatePaymentAddressUseCase(
+	allocatePaymentAddressUseCase := use_cases.NewAllocatePaymentAddressUseCaseWithConfig(
 		unitOfWork,
 		bitcoinDeriver,
 		addressPolicyReader,
-		requiredConfirmationsByNetwork,
+		use_cases.AllocatePaymentAddressUseCaseConfig{
+			RequiredConfirmationsByNetwork: requiredConfirmationsByNetwork,
+			ReceiptExpiresAfterByNetwork:   receiptExpiresAfterByNetwork,
+		},
 	)
 	chainAddressController := httpcontroller.NewChainAddressController(
 		listAddressPoliciesUseCase,
@@ -199,6 +210,28 @@ func loadBitcoinRequiredConfirmationsFromEnv() (map[value_objects.BitcoinNetwork
 	}, nil
 }
 
+func loadBitcoinReceiptExpiresAfterByNetworkFromEnv() (map[value_objects.BitcoinNetwork]time.Duration, error) {
+	mainnetExpiresAfter, err := parsePositiveDurationEnvWithDefault(
+		envBitcoinMainnetReceiptExpiresAfter,
+		defaultBitcoinReceiptExpiresAfter,
+	)
+	if err != nil {
+		return nil, err
+	}
+	testnet4ExpiresAfter, err := parsePositiveDurationEnvWithDefault(
+		envBitcoinTestnet4ReceiptExpiresAfter,
+		defaultBitcoinReceiptExpiresAfter,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[value_objects.BitcoinNetwork]time.Duration{
+		value_objects.BitcoinNetworkMainnet:  mainnetExpiresAfter,
+		value_objects.BitcoinNetworkTestnet4: testnet4ExpiresAfter,
+	}, nil
+}
+
 func parsePositiveInt32EnvWithDefault(key string, fallback int32) (int32, error) {
 	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
@@ -213,4 +246,20 @@ func parsePositiveInt32EnvWithDefault(key string, fallback int32) (int32, error)
 		return 0, fmt.Errorf("%s must be greater than zero", key)
 	}
 	return int32(parsed), nil
+}
+
+func parsePositiveDurationEnvWithDefault(key string, fallback time.Duration) (time.Duration, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback, nil
+	}
+
+	parsed, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be a valid duration: %w", key, err)
+	}
+	if parsed <= 0 {
+		return 0, fmt.Errorf("%s must be greater than zero", key)
+	}
+	return parsed, nil
 }

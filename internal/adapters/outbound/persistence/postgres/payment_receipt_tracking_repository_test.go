@@ -70,7 +70,8 @@ func TestScanPaymentReceiptTrackingSupportsGenericChainNetwork(t *testing.T) {
 			sql.NullTime{Valid: true, Time: now},
 			sql.NullTime{}, // paid_at
 			sql.NullTime{}, // confirmed_at
-			"",             // last_error
+			sql.NullTime{Valid: true, Time: now.Add(24 * time.Hour)},
+			"", // last_error
 		},
 	})
 	if err != nil {
@@ -88,6 +89,9 @@ func TestScanPaymentReceiptTrackingSupportsGenericChainNetwork(t *testing.T) {
 	}
 	if tracking.IssuedAt.IsZero() || !tracking.IssuedAt.Equal(now) {
 		t.Fatalf("unexpected issued at: got %s", tracking.IssuedAt)
+	}
+	if tracking.ExpiresAt == nil || !tracking.ExpiresAt.Equal(now.Add(24*time.Hour)) {
+		t.Fatalf("unexpected expires at: got %+v", tracking.ExpiresAt)
 	}
 }
 
@@ -109,6 +113,7 @@ func TestScanPaymentReceiptTrackingRejectsInvalidNetwork(t *testing.T) {
 			int64(0),
 			int64(0),
 			int64(0),
+			sql.NullTime{},
 			sql.NullTime{},
 			sql.NullTime{},
 			sql.NullTime{},

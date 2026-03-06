@@ -209,16 +209,19 @@ type fakeAllocatePaymentReceiptTrackingRepository struct {
 	registerCalls                int
 	lastRegisterPaymentAddressID int64
 	lastRegisterConfirmations    int32
+	lastRegisterExpiresAt        time.Time
 }
 
 func (f *fakeAllocatePaymentReceiptTrackingRepository) RegisterIssuedAllocation(
 	_ context.Context,
 	paymentAddressID int64,
 	defaultRequiredConfirmations int32,
+	expiresAt time.Time,
 ) (bool, error) {
 	f.registerCalls++
 	f.lastRegisterPaymentAddressID = paymentAddressID
 	f.lastRegisterConfirmations = defaultRequiredConfirmations
+	f.lastRegisterExpiresAt = expiresAt
 	if f.registerErr != nil {
 		return false, f.registerErr
 	}

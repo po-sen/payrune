@@ -20,6 +20,7 @@ type PaymentReceiptTrackingRepository interface {
 		ctx context.Context,
 		paymentAddressID int64,
 		defaultRequiredConfirmations int32,
+		expiresAt time.Time,
 	) (bool, error)
 	ClaimDue(
 		ctx context.Context,

@@ -10,6 +10,7 @@ const (
 	PaymentReceiptStatusPaidUnconfirmed      PaymentReceiptStatus = "paid_unconfirmed"
 	PaymentReceiptStatusPaidConfirmed        PaymentReceiptStatus = "paid_confirmed"
 	PaymentReceiptStatusDoubleSpendSuspected PaymentReceiptStatus = "double_spend_suspected"
+	PaymentReceiptStatusFailedExpired        PaymentReceiptStatus = "failed_expired"
 )
 
 var paymentReceiptStatuses = map[string]PaymentReceiptStatus{
@@ -18,6 +19,7 @@ var paymentReceiptStatuses = map[string]PaymentReceiptStatus{
 	"paid_unconfirmed":       PaymentReceiptStatusPaidUnconfirmed,
 	"paid_confirmed":         PaymentReceiptStatusPaidConfirmed,
 	"double_spend_suspected": PaymentReceiptStatusDoubleSpendSuspected,
+	"failed_expired":         PaymentReceiptStatusFailedExpired,
 }
 
 func ParsePaymentReceiptStatus(raw string) (PaymentReceiptStatus, bool) {

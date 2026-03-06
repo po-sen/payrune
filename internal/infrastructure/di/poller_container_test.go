@@ -102,3 +102,45 @@ func TestLoadBitcoinEsploraConfigsFromEnvEmpty(t *testing.T) {
 		t.Fatalf("expected no configured networks, got %d", len(configs))
 	}
 }
+
+func TestLoadReceiptPollingExpiryConfigFromEnvDefaults(t *testing.T) {
+	t.Setenv(envPaymentReceiptPaidUnconfirmedExpiryExtension, "")
+
+	config, err := loadReceiptPollingExpiryConfigFromEnv()
+	if err != nil {
+		t.Fatalf("loadReceiptPollingExpiryConfigFromEnv returned error: %v", err)
+	}
+	if config.PaidUnconfirmedExpiryExtension != 0 {
+		t.Fatalf("unexpected default paid unconfirmed extension: got %s", config.PaidUnconfirmedExpiryExtension)
+	}
+}
+
+func TestLoadReceiptPollingExpiryConfigFromEnvCustom(t *testing.T) {
+	t.Setenv(envPaymentReceiptPaidUnconfirmedExpiryExtension, "240h")
+
+	config, err := loadReceiptPollingExpiryConfigFromEnv()
+	if err != nil {
+		t.Fatalf("loadReceiptPollingExpiryConfigFromEnv returned error: %v", err)
+	}
+	if config.PaidUnconfirmedExpiryExtension != 240*time.Hour {
+		t.Fatalf("unexpected paid unconfirmed extension: got %s", config.PaidUnconfirmedExpiryExtension)
+	}
+}
+
+func TestLoadReceiptPollingExpiryConfigFromEnvInvalid(t *testing.T) {
+	t.Setenv(envPaymentReceiptPaidUnconfirmedExpiryExtension, "bad")
+
+	_, err := loadReceiptPollingExpiryConfigFromEnv()
+	if err == nil {
+		t.Fatal("expected parse error for paid unconfirmed extension")
+	}
+}
+
+func TestLoadReceiptPollingExpiryConfigFromEnvNonPositive(t *testing.T) {
+	t.Setenv(envPaymentReceiptPaidUnconfirmedExpiryExtension, "0s")
+
+	_, err := loadReceiptPollingExpiryConfigFromEnv()
+	if err == nil {
+		t.Fatal("expected validation error for non-positive paid unconfirmed extension")
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/in"
@@ -18,9 +19,18 @@ type allocatePaymentAddressUseCase struct {
 	deriver                        outport.BitcoinAddressDeriver
 	policyReader                   outport.AddressPolicyReader
 	requiredConfirmationsByNetwork map[value_objects.BitcoinNetwork]int32
+	receiptExpiresAfterByNetwork   map[value_objects.BitcoinNetwork]time.Duration
+	now                            func() time.Time
 }
 
 const defaultIssueReceiptRequiredConfirmations int32 = 1
+const defaultIssueReceiptExpiresAfter = 7 * 24 * time.Hour
+
+type AllocatePaymentAddressUseCaseConfig struct {
+	RequiredConfirmationsByNetwork map[value_objects.BitcoinNetwork]int32
+	ReceiptExpiresAfterByNetwork   map[value_objects.BitcoinNetwork]time.Duration
+	Now                            func() time.Time
+}
 
 func NewAllocatePaymentAddressUseCase(
 	unitOfWork outport.UnitOfWork,
@@ -28,20 +38,47 @@ func NewAllocatePaymentAddressUseCase(
 	policyReader outport.AddressPolicyReader,
 	requiredConfirmationsByNetwork ...map[value_objects.BitcoinNetwork]int32,
 ) inport.AllocatePaymentAddressUseCase {
-	confirmationsByNetwork := make(map[value_objects.BitcoinNetwork]int32)
+	config := AllocatePaymentAddressUseCaseConfig{}
 	if len(requiredConfirmationsByNetwork) > 0 {
-		for network, confirmations := range requiredConfirmationsByNetwork[0] {
-			if confirmations <= 0 {
-				continue
-			}
-			confirmationsByNetwork[network] = confirmations
-		}
+		config.RequiredConfirmationsByNetwork = requiredConfirmationsByNetwork[0]
 	}
+	return NewAllocatePaymentAddressUseCaseWithConfig(unitOfWork, deriver, policyReader, config)
+}
+
+func NewAllocatePaymentAddressUseCaseWithConfig(
+	unitOfWork outport.UnitOfWork,
+	deriver outport.BitcoinAddressDeriver,
+	policyReader outport.AddressPolicyReader,
+	config AllocatePaymentAddressUseCaseConfig,
+) inport.AllocatePaymentAddressUseCase {
+	confirmationsByNetwork := make(map[value_objects.BitcoinNetwork]int32)
+	for network, confirmations := range config.RequiredConfirmationsByNetwork {
+		if confirmations <= 0 {
+			continue
+		}
+		confirmationsByNetwork[network] = confirmations
+	}
+
+	expiresAfterByNetwork := make(map[value_objects.BitcoinNetwork]time.Duration)
+	for network, expiresAfter := range config.ReceiptExpiresAfterByNetwork {
+		if expiresAfter <= 0 {
+			continue
+		}
+		expiresAfterByNetwork[network] = expiresAfter
+	}
+
+	nowFn := time.Now
+	if config.Now != nil {
+		nowFn = config.Now
+	}
+
 	return &allocatePaymentAddressUseCase{
 		unitOfWork:                     unitOfWork,
 		deriver:                        deriver,
 		policyReader:                   policyReader,
 		requiredConfirmationsByNetwork: confirmationsByNetwork,
+		receiptExpiresAfterByNetwork:   expiresAfterByNetwork,
+		now:                            nowFn,
 	}
 }
 
@@ -161,6 +198,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 			ctx,
 			issuedAllocation.PaymentAddressID,
 			uc.requiredConfirmationsForNetwork(policy.Network),
+			uc.issueReceiptExpiresAt(policy.Network),
 		); err != nil {
 			return err
 		}
@@ -200,4 +238,12 @@ func (uc *allocatePaymentAddressUseCase) requiredConfirmationsForNetwork(network
 		return configured
 	}
 	return defaultIssueReceiptRequiredConfirmations
+}
+
+func (uc *allocatePaymentAddressUseCase) issueReceiptExpiresAt(network value_objects.BitcoinNetwork) time.Time {
+	expiresAfter := defaultIssueReceiptExpiresAfter
+	if configured, ok := uc.receiptExpiresAfterByNetwork[network]; ok && configured > 0 {
+		expiresAfter = configured
+	}
+	return uc.now().UTC().Add(expiresAfter)
 }

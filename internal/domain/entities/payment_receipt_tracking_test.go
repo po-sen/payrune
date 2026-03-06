@@ -211,3 +211,134 @@ func TestPaymentReceiptTrackingMarkPollingError(t *testing.T) {
 		t.Fatal("expected validation error but got nil")
 	}
 }
+
+func TestPaymentReceiptTrackingExpirationHelpers(t *testing.T) {
+	tracking, err := NewPaymentReceiptTracking(
+		23,
+		"bitcoin-testnet4-native-segwit",
+		value_objects.ChainIDBitcoin,
+		value_objects.NetworkID("testnet4"),
+		"tb1qexample",
+		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
+		1000,
+		1,
+	)
+	if err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	expiredAt := time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC)
+	tracking.ExpiresAt = &expiredAt
+
+	if !tracking.IsExpired(expiredAt.Add(1 * time.Second)) {
+		t.Fatal("expected tracking to be expired")
+	}
+	if tracking.IsExpired(time.Date(2026, 3, 5, 12, 59, 59, 0, time.UTC)) {
+		t.Fatal("did not expect tracking to be expired before deadline")
+	}
+
+	expired, err := tracking.MarkExpired("payment window expired")
+	if err != nil {
+		t.Fatalf("MarkExpired returned error: %v", err)
+	}
+	if expired.Status != value_objects.PaymentReceiptStatusFailedExpired {
+		t.Fatalf("unexpected status: got %q", expired.Status)
+	}
+	if expired.LastError != "payment window expired" {
+		t.Fatalf("unexpected last error: got %q", expired.LastError)
+	}
+
+	if _, err := tracking.MarkExpired("   "); err == nil {
+		t.Fatal("expected validation error for empty expired reason")
+	}
+}
+
+func TestPaymentReceiptTrackingExtendExpiryOnTransitionToPaidUnconfirmed(t *testing.T) {
+	base, err := NewPaymentReceiptTracking(
+		24,
+		"bitcoin-testnet4-native-segwit",
+		value_objects.ChainIDBitcoin,
+		value_objects.NetworkID("testnet4"),
+		"tb1qexample",
+		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
+		1000,
+		1,
+	)
+	if err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+
+	now := time.Date(2026, 3, 6, 12, 0, 0, 0, time.UTC)
+	initialExpiresAt := now.Add(30 * time.Minute)
+
+	tests := []struct {
+		name              string
+		currentStatus     value_objects.PaymentReceiptStatus
+		previousStatus    value_objects.PaymentReceiptStatus
+		expiresAt         *time.Time
+		extension         time.Duration
+		expectUnchanged   bool
+		expectedExpiresAt time.Time
+	}{
+		{
+			name:              "extend on transition to paid unconfirmed",
+			currentStatus:     value_objects.PaymentReceiptStatusPaidUnconfirmed,
+			previousStatus:    value_objects.PaymentReceiptStatusPartiallyPaid,
+			expiresAt:         &initialExpiresAt,
+			extension:         6 * time.Hour,
+			expectUnchanged:   false,
+			expectedExpiresAt: now.Add(6 * time.Hour),
+		},
+		{
+			name:            "do not extend when status unchanged",
+			currentStatus:   value_objects.PaymentReceiptStatusPaidUnconfirmed,
+			previousStatus:  value_objects.PaymentReceiptStatusPaidUnconfirmed,
+			expiresAt:       &initialExpiresAt,
+			extension:       6 * time.Hour,
+			expectUnchanged: true,
+		},
+		{
+			name:            "do not extend for non paid-unconfirmed status",
+			currentStatus:   value_objects.PaymentReceiptStatusPartiallyPaid,
+			previousStatus:  value_objects.PaymentReceiptStatusWatching,
+			expiresAt:       &initialExpiresAt,
+			extension:       6 * time.Hour,
+			expectUnchanged: true,
+		},
+		{
+			name:            "do not shorten existing later expiry",
+			currentStatus:   value_objects.PaymentReceiptStatusPaidUnconfirmed,
+			previousStatus:  value_objects.PaymentReceiptStatusPartiallyPaid,
+			expiresAt:       func() *time.Time { v := now.Add(10 * time.Hour); return &v }(),
+			extension:       6 * time.Hour,
+			expectUnchanged: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tracking := base
+			tracking.Status = tc.currentStatus
+			tracking.ExpiresAt = tc.expiresAt
+
+			updated := tracking.ExtendExpiryOnTransitionToPaidUnconfirmed(
+				tc.previousStatus,
+				now,
+				tc.extension,
+			)
+
+			if tc.expectUnchanged {
+				if updated.ExpiresAt == nil || tracking.ExpiresAt == nil || !updated.ExpiresAt.Equal(*tracking.ExpiresAt) {
+					t.Fatalf("expected expiry unchanged, got %v", updated.ExpiresAt)
+				}
+				return
+			}
+			if updated.ExpiresAt == nil {
+				t.Fatal("expected expiry to be set")
+			}
+			if !updated.ExpiresAt.Equal(tc.expectedExpiresAt) {
+				t.Fatalf("unexpected expiry: got %s, want %s", updated.ExpiresAt, tc.expectedExpiresAt)
+			}
+		})
+	}
+}

@@ -3,7 +3,6 @@ package use_cases
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"payrune/internal/application/dto"
@@ -16,23 +15,38 @@ import (
 const (
 	defaultReceiptPollingInterval = 15 * time.Second
 	defaultReceiptPollingClaimTTL = 30 * time.Second
+	expiredReceiptReason          = "payment window expired"
+
+	defaultReceiptPaidUnconfirmedExpiryExtension = 7 * 24 * time.Hour
 )
 
 type runReceiptPollingCycleUseCase struct {
-	unitOfWork outport.UnitOfWork
-	observer   outport.BlockchainReceiptObserver
-	clock      outport.Clock
+	unitOfWork                     outport.UnitOfWork
+	observer                       outport.BlockchainReceiptObserver
+	clock                          outport.Clock
+	paidUnconfirmedExpiryExtension time.Duration
+}
+
+type RunReceiptPollingCycleUseCaseConfig struct {
+	PaidUnconfirmedExpiryExtension time.Duration
 }
 
 func NewRunReceiptPollingCycleUseCase(
 	unitOfWork outport.UnitOfWork,
 	observer outport.BlockchainReceiptObserver,
 	clock outport.Clock,
+	config RunReceiptPollingCycleUseCaseConfig,
 ) inport.RunReceiptPollingCycleUseCase {
+	paidUnconfirmedExpiryExtension := defaultReceiptPaidUnconfirmedExpiryExtension
+	if config.PaidUnconfirmedExpiryExtension > 0 {
+		paidUnconfirmedExpiryExtension = config.PaidUnconfirmedExpiryExtension
+	}
+
 	return &runReceiptPollingCycleUseCase{
-		unitOfWork: unitOfWork,
-		observer:   observer,
-		clock:      clock,
+		unitOfWork:                     unitOfWork,
+		observer:                       observer,
+		clock:                          clock,
+		paidUnconfirmedExpiryExtension: paidUnconfirmedExpiryExtension,
 	}
 }
 
@@ -96,13 +110,45 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 
 	for _, tracking := range trackings {
 		if tracking.IssuedAt.IsZero() {
-			if err := uc.savePollingError(
-				ctx,
-				tracking,
-				errors.New("issued at is required"),
-				now,
-				now.Add(pollInterval),
-			); err != nil {
+			trackingWithError, markErr := tracking.MarkPollingError("issued at is required")
+			if markErr != nil {
+				return output, markErr
+			}
+			if err := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
+				repository := txRepositories.PaymentReceiptTracking
+				if repository == nil {
+					return errors.New("payment receipt tracking repository is not configured")
+				}
+				return repository.SavePollingError(
+					ctx,
+					trackingWithError.PaymentAddressID,
+					trackingWithError.LastError,
+					now,
+					now.Add(pollInterval),
+				)
+			}); err != nil {
+				return output, err
+			}
+			output.FailedCount++
+			continue
+		}
+		if tracking.IsExpired(now) {
+			expiredTracking, err := tracking.MarkExpired(expiredReceiptReason)
+			if err != nil {
+				return output, err
+			}
+			if err := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
+				repository := txRepositories.PaymentReceiptTracking
+				if repository == nil {
+					return errors.New("payment receipt tracking repository is not configured")
+				}
+				return repository.SaveObservation(
+					ctx,
+					expiredTracking,
+					now,
+					now.Add(pollInterval),
+				)
+			}); err != nil {
 				return output, err
 			}
 			output.FailedCount++
@@ -118,13 +164,23 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			SinceBlockHeight:      tracking.LastObservedBlockHeight,
 		})
 		if observeErr != nil {
-			if err := uc.savePollingError(
-				ctx,
-				tracking,
-				observeErr,
-				now,
-				now.Add(pollInterval),
-			); err != nil {
+			trackingWithError, markErr := tracking.MarkPollingError(observeErr.Error())
+			if markErr != nil {
+				return output, markErr
+			}
+			if err := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
+				repository := txRepositories.PaymentReceiptTracking
+				if repository == nil {
+					return errors.New("payment receipt tracking repository is not configured")
+				}
+				return repository.SavePollingError(
+					ctx,
+					trackingWithError.PaymentAddressID,
+					trackingWithError.LastError,
+					now,
+					now.Add(pollInterval),
+				)
+			}); err != nil {
 				return output, err
 			}
 			output.FailedCount++
@@ -139,72 +195,49 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			LatestBlockHeight:     observation.LatestBlockHeight,
 		}, now)
 		if err != nil {
-			if saveErr := uc.savePollingError(
-				ctx,
-				tracking,
-				err,
-				now,
-				now.Add(pollInterval),
-			); saveErr != nil {
-				return output, saveErr
+			trackingWithError, markErr := tracking.MarkPollingError(err.Error())
+			if markErr != nil {
+				return output, markErr
+			}
+			if err := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
+				repository := txRepositories.PaymentReceiptTracking
+				if repository == nil {
+					return errors.New("payment receipt tracking repository is not configured")
+				}
+				return repository.SavePollingError(
+					ctx,
+					trackingWithError.PaymentAddressID,
+					trackingWithError.LastError,
+					now,
+					now.Add(pollInterval),
+				)
+			}); err != nil {
+				return output, err
 			}
 			output.FailedCount++
 			continue
 		}
+		updatedTracking = updatedTracking.ExtendExpiryOnTransitionToPaidUnconfirmed(
+			tracking.Status,
+			now,
+			uc.paidUnconfirmedExpiryExtension,
+		)
 
 		nextPollAt := now.Add(pollInterval)
-		if updatedTracking.Status == value_objects.PaymentReceiptStatusPaidConfirmed {
-			nextPollAt = now.Add(24 * time.Hour)
-		}
 
-		if err := uc.saveObservation(ctx, updatedTracking, now, nextPollAt); err != nil {
+		if err := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
+			repository := txRepositories.PaymentReceiptTracking
+			if repository == nil {
+				return errors.New("payment receipt tracking repository is not configured")
+			}
+			return repository.SaveObservation(ctx, updatedTracking, now, nextPollAt)
+		}); err != nil {
 			return output, err
 		}
 		output.UpdatedCount++
 	}
 
 	return output, nil
-}
-
-func (uc *runReceiptPollingCycleUseCase) savePollingError(
-	ctx context.Context,
-	tracking entities.PaymentReceiptTracking,
-	observeErr error,
-	now time.Time,
-	nextPollAt time.Time,
-) error {
-	trackingWithError, markErr := tracking.MarkPollingError(observeErr.Error())
-	if markErr != nil {
-		return fmt.Errorf("mark polling error: %w", markErr)
-	}
-	return uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
-		repository := txRepositories.PaymentReceiptTracking
-		if repository == nil {
-			return errors.New("payment receipt tracking repository is not configured")
-		}
-		return repository.SavePollingError(
-			ctx,
-			trackingWithError.PaymentAddressID,
-			trackingWithError.LastError,
-			now,
-			nextPollAt,
-		)
-	})
-}
-
-func (uc *runReceiptPollingCycleUseCase) saveObservation(
-	ctx context.Context,
-	tracking entities.PaymentReceiptTracking,
-	now time.Time,
-	nextPollAt time.Time,
-) error {
-	return uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
-		repository := txRepositories.PaymentReceiptTracking
-		if repository == nil {
-			return errors.New("payment receipt tracking repository is not configured")
-		}
-		return repository.SaveObservation(ctx, tracking, now, nextPollAt)
-	})
 }
 
 func resolveReceiptPollingScope(rawChain string, rawNetwork string) (string, string, error) {

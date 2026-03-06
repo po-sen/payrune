@@ -40,6 +40,12 @@ func TestParsePaymentReceiptStatus(t *testing.T) {
 			wantOK: true,
 		},
 		{
+			name:   "failed expired",
+			input:  "failed_expired",
+			want:   PaymentReceiptStatusFailedExpired,
+			wantOK: true,
+		},
+		{
 			name:   "mixed case",
 			input:  "  Paid_Confirmed ",
 			want:   PaymentReceiptStatusPaidConfirmed,

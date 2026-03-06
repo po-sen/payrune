@@ -25,12 +25,16 @@ func (r *PaymentReceiptTrackingRepository) RegisterIssuedAllocation(
 	ctx context.Context,
 	paymentAddressID int64,
 	defaultRequiredConfirmations int32,
+	expiresAt time.Time,
 ) (bool, error) {
 	if paymentAddressID <= 0 {
 		return false, errors.New("payment address id must be greater than zero")
 	}
 	if defaultRequiredConfirmations <= 0 {
 		return false, errors.New("default required confirmations must be greater than zero")
+	}
+	if expiresAt.IsZero() {
+		return false, errors.New("expires at is required")
 	}
 
 	result, err := r.executor.ExecContext(
@@ -42,6 +46,7 @@ func (r *PaymentReceiptTrackingRepository) RegisterIssuedAllocation(
 		     network,
 		     address,
 		     issued_at,
+		     expires_at,
 		     expected_amount_minor,
 		     required_confirmations,
 		     receipt_status,
@@ -53,17 +58,19 @@ func (r *PaymentReceiptTrackingRepository) RegisterIssuedAllocation(
 		          a.network,
 		          a.address,
 		          a.issued_at,
+		          $2,
 		          a.expected_amount_minor,
 		          $1,
 		          'watching',
 		          NOW()
 		   FROM address_policy_allocations a
-		   WHERE a.id = $2
+		   WHERE a.id = $3
 		     AND a.allocation_status = 'issued'
 		     AND a.network IS NOT NULL
 		     AND a.address IS NOT NULL
 		   ON CONFLICT (payment_address_id) DO NOTHING`,
 		defaultRequiredConfirmations,
+		expiresAt.UTC(),
 		paymentAddressID,
 	)
 	if err != nil {
@@ -98,7 +105,8 @@ func (r *PaymentReceiptTrackingRepository) ClaimDue(
 		`WITH due AS (
 		     SELECT id
 		     FROM payment_receipt_trackings
-		     WHERE next_poll_at <= $1
+		     WHERE (next_poll_at <= $1 OR (expires_at IS NOT NULL AND expires_at <= $1))
+		       AND (lease_until IS NULL OR lease_until <= $1)
 		       AND receipt_status IN ('watching', 'partially_paid', 'paid_unconfirmed', 'double_spend_suspected')
 		       AND ($4 = '' OR chain = $4)
 		       AND ($5 = '' OR network = $5)
@@ -107,7 +115,7 @@ func (r *PaymentReceiptTrackingRepository) ClaimDue(
 		     LIMIT $2
 		   )
 		   UPDATE payment_receipt_trackings pr
-		   SET next_poll_at = $3,
+		   SET lease_until = $3,
 		       updated_at = NOW()
 		   FROM due
 		   WHERE pr.id = due.id
@@ -130,6 +138,7 @@ func (r *PaymentReceiptTrackingRepository) ClaimDue(
 		     pr.first_observed_at,
 		     pr.paid_at,
 		     pr.confirmed_at,
+		     pr.expires_at,
 		     COALESCE(pr.last_error, '')`,
 		input.Now,
 		input.Limit,
@@ -175,9 +184,11 @@ func (r *PaymentReceiptTrackingRepository) SaveObservation(
 		     first_observed_at = $8,
 		     paid_at = $9,
 		     confirmed_at = $10,
-		     last_error = NULL,
-		     last_polled_at = $11,
-		     next_poll_at = $12,
+		     expires_at = $11,
+		     last_error = $12,
+		     last_polled_at = $13,
+		     next_poll_at = $14,
+		     lease_until = NULL,
 		     updated_at = NOW()
 		 WHERE payment_address_id = $1`,
 		tracking.PaymentAddressID,
@@ -190,6 +201,8 @@ func (r *PaymentReceiptTrackingRepository) SaveObservation(
 		nullableTimePointer(tracking.FirstObservedAt),
 		nullableTimePointer(tracking.PaidAt),
 		nullableTimePointer(tracking.ConfirmedAt),
+		nullableTimePointer(tracking.ExpiresAt),
+		nullIfEmpty(tracking.LastError),
 		now,
 		nextPollAt,
 	)
@@ -230,6 +243,7 @@ func (r *PaymentReceiptTrackingRepository) SavePollingError(
 		 SET last_error = $2,
 		     last_polled_at = $3,
 		     next_poll_at = $4,
+		     lease_until = NULL,
 		     updated_at = NOW()
 		 WHERE payment_address_id = $1`,
 		paymentAddressID,
@@ -273,6 +287,7 @@ func scanPaymentReceiptTracking(scanner interface {
 	var firstObservedAt sql.NullTime
 	var paidAt sql.NullTime
 	var confirmedAt sql.NullTime
+	var expiresAt sql.NullTime
 	var lastError string
 
 	if err := scanner.Scan(
@@ -294,6 +309,7 @@ func scanPaymentReceiptTracking(scanner interface {
 		&firstObservedAt,
 		&paidAt,
 		&confirmedAt,
+		&expiresAt,
 		&lastError,
 	); err != nil {
 		return entities.PaymentReceiptTracking{}, err
@@ -343,6 +359,10 @@ func scanPaymentReceiptTracking(scanner interface {
 	if confirmedAt.Valid {
 		timeValue := confirmedAt.Time.UTC()
 		tracking.ConfirmedAt = &timeValue
+	}
+	if expiresAt.Valid {
+		timeValue := expiresAt.Time.UTC()
+		tracking.ExpiresAt = &timeValue
 	}
 
 	return tracking, nil

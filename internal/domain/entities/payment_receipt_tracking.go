@@ -27,6 +27,7 @@ type PaymentReceiptTracking struct {
 	FirstObservedAt         *time.Time
 	PaidAt                  *time.Time
 	ConfirmedAt             *time.Time
+	ExpiresAt               *time.Time
 	LastError               string
 }
 
@@ -128,6 +129,51 @@ func (t PaymentReceiptTracking) MarkPollingError(reason string) (PaymentReceiptT
 	updated := t
 	updated.LastError = normalizedReason
 	return updated, nil
+}
+
+func (t PaymentReceiptTracking) IsExpired(now time.Time) bool {
+	if t.ExpiresAt == nil || now.IsZero() {
+		return false
+	}
+	return !t.ExpiresAt.After(now)
+}
+
+func (t PaymentReceiptTracking) MarkExpired(reason string) (PaymentReceiptTracking, error) {
+	normalizedReason := strings.TrimSpace(reason)
+	if normalizedReason == "" {
+		return PaymentReceiptTracking{}, errors.New("expired reason is required")
+	}
+
+	updated := t
+	updated.Status = value_objects.PaymentReceiptStatusFailedExpired
+	updated.LastError = normalizedReason
+	return updated, nil
+}
+
+func (t PaymentReceiptTracking) ExtendExpiryOnTransitionToPaidUnconfirmed(
+	previousStatus value_objects.PaymentReceiptStatus,
+	now time.Time,
+	extension time.Duration,
+) PaymentReceiptTracking {
+	if t.ExpiresAt == nil || now.IsZero() || extension <= 0 {
+		return t
+	}
+	if previousStatus == t.Status {
+		return t
+	}
+	if t.Status != value_objects.PaymentReceiptStatusPaidUnconfirmed {
+		return t
+	}
+
+	candidate := now.Add(extension)
+	if t.ExpiresAt.After(candidate) {
+		return t
+	}
+
+	updated := t
+	candidateUTC := candidate.UTC()
+	updated.ExpiresAt = &candidateUTC
+	return updated
 }
 
 func decidePaymentReceiptStatus(
