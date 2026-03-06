@@ -17,8 +17,9 @@ type UnitOfWork struct {
 
 func NewTxRepositories(tx *sql.Tx) outport.TxRepositories {
 	return outport.TxRepositories{
-		PaymentAddressAllocation: NewPaymentAddressAllocationRepository(tx),
-		PaymentReceiptTracking:   NewPaymentReceiptTrackingRepository(tx),
+		PaymentAddressAllocation:         NewPaymentAddressAllocationRepository(tx),
+		PaymentReceiptTracking:           NewPaymentReceiptTrackingRepository(tx),
+		PaymentReceiptStatusNotification: NewPaymentReceiptStatusNotificationRepository(tx),
 	}
 }
 

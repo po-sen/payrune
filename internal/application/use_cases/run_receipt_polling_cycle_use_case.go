@@ -137,17 +137,37 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			if err != nil {
 				return output, err
 			}
+			statusChanged := tracking.Status != expiredTracking.Status
 			if err := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
 				repository := txRepositories.PaymentReceiptTracking
 				if repository == nil {
 					return errors.New("payment receipt tracking repository is not configured")
 				}
-				return repository.SaveObservation(
+				if err := repository.SaveObservation(
 					ctx,
 					expiredTracking,
 					now,
 					now.Add(pollInterval),
-				)
+				); err != nil {
+					return err
+				}
+				if !statusChanged {
+					return nil
+				}
+				notificationRepository := txRepositories.PaymentReceiptStatusNotification
+				if notificationRepository == nil {
+					return errors.New("payment receipt status notification repository is not configured")
+				}
+				return notificationRepository.EnqueueStatusChanged(ctx, outport.EnqueuePaymentReceiptStatusChangedInput{
+					PaymentAddressID:      expiredTracking.PaymentAddressID,
+					PreviousStatus:        tracking.Status,
+					CurrentStatus:         expiredTracking.Status,
+					ObservedTotalMinor:    expiredTracking.ObservedTotalMinor,
+					ConfirmedTotalMinor:   expiredTracking.ConfirmedTotalMinor,
+					UnconfirmedTotalMinor: expiredTracking.UnconfirmedTotalMinor,
+					ConflictTotalMinor:    expiredTracking.ConflictTotalMinor,
+					StatusChangedAt:       now,
+				})
 			}); err != nil {
 				return output, err
 			}
@@ -222,6 +242,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			now,
 			uc.paidUnconfirmedExpiryExtension,
 		)
+		statusChanged := tracking.Status != updatedTracking.Status
 
 		nextPollAt := now.Add(pollInterval)
 
@@ -230,7 +251,26 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			if repository == nil {
 				return errors.New("payment receipt tracking repository is not configured")
 			}
-			return repository.SaveObservation(ctx, updatedTracking, now, nextPollAt)
+			if err := repository.SaveObservation(ctx, updatedTracking, now, nextPollAt); err != nil {
+				return err
+			}
+			if !statusChanged {
+				return nil
+			}
+			notificationRepository := txRepositories.PaymentReceiptStatusNotification
+			if notificationRepository == nil {
+				return errors.New("payment receipt status notification repository is not configured")
+			}
+			return notificationRepository.EnqueueStatusChanged(ctx, outport.EnqueuePaymentReceiptStatusChangedInput{
+				PaymentAddressID:      updatedTracking.PaymentAddressID,
+				PreviousStatus:        tracking.Status,
+				CurrentStatus:         updatedTracking.Status,
+				ObservedTotalMinor:    updatedTracking.ObservedTotalMinor,
+				ConfirmedTotalMinor:   updatedTracking.ConfirmedTotalMinor,
+				UnconfirmedTotalMinor: updatedTracking.UnconfirmedTotalMinor,
+				ConflictTotalMinor:    updatedTracking.ConflictTotalMinor,
+				StatusChangedAt:       now,
+			})
 		}); err != nil {
 			return output, err
 		}

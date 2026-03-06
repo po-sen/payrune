@@ -175,12 +175,14 @@ type fakeUnitOfWork struct {
 	calls                     int
 	allocationRepository      outport.PaymentAddressAllocationRepository
 	receiptTrackingRepository outport.PaymentReceiptTrackingRepository
+	notificationRepository    outport.PaymentReceiptStatusNotificationRepository
 }
 
 func newFakeUnitOfWork(repository outport.PaymentAddressAllocationRepository) *fakeUnitOfWork {
 	return &fakeUnitOfWork{
 		allocationRepository:      repository,
 		receiptTrackingRepository: &fakeAllocatePaymentReceiptTrackingRepository{},
+		notificationRepository:    &fakeAllocatePaymentReceiptStatusNotificationRepository{},
 	}
 }
 
@@ -199,8 +201,9 @@ func (f *fakeUnitOfWork) WithinTransaction(
 		return errors.New("payment receipt tracking repository is not configured")
 	}
 	return fn(outport.TxRepositories{
-		PaymentAddressAllocation: f.allocationRepository,
-		PaymentReceiptTracking:   f.receiptTrackingRepository,
+		PaymentAddressAllocation:         f.allocationRepository,
+		PaymentReceiptTracking:           f.receiptTrackingRepository,
+		PaymentReceiptStatusNotification: f.notificationRepository,
 	})
 }
 
@@ -250,6 +253,15 @@ func (f *fakeAllocatePaymentReceiptTrackingRepository) SavePollingError(
 	_ string,
 	_ time.Time,
 	_ time.Time,
+) error {
+	return nil
+}
+
+type fakeAllocatePaymentReceiptStatusNotificationRepository struct{}
+
+func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) EnqueueStatusChanged(
+	_ context.Context,
+	_ outport.EnqueuePaymentReceiptStatusChangedInput,
 ) error {
 	return nil
 }

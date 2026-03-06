@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_payment_receipt_status_notifications_address_created;
+DROP INDEX IF EXISTS idx_payment_receipt_status_notifications_delivery_created;
+DROP TABLE IF EXISTS payment_receipt_status_notifications;
