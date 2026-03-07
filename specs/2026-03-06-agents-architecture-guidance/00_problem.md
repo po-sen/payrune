@@ -46,6 +46,10 @@ links:
   - Add clear anti-patterns and decision rules so future changes require fewer corrective review cycles.
 - G5:
   - Restate the repo-specific architecture guidance in stronger best-practice language without changing the meaning of correct existing instructions.
+- G6:
+  - Add local spec template assets under `assets/` so spec scaffolding rules resolve inside this repository.
+- G7:
+  - Keep `AGENTS.md` concise and repo-centric by stating the actual project layout directly instead of adding extra snapshot-interpretation prose.
 
 ## Non-goals (out of scope)
 

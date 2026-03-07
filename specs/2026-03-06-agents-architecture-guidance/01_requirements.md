@@ -69,6 +69,22 @@ links:
   - [x] The update strengthens the structure and wording of the repo-specific architecture section.
   - [x] The update does not contradict or silently narrow correct existing rules unless the user has explicitly asked for that change.
 
+### FR-007 - Provide local spec template assets
+
+- Description:
+  - The repository must provide local spec template files under `assets/` so the documented scaffolding flow resolves within this repo.
+- Acceptance criteria:
+  - [x] `assets/00_problem_template.md`, `assets/01_requirements_template.md`, `assets/02_design_template.md`, `assets/03_tasks_template.md`, and `assets/04_test_plan_template.md` exist in the repo.
+  - [x] The local templates are valid starting points for the current spec workflow.
+
+### FR-008 - Keep AGENTS concise and repo-centric
+
+- Description:
+  - `AGENTS.md` should state this repo's actual architecture and scaffolding expectations directly, without extra meta-guidance that makes the file harder to scan.
+- Acceptance criteria:
+  - [x] The temporary `How to use the frozen snapshots` prose is removed.
+  - [x] The repo-specific guidance clearly states this repo uses the current `cmd/` + `internal/` layout and should not introduce alternate top-level structures unless explicitly requested.
+
 ## Non-functional requirements
 
 - Maintainability (NFR-001):

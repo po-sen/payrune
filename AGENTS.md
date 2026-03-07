@@ -24,14 +24,26 @@
 
 ## Repo-Specific Agent Guidance
 
-This section is written for the coding agent. Treat it as the repo-specific override layer for the
-generic skill snapshots below.
+This section is written for the coding agent. Use it as the direct architecture and workflow
+contract for this repository.
 
 ### Precedence
 
 - Use this section to narrow and interpret the generic skills below for this repository.
 - Unless a statement here is explicitly wrong, preserve its meaning when rewriting or extending it.
 - When a generic skill and this section differ, follow this section for repo-local decisions.
+
+### Spec scaffolding in this repo
+
+- Use the local templates under `assets/` when scaffolding specs.
+- Required quick-mode templates:
+  - `assets/00_problem_template.md`
+  - `assets/01_requirements_template.md`
+  - `assets/03_tasks_template.md`
+- Full mode also uses:
+  - `assets/02_design_template.md`
+  - `assets/04_test_plan_template.md`
+- After scaffolding, validate with `SPEC_DIR="specs/YYYY-MM-DD-slug" bash scripts/spec-lint.sh`.
 
 ### What this repo optimizes for
 
@@ -43,19 +55,24 @@ generic skill snapshots below.
 
 ### Architecture boundaries
 
+- This repo uses the current Go layout under `cmd/`, `internal/`, `build/`, `deployments/`,
+  `scripts/`, `assets/`, and `specs/`.
+- Do not introduce alternate top-level architectures such as `shared_kernel/`, `components/`,
+  `modules/`, or `pkg/` unless the repo already adopts them or the user explicitly asks.
+
 #### `internal/domain`
 
 - Own business rules, invariants, state transitions, validation of domain concepts, and business
   errors.
 - Must stay independent from SQL, HTTP, RPC, env parsing, framework types, and transport details.
-- If a rule decides what is valid, payable, expired, retryable, or transitionable, it probably
-  belongs here.
+- If a rule decides what is valid, payable, expired, retryable, or transitionable, it belongs
+  here unless it requires external IO.
 
 #### `internal/application`
 
 - Own use-case orchestration only.
 - Coordinate transaction boundaries, invoke domain behavior, call outbound ports, and return DTOs.
-- May compose multiple steps, but should not become the home for business policy.
+- Compose multiple steps, but do not turn application code into the home for business policy.
 - If a use case grows many private helpers or computes state transitions directly, review whether
   domain logic is leaking upward.
 

@@ -37,11 +37,14 @@ links:
 
 - Scope:
   - Preserve the existing important sections, then refine the repo-specific override into clearer best-practice guidance for the coding agent without changing the meaning of correct instructions.
-- Linked requirements: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, NFR-001, NFR-002, NFR-003
+  - Add local `assets/` spec templates from the repo's spec-driven workflow.
+  - Remove extra snapshot-interpretation prose and state the repo's actual structure directly.
+- Linked requirements: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, NFR-001, NFR-002, NFR-003
 - Validation:
   - [x] `AGENTS.md` clearly states workflow rules, layer responsibilities, naming rules, and anti-patterns.
   - [x] `AGENTS.md` preserves the existing important sections and adds repo-specific override guidance.
   - [x] `AGENTS.md` refines the repo-specific section into better best-practice wording without changing the meaning of correct existing guidance.
+  - [x] Repo `assets/` contains the spec templates referenced by the workflow.
 
 1. T-003 - Validate the new guidance and sync the spec
 
@@ -60,6 +63,8 @@ links:
 - FR-004 -> T-001, T-002, T-003
 - FR-005 -> T-002, T-003
 - FR-006 -> T-002, T-003
+- FR-007 -> T-002, T-003
+- FR-008 -> T-002, T-003
 - NFR-001 -> T-001, T-002, T-003
 - NFR-002 -> T-001, T-002, T-003
 - NFR-003 -> T-002, T-003
