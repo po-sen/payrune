@@ -9,13 +9,13 @@ import (
 	"payrune/internal/domain/value_objects"
 )
 
-type ChainRouterReceiptObserver struct {
+type MultiChainReceiptObserver struct {
 	observers map[value_objects.ChainID]outport.ChainReceiptObserver
 }
 
-func NewChainRouterReceiptObserver(
+func NewMultiChainReceiptObserver(
 	observers map[value_objects.ChainID]outport.ChainReceiptObserver,
-) (*ChainRouterReceiptObserver, error) {
+) (*MultiChainReceiptObserver, error) {
 	if len(observers) == 0 {
 		return nil, errors.New("at least one chain observer is required")
 	}
@@ -32,10 +32,10 @@ func NewChainRouterReceiptObserver(
 		normalized[normalizedChain] = observer
 	}
 
-	return &ChainRouterReceiptObserver{observers: normalized}, nil
+	return &MultiChainReceiptObserver{observers: normalized}, nil
 }
 
-func (o *ChainRouterReceiptObserver) ObserveAddress(
+func (o *MultiChainReceiptObserver) ObserveAddress(
 	ctx context.Context,
 	input outport.ObserveChainPaymentAddressInput,
 ) (outport.ObservePaymentAddressOutput, error) {

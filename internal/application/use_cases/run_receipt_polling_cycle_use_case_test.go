@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"payrune/internal/application/dto"
+	applicationoutbox "payrune/internal/application/outbox"
 	outport "payrune/internal/application/ports/out"
 	"payrune/internal/domain/entities"
+	"payrune/internal/domain/events"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/value_objects"
 )
 
@@ -20,7 +23,7 @@ func (f *fakeReceiptPollingClock) NowUTC() time.Time {
 	return f.now
 }
 
-type fakePaymentReceiptTrackingRepository struct {
+type fakePaymentReceiptTrackingStore struct {
 	claimRows   []entities.PaymentReceiptTracking
 	claimErr    error
 	saveErr     error
@@ -36,16 +39,15 @@ type fakePaymentReceiptTrackingRepository struct {
 	savedPollingErrorPolledAt         []time.Time
 }
 
-func (f *fakePaymentReceiptTrackingRepository) RegisterIssuedAllocation(
+func (f *fakePaymentReceiptTrackingStore) Create(
 	_ context.Context,
-	_ int64,
-	_ int32,
+	_ entities.PaymentReceiptTracking,
 	_ time.Time,
-) (bool, error) {
-	return true, nil
+) error {
+	return nil
 }
 
-func (f *fakePaymentReceiptTrackingRepository) ClaimDue(
+func (f *fakePaymentReceiptTrackingStore) ClaimDue(
 	_ context.Context,
 	input outport.ClaimPaymentReceiptTrackingsInput,
 ) ([]entities.PaymentReceiptTracking, error) {
@@ -58,7 +60,7 @@ func (f *fakePaymentReceiptTrackingRepository) ClaimDue(
 	return rows, nil
 }
 
-func (f *fakePaymentReceiptTrackingRepository) SaveObservation(
+func (f *fakePaymentReceiptTrackingStore) Save(
 	_ context.Context,
 	tracking entities.PaymentReceiptTracking,
 	now time.Time,
@@ -67,61 +69,39 @@ func (f *fakePaymentReceiptTrackingRepository) SaveObservation(
 	f.savedObservationTrackings = append(f.savedObservationTrackings, tracking)
 	f.savedObservationPolledAtValues = append(f.savedObservationPolledAtValues, now)
 	f.savedObservationNextPollAtValues = append(f.savedObservationNextPollAtValues, nextPollAt)
+	if tracking.LastError != "" {
+		f.savedPollingErrorPaymentAddressID = append(f.savedPollingErrorPaymentAddressID, tracking.PaymentAddressID)
+		f.savedPollingErrorReasons = append(f.savedPollingErrorReasons, tracking.LastError)
+		f.savedPollingErrorPolledAt = append(f.savedPollingErrorPolledAt, now)
+		f.savedPollingErrorNextPollAt = append(f.savedPollingErrorNextPollAt, nextPollAt)
+		return f.savePollErr
+	}
 	return f.saveErr
 }
 
-func (f *fakePaymentReceiptTrackingRepository) SavePollingError(
-	_ context.Context,
-	paymentAddressID int64,
-	errorReason string,
-	now time.Time,
-	nextPollAt time.Time,
-) error {
-	f.savedPollingErrorPaymentAddressID = append(f.savedPollingErrorPaymentAddressID, paymentAddressID)
-	f.savedPollingErrorReasons = append(f.savedPollingErrorReasons, errorReason)
-	f.savedPollingErrorPolledAt = append(f.savedPollingErrorPolledAt, now)
-	f.savedPollingErrorNextPollAt = append(f.savedPollingErrorNextPollAt, nextPollAt)
-	return f.savePollErr
-}
-
-type fakePaymentReceiptStatusNotificationRepository struct {
+type fakePaymentReceiptStatusNotificationOutbox struct {
 	enqueueErr    error
-	enqueueInputs []outport.EnqueuePaymentReceiptStatusChangedInput
+	enqueueInputs []events.PaymentReceiptStatusChanged
 }
 
-func (f *fakePaymentReceiptStatusNotificationRepository) EnqueueStatusChanged(
+func (f *fakePaymentReceiptStatusNotificationOutbox) EnqueueStatusChanged(
 	_ context.Context,
-	input outport.EnqueuePaymentReceiptStatusChangedInput,
+	input events.PaymentReceiptStatusChanged,
 ) error {
 	f.enqueueInputs = append(f.enqueueInputs, input)
 	return f.enqueueErr
 }
 
-func (f *fakePaymentReceiptStatusNotificationRepository) ClaimPending(
+func (f *fakePaymentReceiptStatusNotificationOutbox) ClaimPending(
 	_ context.Context,
 	_ outport.ClaimPaymentReceiptStatusNotificationsInput,
-) ([]entities.PaymentReceiptStatusNotification, error) {
+) ([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error) {
 	return nil, nil
 }
 
-func (f *fakePaymentReceiptStatusNotificationRepository) MarkSent(
+func (f *fakePaymentReceiptStatusNotificationOutbox) SaveDeliveryResult(
 	_ context.Context,
-	_ int64,
-	_ time.Time,
-) error {
-	return nil
-}
-
-func (f *fakePaymentReceiptStatusNotificationRepository) MarkRetryScheduled(
-	_ context.Context,
-	_ outport.MarkPaymentReceiptStatusNotificationRetryInput,
-) error {
-	return nil
-}
-
-func (f *fakePaymentReceiptStatusNotificationRepository) MarkFailed(
-	_ context.Context,
-	_ outport.MarkPaymentReceiptStatusNotificationFailureInput,
+	_ policies.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	return nil
 }
@@ -133,23 +113,23 @@ type fakeBlockchainReceiptObserver struct {
 }
 
 type fakeReceiptPollingUnitOfWork struct {
-	repository             outport.PaymentReceiptTrackingRepository
-	notificationRepository outport.PaymentReceiptStatusNotificationRepository
-	err                    error
-	calls                  int
+	trackingStore      outport.PaymentReceiptTrackingStore
+	notificationOutbox outport.PaymentReceiptStatusNotificationOutbox
+	err                error
+	calls              int
 }
 
 func (f *fakeReceiptPollingUnitOfWork) WithinTransaction(
 	_ context.Context,
-	fn func(txRepositories outport.TxRepositories) error,
+	fn func(txScope outport.TxScope) error,
 ) error {
 	f.calls++
 	if f.err != nil {
 		return f.err
 	}
-	return fn(outport.TxRepositories{
-		PaymentReceiptTracking:           f.repository,
-		PaymentReceiptStatusNotification: f.notificationRepository,
+	return fn(outport.TxScope{
+		PaymentReceiptTracking:                 f.trackingStore,
+		PaymentReceiptStatusNotificationOutbox: f.notificationOutbox,
 	})
 }
 
@@ -184,13 +164,13 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 		t.Fatalf("setup tracking: %v", err)
 	}
 
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
-	notificationRepository := &fakePaymentReceiptStatusNotificationRepository{}
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{
-		repository:             repository,
-		notificationRepository: notificationRepository,
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
 	}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
@@ -209,7 +189,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -227,19 +207,22 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	if output.UpdatedCount != 1 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
-	if output.FailedCount != 0 {
-		t.Fatalf("unexpected failed count: got %d", output.FailedCount)
+	if output.TerminalFailedCount != 0 {
+		t.Fatalf("unexpected terminal failed count: got %d", output.TerminalFailedCount)
 	}
-	if repository.lastClaimInput.Limit != 10 {
-		t.Fatalf("unexpected claim limit: got %d", repository.lastClaimInput.Limit)
+	if output.ProcessingErrorCount != 0 {
+		t.Fatalf("unexpected processing error count: got %d", output.ProcessingErrorCount)
 	}
-	if got := len(repository.savedObservationTrackings); got != 1 {
+	if trackingStore.lastClaimInput.Limit != 10 {
+		t.Fatalf("unexpected claim limit: got %d", trackingStore.lastClaimInput.Limit)
+	}
+	if got := len(trackingStore.savedObservationTrackings); got != 1 {
 		t.Fatalf("unexpected saved observations: got %d", got)
 	}
-	if repository.savedObservationTrackings[0].Status != value_objects.PaymentReceiptStatusPaidConfirmed {
-		t.Fatalf("unexpected saved status: got %q", repository.savedObservationTrackings[0].Status)
+	if trackingStore.savedObservationTrackings[0].Status != value_objects.PaymentReceiptStatusPaidConfirmed {
+		t.Fatalf("unexpected saved status: got %q", trackingStore.savedObservationTrackings[0].Status)
 	}
-	if got := repository.savedObservationNextPollAtValues[0]; !got.Equal(now.Add(20 * time.Second)) {
+	if got := trackingStore.savedObservationNextPollAtValues[0]; !got.Equal(now.Add(20 * time.Second)) {
 		t.Fatalf("unexpected next poll at for confirmed status: got %s", got)
 	}
 	if unitOfWork.calls != 2 {
@@ -251,10 +234,10 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	if observer.lastInputs[0].IssuedAt.IsZero() {
 		t.Fatal("expected issued at in observer input")
 	}
-	if got := len(notificationRepository.enqueueInputs); got != 1 {
+	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
-	notification := notificationRepository.enqueueInputs[0]
+	notification := notificationOutbox.enqueueInputs[0]
 	if notification.PreviousStatus != value_objects.PaymentReceiptStatusWatching {
 		t.Fatalf("unexpected previous status: got %q", notification.PreviousStatus)
 	}
@@ -279,13 +262,13 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 		t.Fatalf("setup tracking: %v", err)
 	}
 
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
-	notificationRepository := &fakePaymentReceiptStatusNotificationRepository{}
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{
-		repository:             repository,
-		notificationRepository: notificationRepository,
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
 	}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{},
@@ -298,7 +281,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -312,22 +295,25 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 	if output.UpdatedCount != 0 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
-	if output.FailedCount != 1 {
-		t.Fatalf("unexpected failed count: got %d", output.FailedCount)
+	if output.TerminalFailedCount != 0 {
+		t.Fatalf("unexpected terminal failed count: got %d", output.TerminalFailedCount)
 	}
-	if got := len(repository.savedPollingErrorPaymentAddressID); got != 1 {
+	if output.ProcessingErrorCount != 1 {
+		t.Fatalf("unexpected processing error count: got %d", output.ProcessingErrorCount)
+	}
+	if got := len(trackingStore.savedPollingErrorPaymentAddressID); got != 1 {
 		t.Fatalf("unexpected saved polling errors: got %d", got)
 	}
-	if repository.savedPollingErrorPaymentAddressID[0] != 202 {
-		t.Fatalf("unexpected saved payment address id: got %d", repository.savedPollingErrorPaymentAddressID[0])
+	if trackingStore.savedPollingErrorPaymentAddressID[0] != 202 {
+		t.Fatalf("unexpected saved payment address id: got %d", trackingStore.savedPollingErrorPaymentAddressID[0])
 	}
-	if repository.savedPollingErrorReasons[0] != "rpc timeout" {
-		t.Fatalf("unexpected polling error reason: got %q", repository.savedPollingErrorReasons[0])
+	if trackingStore.savedPollingErrorReasons[0] != "rpc timeout" {
+		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingErrorReasons[0])
 	}
 	if unitOfWork.calls != 2 {
 		t.Fatalf("unexpected uow calls: got %d, want 2", unitOfWork.calls)
 	}
-	if got := len(notificationRepository.enqueueInputs); got != 0 {
+	if got := len(notificationOutbox.enqueueInputs); got != 0 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
 }
@@ -348,15 +334,15 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 		t.Fatalf("setup tracking: %v", err)
 	}
 
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
-	notificationRepository := &fakePaymentReceiptStatusNotificationRepository{
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{
 		enqueueErr: errors.New("enqueue failed"),
 	}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{
-		repository:             repository,
-		notificationRepository: notificationRepository,
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
 	}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
@@ -375,7 +361,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -388,7 +374,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 	if output.UpdatedCount != 0 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
-	if got := len(notificationRepository.enqueueInputs); got != 1 {
+	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
 }
@@ -411,13 +397,13 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 	expiredAt := now.Add(-1 * time.Minute)
 	tracking.ExpiresAt = &expiredAt
 
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
-	notificationRepository := &fakePaymentReceiptStatusNotificationRepository{}
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{
-		repository:             repository,
-		notificationRepository: notificationRepository,
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
 	}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{},
@@ -428,7 +414,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -444,26 +430,29 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 	if output.UpdatedCount != 0 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
-	if output.FailedCount != 1 {
-		t.Fatalf("unexpected failed count: got %d", output.FailedCount)
+	if output.TerminalFailedCount != 1 {
+		t.Fatalf("unexpected terminal failed count: got %d", output.TerminalFailedCount)
+	}
+	if output.ProcessingErrorCount != 0 {
+		t.Fatalf("unexpected processing error count: got %d", output.ProcessingErrorCount)
 	}
 	if got := len(observer.lastInputs); got != 0 {
 		t.Fatalf("unexpected observer calls: got %d", got)
 	}
-	if got := len(repository.savedObservationTrackings); got != 1 {
+	if got := len(trackingStore.savedObservationTrackings); got != 1 {
 		t.Fatalf("unexpected saved observations: got %d", got)
 	}
-	if repository.savedObservationTrackings[0].Status != value_objects.PaymentReceiptStatusFailedExpired {
-		t.Fatalf("unexpected saved status: got %q", repository.savedObservationTrackings[0].Status)
+	if trackingStore.savedObservationTrackings[0].Status != value_objects.PaymentReceiptStatusFailedExpired {
+		t.Fatalf("unexpected saved status: got %q", trackingStore.savedObservationTrackings[0].Status)
 	}
-	if repository.savedObservationTrackings[0].LastError != expiredReceiptReason {
-		t.Fatalf("unexpected saved error: got %q", repository.savedObservationTrackings[0].LastError)
+	if trackingStore.savedObservationTrackings[0].LastError != "payment window expired" {
+		t.Fatalf("unexpected saved error: got %q", trackingStore.savedObservationTrackings[0].LastError)
 	}
-	if got := len(notificationRepository.enqueueInputs); got != 1 {
+	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
-	if notificationRepository.enqueueInputs[0].CurrentStatus != value_objects.PaymentReceiptStatusFailedExpired {
-		t.Fatalf("unexpected current status: got %q", notificationRepository.enqueueInputs[0].CurrentStatus)
+	if notificationOutbox.enqueueInputs[0].CurrentStatus != value_objects.PaymentReceiptStatusFailedExpired {
+		t.Fatalf("unexpected current status: got %q", notificationOutbox.enqueueInputs[0].CurrentStatus)
 	}
 }
 
@@ -485,13 +474,13 @@ func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnco
 	expiresAt := now.Add(30 * time.Minute)
 	tracking.ExpiresAt = &expiresAt
 
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
-	notificationRepository := &fakePaymentReceiptStatusNotificationRepository{}
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{
-		repository:             repository,
-		notificationRepository: notificationRepository,
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
 	}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
@@ -510,7 +499,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnco
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -523,25 +512,25 @@ func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnco
 	if output.UpdatedCount != 1 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
-	if got := len(repository.savedObservationTrackings); got != 1 {
+	if got := len(trackingStore.savedObservationTrackings); got != 1 {
 		t.Fatalf("unexpected saved observations: got %d", got)
 	}
-	updated := repository.savedObservationTrackings[0]
+	updated := trackingStore.savedObservationTrackings[0]
 	if updated.Status != value_objects.PaymentReceiptStatusPaidUnconfirmed {
 		t.Fatalf("unexpected status: got %q", updated.Status)
 	}
 	if updated.ExpiresAt == nil {
 		t.Fatal("expected expires at to be set")
 	}
-	expectedExtendedAt := now.Add(defaultReceiptPaidUnconfirmedExpiryExtension)
+	expectedExtendedAt := now.Add(7 * 24 * time.Hour)
 	if !updated.ExpiresAt.Equal(expectedExtendedAt) {
 		t.Fatalf("unexpected extended expires at: got %s, want %s", updated.ExpiresAt, expectedExtendedAt)
 	}
-	if got := len(notificationRepository.enqueueInputs); got != 1 {
+	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
-	if notificationRepository.enqueueInputs[0].CurrentStatus != value_objects.PaymentReceiptStatusPaidUnconfirmed {
-		t.Fatalf("unexpected current status: got %q", notificationRepository.enqueueInputs[0].CurrentStatus)
+	if notificationOutbox.enqueueInputs[0].CurrentStatus != value_objects.PaymentReceiptStatusPaidUnconfirmed {
+		t.Fatalf("unexpected current status: got %q", notificationOutbox.enqueueInputs[0].CurrentStatus)
 	}
 }
 
@@ -563,13 +552,13 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 	expiresAt := now.Add(30 * time.Minute)
 	tracking.ExpiresAt = &expiresAt
 
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
-	notificationRepository := &fakePaymentReceiptStatusNotificationRepository{}
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{
-		repository:             repository,
-		notificationRepository: notificationRepository,
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
 	}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
@@ -588,9 +577,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{
-			PaidUnconfirmedExpiryExtension: 6 * time.Hour,
-		},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(6*time.Hour),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -603,10 +590,10 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 	if output.UpdatedCount != 1 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
-	if got := len(repository.savedObservationTrackings); got != 1 {
+	if got := len(trackingStore.savedObservationTrackings); got != 1 {
 		t.Fatalf("unexpected saved observations: got %d", got)
 	}
-	updated := repository.savedObservationTrackings[0]
+	updated := trackingStore.savedObservationTrackings[0]
 	if updated.ExpiresAt == nil {
 		t.Fatal("expected expires at to be set")
 	}
@@ -614,7 +601,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 	if !updated.ExpiresAt.Equal(expectedExtendedAt) {
 		t.Fatalf("unexpected extended expires at: got %s, want %s", updated.ExpiresAt, expectedExtendedAt)
 	}
-	if got := len(notificationRepository.enqueueInputs); got != 1 {
+	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
 }
@@ -638,13 +625,13 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExtendWhenStatusUnchanged(t 
 	expiresAt := now.Add(2 * time.Hour)
 	tracking.ExpiresAt = &expiresAt
 
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
-	notificationRepository := &fakePaymentReceiptStatusNotificationRepository{}
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{
-		repository:             repository,
-		notificationRepository: notificationRepository,
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
 	}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
@@ -663,9 +650,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExtendWhenStatusUnchanged(t 
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{
-			PaidUnconfirmedExpiryExtension: 72 * time.Hour,
-		},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(72*time.Hour),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -678,17 +663,17 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExtendWhenStatusUnchanged(t 
 	if output.UpdatedCount != 1 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
-	if got := len(repository.savedObservationTrackings); got != 1 {
+	if got := len(trackingStore.savedObservationTrackings); got != 1 {
 		t.Fatalf("unexpected saved observations: got %d", got)
 	}
-	updated := repository.savedObservationTrackings[0]
+	updated := trackingStore.savedObservationTrackings[0]
 	if updated.ExpiresAt == nil {
 		t.Fatal("expected expires at to be set")
 	}
 	if !updated.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("expected expires at unchanged: got %s, want %s", updated.ExpiresAt, expiresAt)
 	}
-	if got := len(notificationRepository.enqueueInputs); got != 0 {
+	if got := len(notificationOutbox.enqueueInputs); got != 0 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
 }
@@ -710,13 +695,13 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 	}
 	tracking.IssuedAt = time.Time{}
 
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
 	}
-	notificationRepository := &fakePaymentReceiptStatusNotificationRepository{}
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{}
 	unitOfWork := &fakeReceiptPollingUnitOfWork{
-		repository:             repository,
-		notificationRepository: notificationRepository,
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
 	}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{},
@@ -727,7 +712,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -741,26 +726,29 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 	if output.UpdatedCount != 0 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
-	if output.FailedCount != 1 {
-		t.Fatalf("unexpected failed count: got %d", output.FailedCount)
+	if output.TerminalFailedCount != 0 {
+		t.Fatalf("unexpected terminal failed count: got %d", output.TerminalFailedCount)
+	}
+	if output.ProcessingErrorCount != 1 {
+		t.Fatalf("unexpected processing error count: got %d", output.ProcessingErrorCount)
 	}
 	if got := len(observer.lastInputs); got != 0 {
 		t.Fatalf("unexpected observer calls: got %d", got)
 	}
-	if got := len(repository.savedPollingErrorReasons); got != 1 {
+	if got := len(trackingStore.savedPollingErrorReasons); got != 1 {
 		t.Fatalf("unexpected polling errors: got %d", got)
 	}
-	if repository.savedPollingErrorReasons[0] != "issued at is required" {
-		t.Fatalf("unexpected polling error reason: got %q", repository.savedPollingErrorReasons[0])
+	if trackingStore.savedPollingErrorReasons[0] != "issued at is required" {
+		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingErrorReasons[0])
 	}
-	if got := len(notificationRepository.enqueueInputs); got != 0 {
+	if got := len(notificationOutbox.enqueueInputs); got != 0 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
 }
 
 func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
-	repository := &fakePaymentReceiptTrackingRepository{}
-	unitOfWork := &fakeReceiptPollingUnitOfWork{repository: repository, notificationRepository: &fakePaymentReceiptStatusNotificationRepository{}}
+	trackingStore := &fakePaymentReceiptTrackingStore{}
+	unitOfWork := &fakeReceiptPollingUnitOfWork{trackingStore: trackingStore, notificationOutbox: &fakePaymentReceiptStatusNotificationOutbox{}}
 	useCase := NewRunReceiptPollingCycleUseCase(
 		unitOfWork,
 		&fakeBlockchainReceiptObserver{
@@ -768,7 +756,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 			errorsByAddress:  map[string]error{},
 		},
 		&fakeReceiptPollingClock{now: time.Now().UTC()},
-		RunReceiptPollingCycleUseCaseConfig{},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{BatchSize: 0})
@@ -783,8 +771,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected nil error for custom chain scope, got %v", err)
 	}
-	if repository.lastClaimInput.Chain != "eth" {
-		t.Fatalf("unexpected normalized custom chain: got %q", repository.lastClaimInput.Chain)
+	if trackingStore.lastClaimInput.Chain != "eth" {
+		t.Fatalf("unexpected normalized custom chain: got %q", trackingStore.lastClaimInput.Chain)
 	}
 
 	_, err = useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -815,10 +803,10 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 
 func TestRunReceiptPollingCycleUseCaseExecuteWithScope(t *testing.T) {
 	now := time.Date(2026, 3, 5, 14, 20, 0, 0, time.UTC)
-	repository := &fakePaymentReceiptTrackingRepository{
+	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{},
 	}
-	unitOfWork := &fakeReceiptPollingUnitOfWork{repository: repository, notificationRepository: &fakePaymentReceiptStatusNotificationRepository{}}
+	unitOfWork := &fakeReceiptPollingUnitOfWork{trackingStore: trackingStore, notificationOutbox: &fakePaymentReceiptStatusNotificationOutbox{}}
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{},
 		errorsByAddress:  map[string]error{},
@@ -828,7 +816,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteWithScope(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		RunReceiptPollingCycleUseCaseConfig{},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -840,10 +828,10 @@ func TestRunReceiptPollingCycleUseCaseExecuteWithScope(t *testing.T) {
 		t.Fatalf("Execute returned error: %v", err)
 	}
 
-	if repository.lastClaimInput.Chain != "bitcoin" {
-		t.Fatalf("unexpected claim chain: got %q", repository.lastClaimInput.Chain)
+	if trackingStore.lastClaimInput.Chain != "bitcoin" {
+		t.Fatalf("unexpected claim chain: got %q", trackingStore.lastClaimInput.Chain)
 	}
-	if repository.lastClaimInput.Network != "mainnet" {
-		t.Fatalf("unexpected claim network: got %q", repository.lastClaimInput.Network)
+	if trackingStore.lastClaimInput.Network != "mainnet" {
+		t.Fatalf("unexpected claim network: got %q", trackingStore.lastClaimInput.Network)
 	}
 }

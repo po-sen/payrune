@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 
 	outport "payrune/internal/application/ports/out"
 	"payrune/internal/domain/entities"
@@ -15,18 +16,23 @@ const maxNonHardenedIndex int64 = 0x7fffffff
 
 var errAllocationNotReserved = errors.New("address allocation is not reserved")
 
-type PaymentAddressAllocationRepository struct {
+type PaymentAddressAllocationStore struct {
 	executor Executor
 }
 
-func NewPaymentAddressAllocationRepository(executor Executor) *PaymentAddressAllocationRepository {
-	return &PaymentAddressAllocationRepository{executor: executor}
+func NewPaymentAddressAllocationStore(executor Executor) *PaymentAddressAllocationStore {
+	return &PaymentAddressAllocationStore{executor: executor}
 }
 
-func (r *PaymentAddressAllocationRepository) Complete(
+func (r *PaymentAddressAllocationStore) Complete(
 	ctx context.Context,
 	allocation entities.PaymentAddressAllocation,
+	issuedAt time.Time,
 ) error {
+	if issuedAt.IsZero() {
+		return errors.New("issued at is required")
+	}
+
 	result, err := r.executor.ExecContext(
 		ctx,
 		`UPDATE address_policy_allocations
@@ -36,7 +42,7 @@ func (r *PaymentAddressAllocationRepository) Complete(
 		     address = $5,
 		     derivation_path = $6,
 		     allocation_status = 'issued',
-		     issued_at = NOW(),
+		     issued_at = $7,
 		     failure_reason = NULL
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
 		allocation.PaymentAddressID,
@@ -45,6 +51,7 @@ func (r *PaymentAddressAllocationRepository) Complete(
 		string(allocation.Scheme),
 		strings.TrimSpace(allocation.Address),
 		nullIfEmpty(allocation.DerivationPath),
+		issuedAt.UTC(),
 	)
 	if err != nil {
 		return err
@@ -61,7 +68,7 @@ func (r *PaymentAddressAllocationRepository) Complete(
 	return nil
 }
 
-func (r *PaymentAddressAllocationRepository) MarkDerivationFailed(
+func (r *PaymentAddressAllocationStore) MarkDerivationFailed(
 	ctx context.Context,
 	allocation entities.PaymentAddressAllocation,
 ) error {
@@ -89,7 +96,7 @@ func (r *PaymentAddressAllocationRepository) MarkDerivationFailed(
 	return nil
 }
 
-func (r *PaymentAddressAllocationRepository) ReopenFailedReservation(
+func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	ctx context.Context,
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, bool, error) {
@@ -108,9 +115,9 @@ func (r *PaymentAddressAllocationRepository) ReopenFailedReservation(
 		 ORDER BY reserved_at ASC, id ASC
 		 LIMIT 1
 		 FOR UPDATE SKIP LOCKED`,
-		input.Policy.AddressPolicyID,
-		input.Policy.XPubFingerprintAlgo,
-		input.Policy.XPubFingerprint,
+		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
 	).Scan(&paymentAddressID, &derivationIndex)
 	if errors.Is(err, sql.ErrNoRows) {
 		return entities.PaymentAddressAllocation{}, false, nil
@@ -146,7 +153,7 @@ func (r *PaymentAddressAllocationRepository) ReopenFailedReservation(
 
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:    paymentAddressID,
-		AddressPolicyID:     input.Policy.AddressPolicyID,
+		AddressPolicyID:     input.IssuancePolicy.AddressPolicy.AddressPolicyID,
 		DerivationIndex:     uint32(derivationIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,
@@ -154,7 +161,7 @@ func (r *PaymentAddressAllocationRepository) ReopenFailedReservation(
 	}, true, nil
 }
 
-func (r *PaymentAddressAllocationRepository) ReserveFresh(
+func (r *PaymentAddressAllocationStore) ReserveFresh(
 	ctx context.Context,
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, error) {
@@ -170,9 +177,9 @@ func (r *PaymentAddressAllocationRepository) ReserveFresh(
 			 )
 		 VALUES ($1, $2, $3, 0)
 		 ON CONFLICT (address_policy_id, xpub_fingerprint_algo, xpub_fingerprint) DO NOTHING`,
-		input.Policy.AddressPolicyID,
-		input.Policy.XPubFingerprintAlgo,
-		input.Policy.XPubFingerprint,
+		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, err
 	}
@@ -186,9 +193,9 @@ func (r *PaymentAddressAllocationRepository) ReserveFresh(
 		   AND xpub_fingerprint_algo = $2
 		   AND xpub_fingerprint = $3
 		 FOR UPDATE`,
-		input.Policy.AddressPolicyID,
-		input.Policy.XPubFingerprintAlgo,
-		input.Policy.XPubFingerprint,
+		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
 	).Scan(&nextIndex)
 	if err != nil {
 		return entities.PaymentAddressAllocation{}, err
@@ -211,9 +218,9 @@ func (r *PaymentAddressAllocationRepository) ReserveFresh(
 			 )
 		 VALUES ($1, $2, $3, $4, $5, $6, 'reserved')
 		 RETURNING id`,
-		input.Policy.AddressPolicyID,
-		input.Policy.XPubFingerprintAlgo,
-		input.Policy.XPubFingerprint,
+		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
 		nextIndex,
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
@@ -230,16 +237,16 @@ func (r *PaymentAddressAllocationRepository) ReserveFresh(
 		 WHERE address_policy_id = $1
 		   AND xpub_fingerprint_algo = $2
 		   AND xpub_fingerprint = $3`,
-		input.Policy.AddressPolicyID,
-		input.Policy.XPubFingerprintAlgo,
-		input.Policy.XPubFingerprint,
+		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
+		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, err
 	}
 
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:    paymentAddressID,
-		AddressPolicyID:     input.Policy.AddressPolicyID,
+		AddressPolicyID:     input.IssuancePolicy.AddressPolicy.AddressPolicyID,
 		DerivationIndex:     uint32(nextIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,

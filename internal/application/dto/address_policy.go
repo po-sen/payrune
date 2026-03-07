@@ -18,7 +18,7 @@ type ListAddressPoliciesResponse struct {
 }
 
 type GenerateAddressInput struct {
-	Chain           value_objects.Chain
+	Chain           value_objects.SupportedChain
 	AddressPolicyID string
 	Index           uint32
 }
@@ -35,7 +35,7 @@ type GenerateAddressResponse struct {
 }
 
 type AllocatePaymentAddressInput struct {
-	Chain               value_objects.Chain
+	Chain               value_objects.SupportedChain
 	AddressPolicyID     string
 	ExpectedAmountMinor int64
 	CustomerReference   string

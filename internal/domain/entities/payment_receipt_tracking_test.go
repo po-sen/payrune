@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"payrune/internal/domain/events"
 	"payrune/internal/domain/value_objects"
 )
 
@@ -340,5 +341,65 @@ func TestPaymentReceiptTrackingExtendExpiryOnTransitionToPaidUnconfirmed(t *test
 				t.Fatalf("unexpected expiry: got %s, want %s", updated.ExpiresAt, tc.expectedExpiresAt)
 			}
 		})
+	}
+}
+
+func TestPaymentReceiptTrackingStatusChangedEvent(t *testing.T) {
+	tracking, err := NewPaymentReceiptTracking(
+		31,
+		"bitcoin-testnet4-native-segwit",
+		value_objects.ChainIDBitcoin,
+		value_objects.NetworkID("testnet4"),
+		"tb1qexample",
+		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
+		1000,
+		1,
+	)
+	if err != nil {
+		t.Fatalf("setup failed: %v", err)
+	}
+	tracking.Status = value_objects.PaymentReceiptStatusPaidConfirmed
+	tracking.ObservedTotalMinor = 1000
+	tracking.ConfirmedTotalMinor = 1000
+
+	event, changed, err := tracking.StatusChangedEvent(
+		value_objects.PaymentReceiptStatusWatching,
+		time.Date(2026, 3, 5, 14, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("StatusChangedEvent returned error: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+	if event.CurrentStatus != value_objects.PaymentReceiptStatusPaidConfirmed {
+		t.Fatalf("unexpected current status: got %q", event.CurrentStatus)
+	}
+
+	zeroEvent, changed, err := tracking.StatusChangedEvent(
+		value_objects.PaymentReceiptStatusPaidConfirmed,
+		time.Date(2026, 3, 5, 14, 1, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("StatusChangedEvent returned error on unchanged status: %v", err)
+	}
+	if changed {
+		t.Fatal("expected changed=false")
+	}
+	if zeroEvent != (events.PaymentReceiptStatusChanged{}) {
+		t.Fatalf("expected zero event, got %+v", zeroEvent)
+	}
+}
+
+func TestPollablePaymentReceiptStatuses(t *testing.T) {
+	statuses := PollablePaymentReceiptStatuses()
+	if len(statuses) != 4 {
+		t.Fatalf("unexpected status count: got %d", len(statuses))
+	}
+	if statuses[0] != value_objects.PaymentReceiptStatusWatching {
+		t.Fatalf("unexpected first status: got %q", statuses[0])
+	}
+	if statuses[3] != value_objects.PaymentReceiptStatusDoubleSpendSuspected {
+		t.Fatalf("unexpected last status: got %q", statuses[3])
 	}
 }

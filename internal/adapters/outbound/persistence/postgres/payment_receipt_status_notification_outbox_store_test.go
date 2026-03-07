@@ -9,6 +9,8 @@ import (
 	"time"
 
 	outport "payrune/internal/application/ports/out"
+	"payrune/internal/domain/events"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/value_objects"
 )
 
@@ -63,66 +65,14 @@ func (s *stubNotificationExecutor) QueryRowContext(context.Context, string, ...a
 	panic("unexpected QueryRowContext call")
 }
 
-func TestPaymentReceiptStatusNotificationRepositoryEnqueueStatusChangedValidation(t *testing.T) {
-	testCases := []struct {
-		name  string
-		input outport.EnqueuePaymentReceiptStatusChangedInput
-	}{
-		{
-			name: "invalid payment address id",
-			input: outport.EnqueuePaymentReceiptStatusChangedInput{
-				PaymentAddressID: 0,
-			},
-		},
-		{
-			name: "same status",
-			input: outport.EnqueuePaymentReceiptStatusChangedInput{
-				PaymentAddressID: 1,
-				PreviousStatus:   value_objects.PaymentReceiptStatusWatching,
-				CurrentStatus:    value_objects.PaymentReceiptStatusWatching,
-				StatusChangedAt:  time.Now().UTC(),
-			},
-		},
-		{
-			name: "negative amount",
-			input: outport.EnqueuePaymentReceiptStatusChangedInput{
-				PaymentAddressID:   1,
-				PreviousStatus:     value_objects.PaymentReceiptStatusWatching,
-				CurrentStatus:      value_objects.PaymentReceiptStatusPaidConfirmed,
-				ObservedTotalMinor: -1,
-				StatusChangedAt:    time.Now().UTC(),
-			},
-		},
-		{
-			name: "missing changed at",
-			input: outport.EnqueuePaymentReceiptStatusChangedInput{
-				PaymentAddressID: 1,
-				PreviousStatus:   value_objects.PaymentReceiptStatusWatching,
-				CurrentStatus:    value_objects.PaymentReceiptStatusPaidConfirmed,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			repository := NewPaymentReceiptStatusNotificationRepository(&stubNotificationExecutor{})
-
-			err := repository.EnqueueStatusChanged(context.Background(), tc.input)
-			if err == nil {
-				t.Fatal("expected validation error")
-			}
-		})
-	}
-}
-
-func TestPaymentReceiptStatusNotificationRepositoryEnqueueStatusChangedSuccess(t *testing.T) {
+func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSuccess(t *testing.T) {
 	now := time.Date(2026, 3, 6, 9, 30, 0, 0, time.UTC)
 	executor := &stubNotificationExecutor{
 		execResult: stubSQLResult{rowsAffected: 1},
 	}
-	repository := NewPaymentReceiptStatusNotificationRepository(executor)
+	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(executor)
 
-	err := repository.EnqueueStatusChanged(context.Background(), outport.EnqueuePaymentReceiptStatusChangedInput{
+	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
 		PaymentAddressID:      101,
 		PreviousStatus:        value_objects.PaymentReceiptStatusWatching,
 		CurrentStatus:         value_objects.PaymentReceiptStatusPaidUnconfirmed,
@@ -162,12 +112,12 @@ func TestPaymentReceiptStatusNotificationRepositoryEnqueueStatusChangedSuccess(t
 	}
 }
 
-func TestPaymentReceiptStatusNotificationRepositoryEnqueueStatusChangedAddressNotFound(t *testing.T) {
-	repository := NewPaymentReceiptStatusNotificationRepository(&stubNotificationExecutor{
+func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedAddressNotFound(t *testing.T) {
+	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(&stubNotificationExecutor{
 		execResult: stubSQLResult{rowsAffected: 0},
 	})
 
-	err := repository.EnqueueStatusChanged(context.Background(), outport.EnqueuePaymentReceiptStatusChangedInput{
+	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
 		PaymentAddressID:      88,
 		PreviousStatus:        value_objects.PaymentReceiptStatusWatching,
 		CurrentStatus:         value_objects.PaymentReceiptStatusPaidConfirmed,
@@ -182,12 +132,12 @@ func TestPaymentReceiptStatusNotificationRepositoryEnqueueStatusChangedAddressNo
 	}
 }
 
-func TestPaymentReceiptStatusNotificationRepositoryEnqueueStatusChangedExecError(t *testing.T) {
-	repository := NewPaymentReceiptStatusNotificationRepository(&stubNotificationExecutor{
+func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedExecError(t *testing.T) {
+	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(&stubNotificationExecutor{
 		execErr: errors.New("db down"),
 	})
 
-	err := repository.EnqueueStatusChanged(context.Background(), outport.EnqueuePaymentReceiptStatusChangedInput{
+	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
 		PaymentAddressID:      88,
 		PreviousStatus:        value_objects.PaymentReceiptStatusWatching,
 		CurrentStatus:         value_objects.PaymentReceiptStatusPaidConfirmed,
@@ -202,10 +152,10 @@ func TestPaymentReceiptStatusNotificationRepositoryEnqueueStatusChangedExecError
 	}
 }
 
-func TestPaymentReceiptStatusNotificationRepositoryClaimPendingValidation(t *testing.T) {
-	repository := NewPaymentReceiptStatusNotificationRepository(&stubNotificationExecutor{})
+func TestPaymentReceiptStatusNotificationOutboxClaimPendingValidation(t *testing.T) {
+	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(&stubNotificationExecutor{})
 
-	_, err := repository.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
+	_, err := outboxStore.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
 		Now:        time.Time{},
 		Limit:      1,
 		ClaimUntil: time.Now().UTC(),
@@ -214,7 +164,7 @@ func TestPaymentReceiptStatusNotificationRepositoryClaimPendingValidation(t *tes
 		t.Fatal("expected missing now error")
 	}
 
-	_, err = repository.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
+	_, err = outboxStore.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
 		Now:        time.Now().UTC(),
 		Limit:      0,
 		ClaimUntil: time.Now().UTC(),
@@ -228,7 +178,7 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 	now := time.Date(2026, 3, 6, 16, 0, 0, 0, time.UTC)
 	deliveredAt := now.Add(2 * time.Minute)
 
-	notification, err := scanPaymentReceiptStatusNotification(stubScanner{
+	notification, err := scanPaymentReceiptStatusNotificationOutboxMessage(stubScanner{
 		values: []any{
 			int64(1),
 			int64(11),
@@ -248,7 +198,7 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 		},
 	})
 	if err != nil {
-		t.Fatalf("scanPaymentReceiptStatusNotification returned error: %v", err)
+		t.Fatalf("scanPaymentReceiptStatusNotificationOutboxMessage returned error: %v", err)
 	}
 	if notification.DeliveryStatus != value_objects.PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected delivery status: got %q", notification.DeliveryStatus)
@@ -258,49 +208,87 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 	}
 }
 
-func TestPaymentReceiptStatusNotificationRepositoryMarkSentValidation(t *testing.T) {
-	repository := NewPaymentReceiptStatusNotificationRepository(&stubNotificationExecutor{})
+func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *testing.T) {
+	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(&stubNotificationExecutor{})
 
-	err := repository.MarkSent(context.Background(), 0, time.Now().UTC())
+	err := outboxStore.SaveDeliveryResult(
+		context.Background(),
+		policies.PaymentReceiptStatusNotificationDeliveryResult{
+			Status: value_objects.PaymentReceiptNotificationDeliveryStatusSent,
+		},
+	)
 	if err == nil {
-		t.Fatal("expected invalid id error")
+		t.Fatal("expected delivered at validation error")
 	}
 }
 
-func TestPaymentReceiptStatusNotificationRepositoryMarkRetryScheduledSuccess(t *testing.T) {
+func TestScanPaymentReceiptStatusNotificationOutboxMessageRejectsUnsupportedStatuses(t *testing.T) {
+	_, err := scanPaymentReceiptStatusNotificationOutboxMessage(stubScanner{
+		values: []any{
+			int64(1),
+			int64(11),
+			"order-1",
+			"invalid",
+			"paid_confirmed",
+			int64(1000),
+			int64(1000),
+			int64(0),
+			int64(0),
+			time.Date(2026, 3, 6, 16, 0, 0, 0, time.UTC),
+			"pending",
+			int32(0),
+			time.Date(2026, 3, 6, 16, 5, 0, 0, time.UTC),
+			"",
+			sql.NullTime{},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected invalid status error")
+	}
+}
+
+func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultPendingSuccess(t *testing.T) {
 	executor := &stubNotificationExecutor{
 		execResult: stubSQLResult{rowsAffected: 1},
 	}
-	repository := NewPaymentReceiptStatusNotificationRepository(executor)
+	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(executor)
 	nextAttemptAt := time.Date(2026, 3, 6, 17, 0, 0, 0, time.UTC)
 
-	err := repository.MarkRetryScheduled(context.Background(), outport.MarkPaymentReceiptStatusNotificationRetryInput{
-		NotificationID: 99,
-		Attempts:       2,
-		LastError:      "timeout",
-		NextAttemptAt:  nextAttemptAt,
-	})
+	err := outboxStore.SaveDeliveryResult(
+		context.Background(),
+		policies.PaymentReceiptStatusNotificationDeliveryResult{
+			NotificationID: 99,
+			Status:         value_objects.PaymentReceiptNotificationDeliveryStatusPending,
+			Attempts:       2,
+			LastError:      "timeout",
+			NextAttemptAt:  &nextAttemptAt,
+		},
+	)
 	if err != nil {
-		t.Fatalf("MarkRetryScheduled returned error: %v", err)
+		t.Fatalf("SaveDeliveryResult returned error: %v", err)
 	}
 	if !strings.Contains(executor.lastQuery, "delivery_status = 'pending'") {
 		t.Fatalf("unexpected query: %s", executor.lastQuery)
 	}
 }
 
-func TestPaymentReceiptStatusNotificationRepositoryMarkFailedSuccess(t *testing.T) {
+func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultFailedSuccess(t *testing.T) {
 	executor := &stubNotificationExecutor{
 		execResult: stubSQLResult{rowsAffected: 1},
 	}
-	repository := NewPaymentReceiptStatusNotificationRepository(executor)
+	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(executor)
 
-	err := repository.MarkFailed(context.Background(), outport.MarkPaymentReceiptStatusNotificationFailureInput{
-		NotificationID: 99,
-		Attempts:       3,
-		LastError:      "webhook returned status 500",
-	})
+	err := outboxStore.SaveDeliveryResult(
+		context.Background(),
+		policies.PaymentReceiptStatusNotificationDeliveryResult{
+			NotificationID: 99,
+			Status:         value_objects.PaymentReceiptNotificationDeliveryStatusFailed,
+			Attempts:       3,
+			LastError:      "webhook returned status 500",
+		},
+	)
 	if err != nil {
-		t.Fatalf("MarkFailed returned error: %v", err)
+		t.Fatalf("SaveDeliveryResult returned error: %v", err)
 	}
 	if !strings.Contains(executor.lastQuery, "delivery_status = 'failed'") {
 		t.Fatalf("unexpected query: %s", executor.lastQuery)

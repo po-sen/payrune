@@ -8,33 +8,28 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lib/pq"
+
 	outport "payrune/internal/application/ports/out"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/value_objects"
 )
 
-type PaymentReceiptTrackingRepository struct {
+type PaymentReceiptTrackingStore struct {
 	executor Executor
 }
 
-func NewPaymentReceiptTrackingRepository(executor Executor) *PaymentReceiptTrackingRepository {
-	return &PaymentReceiptTrackingRepository{executor: executor}
+func NewPaymentReceiptTrackingStore(executor Executor) *PaymentReceiptTrackingStore {
+	return &PaymentReceiptTrackingStore{executor: executor}
 }
 
-func (r *PaymentReceiptTrackingRepository) RegisterIssuedAllocation(
+func (r *PaymentReceiptTrackingStore) Create(
 	ctx context.Context,
-	paymentAddressID int64,
-	defaultRequiredConfirmations int32,
-	expiresAt time.Time,
-) (bool, error) {
-	if paymentAddressID <= 0 {
-		return false, errors.New("payment address id must be greater than zero")
-	}
-	if defaultRequiredConfirmations <= 0 {
-		return false, errors.New("default required confirmations must be greater than zero")
-	}
-	if expiresAt.IsZero() {
-		return false, errors.New("expires at is required")
+	tracking entities.PaymentReceiptTracking,
+	nextPollAt time.Time,
+) error {
+	if nextPollAt.IsZero() {
+		return errors.New("next poll at is required")
 	}
 
 	result, err := r.executor.ExecContext(
@@ -50,41 +45,58 @@ func (r *PaymentReceiptTrackingRepository) RegisterIssuedAllocation(
 		     expected_amount_minor,
 		     required_confirmations,
 		     receipt_status,
+		     observed_total_minor,
+		     confirmed_total_minor,
+		     unconfirmed_total_minor,
+		     conflict_total_minor,
+		     last_observed_block_height,
+		     first_observed_at,
+		     paid_at,
+		     confirmed_at,
+		     last_error,
 		     next_poll_at
 		   )
-		   SELECT a.id,
-		          a.address_policy_id,
-		          a.chain,
-		          a.network,
-		          a.address,
-		          a.issued_at,
-		          $2,
-		          a.expected_amount_minor,
-		          $1,
-		          'watching',
-		          NOW()
-		   FROM address_policy_allocations a
-		   WHERE a.id = $3
-		     AND a.allocation_status = 'issued'
-		     AND a.network IS NOT NULL
-		     AND a.address IS NOT NULL
+		   VALUES (
+		     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+		     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+		   )
 		   ON CONFLICT (payment_address_id) DO NOTHING`,
-		defaultRequiredConfirmations,
-		expiresAt.UTC(),
-		paymentAddressID,
+		tracking.PaymentAddressID,
+		tracking.AddressPolicyID,
+		string(tracking.Chain),
+		string(tracking.Network),
+		tracking.Address,
+		tracking.IssuedAt.UTC(),
+		nullableTimePointer(tracking.ExpiresAt),
+		tracking.ExpectedAmountMinor,
+		tracking.RequiredConfirmations,
+		string(tracking.Status),
+		tracking.ObservedTotalMinor,
+		tracking.ConfirmedTotalMinor,
+		tracking.UnconfirmedTotalMinor,
+		tracking.ConflictTotalMinor,
+		tracking.LastObservedBlockHeight,
+		nullableTimePointer(tracking.FirstObservedAt),
+		nullableTimePointer(tracking.PaidAt),
+		nullableTimePointer(tracking.ConfirmedAt),
+		nullIfEmpty(tracking.LastError),
+		nextPollAt.UTC(),
 	)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return false, err
+		return err
 	}
-	return rowsAffected > 0, nil
+	if rowsAffected == 0 {
+		return errors.New("payment receipt tracking already exists")
+	}
+	return nil
 }
 
-func (r *PaymentReceiptTrackingRepository) ClaimDue(
+func (r *PaymentReceiptTrackingStore) ClaimDue(
 	ctx context.Context,
 	input outport.ClaimPaymentReceiptTrackingsInput,
 ) ([]entities.PaymentReceiptTracking, error) {
@@ -97,8 +109,18 @@ func (r *PaymentReceiptTrackingRepository) ClaimDue(
 	if input.Limit <= 0 {
 		return nil, errors.New("claim limit must be greater than zero")
 	}
+	if len(input.Statuses) == 0 {
+		return nil, errors.New("claim statuses are required")
+	}
 	chainFilter := strings.ToLower(strings.TrimSpace(input.Chain))
 	networkFilter := strings.ToLower(strings.TrimSpace(input.Network))
+	statusFilters := make([]string, 0, len(input.Statuses))
+	for _, status := range input.Statuses {
+		if status == "" {
+			return nil, errors.New("claim status is required")
+		}
+		statusFilters = append(statusFilters, string(status))
+	}
 
 	rows, err := r.executor.QueryContext(
 		ctx,
@@ -107,9 +129,9 @@ func (r *PaymentReceiptTrackingRepository) ClaimDue(
 		     FROM payment_receipt_trackings
 		     WHERE (next_poll_at <= $1 OR (expires_at IS NOT NULL AND expires_at <= $1))
 		       AND (lease_until IS NULL OR lease_until <= $1)
-		       AND receipt_status IN ('watching', 'partially_paid', 'paid_unconfirmed', 'double_spend_suspected')
-		       AND ($4 = '' OR chain = $4)
-		       AND ($5 = '' OR network = $5)
+		       AND receipt_status = ANY($4)
+		       AND ($5 = '' OR chain = $5)
+		       AND ($6 = '' OR network = $6)
 		     ORDER BY next_poll_at ASC, id ASC
 		     FOR UPDATE SKIP LOCKED
 		     LIMIT $2
@@ -143,6 +165,7 @@ func (r *PaymentReceiptTrackingRepository) ClaimDue(
 		input.Now,
 		input.Limit,
 		input.ClaimUntil,
+		pq.Array(statusFilters),
 		chainFilter,
 		networkFilter,
 	)
@@ -166,12 +189,19 @@ func (r *PaymentReceiptTrackingRepository) ClaimDue(
 	return trackings, nil
 }
 
-func (r *PaymentReceiptTrackingRepository) SaveObservation(
+func (r *PaymentReceiptTrackingStore) Save(
 	ctx context.Context,
 	tracking entities.PaymentReceiptTracking,
-	now time.Time,
+	polledAt time.Time,
 	nextPollAt time.Time,
 ) error {
+	if polledAt.IsZero() {
+		return errors.New("polled at is required")
+	}
+	if nextPollAt.IsZero() {
+		return errors.New("next poll at is required")
+	}
+
 	result, err := r.executor.ExecContext(
 		ctx,
 		`UPDATE payment_receipt_trackings
@@ -203,53 +233,8 @@ func (r *PaymentReceiptTrackingRepository) SaveObservation(
 		nullableTimePointer(tracking.ConfirmedAt),
 		nullableTimePointer(tracking.ExpiresAt),
 		nullIfEmpty(tracking.LastError),
-		now,
-		nextPollAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		return errors.New("payment receipt tracking is not found")
-	}
-
-	return nil
-}
-
-func (r *PaymentReceiptTrackingRepository) SavePollingError(
-	ctx context.Context,
-	paymentAddressID int64,
-	errorReason string,
-	now time.Time,
-	nextPollAt time.Time,
-) error {
-	if paymentAddressID <= 0 {
-		return errors.New("payment address id must be greater than zero")
-	}
-
-	normalizedError := strings.TrimSpace(errorReason)
-	if normalizedError == "" {
-		return errors.New("polling error reason is required")
-	}
-
-	result, err := r.executor.ExecContext(
-		ctx,
-		`UPDATE payment_receipt_trackings
-		 SET last_error = $2,
-		     last_polled_at = $3,
-		     next_poll_at = $4,
-		     lease_until = NULL,
-		     updated_at = NOW()
-		 WHERE payment_address_id = $1`,
-		paymentAddressID,
-		normalizedError,
-		now,
-		nextPollAt,
+		polledAt.UTC(),
+		nextPollAt.UTC(),
 	)
 	if err != nil {
 		return err

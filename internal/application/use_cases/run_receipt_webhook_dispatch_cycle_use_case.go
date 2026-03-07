@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"payrune/internal/application/dto"
+	applicationoutbox "payrune/internal/application/outbox"
 	inport "payrune/internal/application/ports/in"
 	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
+	"payrune/internal/domain/value_objects"
 )
 
 const defaultReceiptWebhookDispatchClaimTTL = 30 * time.Second
@@ -59,19 +61,19 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 		claimTTL = defaultReceiptWebhookDispatchClaimTTL
 	}
 
-	now := uc.clock.NowUTC()
+	claimNow := uc.clock.NowUTC()
 
-	var claimedNotifications []entities.PaymentReceiptStatusNotification
-	err := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
-		repository := txRepositories.PaymentReceiptStatusNotification
-		if repository == nil {
-			return errors.New("payment receipt status notification repository is not configured")
+	var claimedNotifications []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage
+	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+		outbox := txScope.PaymentReceiptStatusNotificationOutbox
+		if outbox == nil {
+			return errors.New("payment receipt status notification outbox is not configured")
 		}
 
-		notifications, err := repository.ClaimPending(ctx, outport.ClaimPaymentReceiptStatusNotificationsInput{
-			Now:        now,
+		notifications, err := outbox.ClaimPending(ctx, outport.ClaimPaymentReceiptStatusNotificationsInput{
+			Now:        claimNow,
 			Limit:      input.BatchSize,
-			ClaimUntil: now.Add(claimTTL),
+			ClaimUntil: claimNow.Add(claimTTL),
 		})
 		if err != nil {
 			return err
@@ -100,30 +102,28 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 			StatusChangedAt:       notification.StatusChangedAt,
 		})
 		if err != nil {
-			attempts := notification.DeliveryAttempts + 1
-			saveErr := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
-				repository := txRepositories.PaymentReceiptStatusNotification
-				if repository == nil {
-					return errors.New("payment receipt status notification repository is not configured")
+			deliveryResult, resultErr := policies.ResolvePaymentReceiptStatusNotificationDeliveryFailure(
+				notification.NotificationID,
+				notification.DeliveryAttempts,
+				input.MaxAttempts,
+				uc.clock.NowUTC(),
+				input.RetryDelay,
+				err.Error(),
+			)
+			if resultErr != nil {
+				return output, resultErr
+			}
+			saveErr := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+				outbox := txScope.PaymentReceiptStatusNotificationOutbox
+				if outbox == nil {
+					return errors.New("payment receipt status notification outbox is not configured")
 				}
-				if attempts >= input.MaxAttempts {
-					return repository.MarkFailed(ctx, outport.MarkPaymentReceiptStatusNotificationFailureInput{
-						NotificationID: notification.NotificationID,
-						Attempts:       attempts,
-						LastError:      err.Error(),
-					})
-				}
-				return repository.MarkRetryScheduled(ctx, outport.MarkPaymentReceiptStatusNotificationRetryInput{
-					NotificationID: notification.NotificationID,
-					Attempts:       attempts,
-					LastError:      err.Error(),
-					NextAttemptAt:  now.Add(input.RetryDelay),
-				})
+				return outbox.SaveDeliveryResult(ctx, deliveryResult)
 			})
 			if saveErr != nil {
 				return output, saveErr
 			}
-			if attempts >= input.MaxAttempts {
+			if deliveryResult.Status == value_objects.PaymentReceiptNotificationDeliveryStatusFailed {
 				output.FailedCount++
 			} else {
 				output.RetriedCount++
@@ -131,12 +131,20 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 			continue
 		}
 
-		if err := uc.unitOfWork.WithinTransaction(ctx, func(txRepositories outport.TxRepositories) error {
-			repository := txRepositories.PaymentReceiptStatusNotification
-			if repository == nil {
-				return errors.New("payment receipt status notification repository is not configured")
+		deliveryResult, resultErr := policies.MarkPaymentReceiptStatusNotificationSent(
+			notification.NotificationID,
+			uc.clock.NowUTC(),
+		)
+		if resultErr != nil {
+			return output, resultErr
+		}
+
+		if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+			outbox := txScope.PaymentReceiptStatusNotificationOutbox
+			if outbox == nil {
+				return errors.New("payment receipt status notification outbox is not configured")
 			}
-			return repository.MarkSent(ctx, notification.NotificationID, now)
+			return outbox.SaveDeliveryResult(ctx, deliveryResult)
 		}); err != nil {
 			return output, err
 		}

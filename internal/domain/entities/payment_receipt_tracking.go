@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"payrune/internal/domain/events"
 	"payrune/internal/domain/value_objects"
 )
 
@@ -174,6 +175,39 @@ func (t PaymentReceiptTracking) ExtendExpiryOnTransitionToPaidUnconfirmed(
 	candidateUTC := candidate.UTC()
 	updated.ExpiresAt = &candidateUTC
 	return updated
+}
+
+func (t PaymentReceiptTracking) StatusChangedEvent(
+	previousStatus value_objects.PaymentReceiptStatus,
+	changedAt time.Time,
+) (events.PaymentReceiptStatusChanged, bool, error) {
+	if previousStatus == t.Status {
+		return events.PaymentReceiptStatusChanged{}, false, nil
+	}
+
+	event, err := events.NewPaymentReceiptStatusChanged(
+		t.PaymentAddressID,
+		previousStatus,
+		t.Status,
+		t.ObservedTotalMinor,
+		t.ConfirmedTotalMinor,
+		t.UnconfirmedTotalMinor,
+		t.ConflictTotalMinor,
+		changedAt,
+	)
+	if err != nil {
+		return events.PaymentReceiptStatusChanged{}, false, err
+	}
+	return event, true, nil
+}
+
+func PollablePaymentReceiptStatuses() []value_objects.PaymentReceiptStatus {
+	return []value_objects.PaymentReceiptStatus{
+		value_objects.PaymentReceiptStatusWatching,
+		value_objects.PaymentReceiptStatusPartiallyPaid,
+		value_objects.PaymentReceiptStatusPaidUnconfirmed,
+		value_objects.PaymentReceiptStatusDoubleSpendSuspected,
+	}
 }
 
 func decidePaymentReceiptStatus(

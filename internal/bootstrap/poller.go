@@ -55,10 +55,11 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 		}
 
 		log.Printf(
-			"poll cycle complete claimed=%d updated=%d failed=%d",
+			"poll cycle complete claimed=%d updated=%d terminal_failed=%d processing_errors=%d",
 			output.ClaimedCount,
 			output.UpdatedCount,
-			output.FailedCount,
+			output.TerminalFailedCount,
+			output.ProcessingErrorCount,
 		)
 	}
 

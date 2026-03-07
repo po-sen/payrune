@@ -6,42 +6,78 @@ import (
 	"strings"
 	"time"
 
+	applicationoutbox "payrune/internal/application/outbox"
 	outport "payrune/internal/application/ports/out"
 	"payrune/internal/domain/entities"
+	"payrune/internal/domain/events"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/value_objects"
 )
 
-const testXPubFingerprintAlgo = "sha256-trunc64-hex-v1"
+const testPublicKeyFingerprintAlgo = "sha256-trunc64-hex-v1"
 
 type inMemoryAddressPolicyReader struct {
-	ordered []entities.AddressPolicy
-	byID    map[string]entities.AddressPolicy
+	ordered      []entities.AddressPolicy
+	issuanceByID map[string]entities.AddressIssuancePolicy
 }
 
 var _ outport.AddressPolicyReader = (*inMemoryAddressPolicyReader)(nil)
 
-func newInMemoryAddressPolicyReader(policies []entities.AddressPolicy) *inMemoryAddressPolicyReader {
+func newAddressIssuancePolicy(
+	addressPolicyID string,
+	chain value_objects.SupportedChain,
+	network value_objects.NetworkID,
+	scheme string,
+	minorUnit string,
+	decimals uint8,
+	accountPublicKey string,
+	fingerprintAlgo string,
+	fingerprint string,
+	derivationPathPrefix string,
+) entities.AddressIssuancePolicy {
+	return entities.AddressIssuancePolicy{
+		AddressPolicy: entities.AddressPolicy{
+			AddressPolicyID: addressPolicyID,
+			Chain:           chain,
+			Network:         network,
+			Scheme:          scheme,
+			MinorUnit:       minorUnit,
+			Decimals:        decimals,
+		},
+		DerivationConfig: value_objects.AddressDerivationConfig{
+			AccountPublicKey:         accountPublicKey,
+			PublicKeyFingerprintAlgo: fingerprintAlgo,
+			PublicKeyFingerprint:     fingerprint,
+			DerivationPathPrefix:     derivationPathPrefix,
+		},
+	}.Normalize()
+}
+
+func newInMemoryAddressPolicyReader(policies []entities.AddressIssuancePolicy) *inMemoryAddressPolicyReader {
 	ordered := make([]entities.AddressPolicy, 0, len(policies))
-	byID := make(map[string]entities.AddressPolicy, len(policies))
+	issuanceByID := make(map[string]entities.AddressIssuancePolicy, len(policies))
 
 	for _, policy := range policies {
 		normalized := policy.Normalize()
-		if normalized.AddressPolicyID == "" {
+		if normalized.AddressPolicy.AddressPolicyID == "" {
 			continue
 		}
-		if _, exists := byID[normalized.AddressPolicyID]; exists {
+		if _, exists := issuanceByID[normalized.AddressPolicy.AddressPolicyID]; exists {
 			continue
 		}
-		ordered = append(ordered, normalized)
-		byID[normalized.AddressPolicyID] = normalized
+		ordered = append(ordered, normalized.AddressPolicy)
+		issuanceByID[normalized.AddressPolicy.AddressPolicyID] = normalized
 	}
 
-	return &inMemoryAddressPolicyReader{ordered: ordered, byID: byID}
+	return &inMemoryAddressPolicyReader{
+		ordered:      ordered,
+		issuanceByID: issuanceByID,
+	}
 }
 
 func (r *inMemoryAddressPolicyReader) ListByChain(
 	_ context.Context,
-	chain value_objects.Chain,
+	chain value_objects.SupportedChain,
 ) ([]entities.AddressPolicy, error) {
 	policies := make([]entities.AddressPolicy, 0)
 	for _, policy := range r.ordered {
@@ -53,61 +89,54 @@ func (r *inMemoryAddressPolicyReader) ListByChain(
 	return policies, nil
 }
 
-func (r *inMemoryAddressPolicyReader) FindByID(
+func (r *inMemoryAddressPolicyReader) FindIssuanceByID(
 	_ context.Context,
 	addressPolicyID string,
-) (entities.AddressPolicy, bool, error) {
-	policy, ok := r.byID[strings.TrimSpace(addressPolicyID)]
+) (entities.AddressIssuancePolicy, bool, error) {
+	policy, ok := r.issuanceByID[strings.TrimSpace(addressPolicyID)]
 	if !ok {
-		return entities.AddressPolicy{}, false, nil
+		return entities.AddressIssuancePolicy{}, false, nil
 	}
 	return policy, true, nil
 }
 
-type fakePolicyBitcoinAddressDeriver struct {
-	address             string
-	err                 error
-	derivationPath      string
-	derivationPathErr   error
-	lastNetwork         value_objects.BitcoinNetwork
-	lastScheme          value_objects.BitcoinAddressScheme
-	lastXPub            string
-	lastIndex           uint32
-	lastDerivationXPub  string
-	lastDerivationIndex uint32
-	calls               int
+type fakeChainAddressDeriver struct {
+	supportedChains map[value_objects.SupportedChain]bool
+	output          outport.DeriveChainAddressOutput
+	err             error
+	lastInput       outport.DeriveChainAddressInput
+	calls           int
 }
 
-func (f *fakePolicyBitcoinAddressDeriver) DeriveAddress(
-	network value_objects.BitcoinNetwork,
-	scheme value_objects.BitcoinAddressScheme,
-	xpub string,
-	index uint32,
-) (string, error) {
+func newFakeChainAddressDeriver() *fakeChainAddressDeriver {
+	return &fakeChainAddressDeriver{
+		supportedChains: map[value_objects.SupportedChain]bool{
+			value_objects.SupportedChainBitcoin: true,
+		},
+		output: outport.DeriveChainAddressOutput{
+			Address:                "bc1qdefault",
+			RelativeDerivationPath: "0/0",
+		},
+	}
+}
+
+func (f *fakeChainAddressDeriver) SupportsChain(chain value_objects.SupportedChain) bool {
+	return f.supportedChains[chain]
+}
+
+func (f *fakeChainAddressDeriver) DeriveAddress(
+	_ context.Context,
+	input outport.DeriveChainAddressInput,
+) (outport.DeriveChainAddressOutput, error) {
 	f.calls++
-	f.lastNetwork = network
-	f.lastScheme = scheme
-	f.lastXPub = xpub
-	f.lastIndex = index
+	f.lastInput = input
 	if f.err != nil {
-		return "", f.err
+		return outport.DeriveChainAddressOutput{}, f.err
 	}
-	return f.address, nil
+	return f.output, nil
 }
 
-func (f *fakePolicyBitcoinAddressDeriver) DerivationPath(xpub string, index uint32) (string, error) {
-	f.lastDerivationXPub = xpub
-	f.lastDerivationIndex = index
-	if f.derivationPathErr != nil {
-		return "", f.derivationPathErr
-	}
-	if f.derivationPath == "" {
-		return "0/0", nil
-	}
-	return f.derivationPath, nil
-}
-
-type fakePaymentAddressAllocationRepository struct {
+type fakePaymentAddressAllocationStore struct {
 	reopenReservation     entities.PaymentAddressAllocation
 	reopenFound           bool
 	reopenErr             error
@@ -118,6 +147,7 @@ type fakePaymentAddressAllocationRepository struct {
 	lastReopenInput       outport.ReservePaymentAddressAllocationInput
 	lastReserveFreshInput outport.ReservePaymentAddressAllocationInput
 	lastCompleteInput     entities.PaymentAddressAllocation
+	lastCompleteIssuedAt  time.Time
 	lastFailedInput       entities.PaymentAddressAllocation
 	reopenCalls           int
 	reserveFreshCalls     int
@@ -125,7 +155,7 @@ type fakePaymentAddressAllocationRepository struct {
 	markFailedCalls       int
 }
 
-func (f *fakePaymentAddressAllocationRepository) ReopenFailedReservation(
+func (f *fakePaymentAddressAllocationStore) ReopenFailedReservation(
 	_ context.Context,
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, bool, error) {
@@ -140,7 +170,7 @@ func (f *fakePaymentAddressAllocationRepository) ReopenFailedReservation(
 	return entities.PaymentAddressAllocation{}, false, nil
 }
 
-func (f *fakePaymentAddressAllocationRepository) ReserveFresh(
+func (f *fakePaymentAddressAllocationStore) ReserveFresh(
 	_ context.Context,
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, error) {
@@ -152,16 +182,18 @@ func (f *fakePaymentAddressAllocationRepository) ReserveFresh(
 	return f.freshReservation, nil
 }
 
-func (f *fakePaymentAddressAllocationRepository) Complete(
+func (f *fakePaymentAddressAllocationStore) Complete(
 	_ context.Context,
 	input entities.PaymentAddressAllocation,
+	issuedAt time.Time,
 ) error {
 	f.completeCalls++
 	f.lastCompleteInput = input
+	f.lastCompleteIssuedAt = issuedAt
 	return f.completeErr
 }
 
-func (f *fakePaymentAddressAllocationRepository) MarkDerivationFailed(
+func (f *fakePaymentAddressAllocationStore) MarkDerivationFailed(
 	_ context.Context,
 	input entities.PaymentAddressAllocation,
 ) error {
@@ -171,74 +203,68 @@ func (f *fakePaymentAddressAllocationRepository) MarkDerivationFailed(
 }
 
 type fakeUnitOfWork struct {
-	err                       error
-	calls                     int
-	allocationRepository      outport.PaymentAddressAllocationRepository
-	receiptTrackingRepository outport.PaymentReceiptTrackingRepository
-	notificationRepository    outport.PaymentReceiptStatusNotificationRepository
+	err                  error
+	calls                int
+	allocationStore      outport.PaymentAddressAllocationStore
+	receiptTrackingStore outport.PaymentReceiptTrackingStore
+	notificationOutbox   outport.PaymentReceiptStatusNotificationOutbox
 }
 
-func newFakeUnitOfWork(repository outport.PaymentAddressAllocationRepository) *fakeUnitOfWork {
+func newFakeUnitOfWork(store outport.PaymentAddressAllocationStore) *fakeUnitOfWork {
 	return &fakeUnitOfWork{
-		allocationRepository:      repository,
-		receiptTrackingRepository: &fakeAllocatePaymentReceiptTrackingRepository{},
-		notificationRepository:    &fakeAllocatePaymentReceiptStatusNotificationRepository{},
+		allocationStore:      store,
+		receiptTrackingStore: &fakeAllocatePaymentReceiptTrackingStore{},
+		notificationOutbox:   &fakeAllocatePaymentReceiptStatusNotificationOutbox{},
 	}
 }
 
 func (f *fakeUnitOfWork) WithinTransaction(
 	_ context.Context,
-	fn func(txRepositories outport.TxRepositories) error,
+	fn func(txScope outport.TxScope) error,
 ) error {
 	f.calls++
 	if f.err != nil {
 		return f.err
 	}
-	if f.allocationRepository == nil {
-		return errors.New("payment address allocation repository is not configured")
+	if f.allocationStore == nil {
+		return errors.New("payment address allocation store is not configured")
 	}
-	if f.receiptTrackingRepository == nil {
-		return errors.New("payment receipt tracking repository is not configured")
+	if f.receiptTrackingStore == nil {
+		return errors.New("payment receipt tracking store is not configured")
 	}
-	return fn(outport.TxRepositories{
-		PaymentAddressAllocation:         f.allocationRepository,
-		PaymentReceiptTracking:           f.receiptTrackingRepository,
-		PaymentReceiptStatusNotification: f.notificationRepository,
+	return fn(outport.TxScope{
+		PaymentAddressAllocation:               f.allocationStore,
+		PaymentReceiptTracking:                 f.receiptTrackingStore,
+		PaymentReceiptStatusNotificationOutbox: f.notificationOutbox,
 	})
 }
 
-type fakeAllocatePaymentReceiptTrackingRepository struct {
-	registerErr                  error
-	registerCalls                int
-	lastRegisterPaymentAddressID int64
-	lastRegisterConfirmations    int32
-	lastRegisterExpiresAt        time.Time
+type fakeAllocatePaymentReceiptTrackingStore struct {
+	createErr          error
+	createCalls        int
+	lastCreateTracking entities.PaymentReceiptTracking
+	lastCreateNextPoll time.Time
 }
 
-func (f *fakeAllocatePaymentReceiptTrackingRepository) RegisterIssuedAllocation(
+func (f *fakeAllocatePaymentReceiptTrackingStore) Create(
 	_ context.Context,
-	paymentAddressID int64,
-	defaultRequiredConfirmations int32,
-	expiresAt time.Time,
-) (bool, error) {
-	f.registerCalls++
-	f.lastRegisterPaymentAddressID = paymentAddressID
-	f.lastRegisterConfirmations = defaultRequiredConfirmations
-	f.lastRegisterExpiresAt = expiresAt
-	if f.registerErr != nil {
-		return false, f.registerErr
-	}
-	return true, nil
+	tracking entities.PaymentReceiptTracking,
+	nextPollAt time.Time,
+) error {
+	f.createCalls++
+	f.lastCreateTracking = tracking
+	f.lastCreateNextPoll = nextPollAt
+	return f.createErr
 }
 
-func (f *fakeAllocatePaymentReceiptTrackingRepository) ClaimDue(
+func (f *fakeAllocatePaymentReceiptTrackingStore) ClaimDue(
 	_ context.Context,
 	_ outport.ClaimPaymentReceiptTrackingsInput,
 ) ([]entities.PaymentReceiptTracking, error) {
 	return nil, nil
 }
 
-func (f *fakeAllocatePaymentReceiptTrackingRepository) SaveObservation(
+func (f *fakeAllocatePaymentReceiptTrackingStore) Save(
 	_ context.Context,
 	_ entities.PaymentReceiptTracking,
 	_ time.Time,
@@ -247,50 +273,25 @@ func (f *fakeAllocatePaymentReceiptTrackingRepository) SaveObservation(
 	return nil
 }
 
-func (f *fakeAllocatePaymentReceiptTrackingRepository) SavePollingError(
+type fakeAllocatePaymentReceiptStatusNotificationOutbox struct{}
+
+func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) EnqueueStatusChanged(
 	_ context.Context,
-	_ int64,
-	_ string,
-	_ time.Time,
-	_ time.Time,
+	_ events.PaymentReceiptStatusChanged,
 ) error {
 	return nil
 }
 
-type fakeAllocatePaymentReceiptStatusNotificationRepository struct{}
-
-func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) EnqueueStatusChanged(
-	_ context.Context,
-	_ outport.EnqueuePaymentReceiptStatusChangedInput,
-) error {
-	return nil
-}
-
-func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) ClaimPending(
+func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) ClaimPending(
 	_ context.Context,
 	_ outport.ClaimPaymentReceiptStatusNotificationsInput,
-) ([]entities.PaymentReceiptStatusNotification, error) {
+) ([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error) {
 	return nil, nil
 }
 
-func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) MarkSent(
+func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) SaveDeliveryResult(
 	_ context.Context,
-	_ int64,
-	_ time.Time,
-) error {
-	return nil
-}
-
-func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) MarkRetryScheduled(
-	_ context.Context,
-	_ outport.MarkPaymentReceiptStatusNotificationRetryInput,
-) error {
-	return nil
-}
-
-func (f *fakeAllocatePaymentReceiptStatusNotificationRepository) MarkFailed(
-	_ context.Context,
-	_ outport.MarkPaymentReceiptStatusNotificationFailureInput,
+	_ policies.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	return nil
 }

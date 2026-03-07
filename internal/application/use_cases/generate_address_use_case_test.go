@@ -7,27 +7,32 @@ import (
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/in"
+	outport "payrune/internal/application/ports/out"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/value_objects"
 )
 
 func TestGenerateAddressUseCaseSuccess(t *testing.T) {
-	deriver := &fakePolicyBitcoinAddressDeriver{address: "1BitcoinAddressExample"}
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressPolicy{
-		{
-			AddressPolicyID: "bitcoin-mainnet-legacy",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkMainnet,
-			Scheme:          value_objects.BitcoinAddressSchemeLegacy,
-			MinorUnit:       "satoshi",
-			Decimals:        8,
-			XPub:            "xpub-main",
-		},
+	deriver := newFakeChainAddressDeriver()
+	deriver.output = dtoToDeriveOutput("1BitcoinAddressExample", "0/9")
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newAddressIssuancePolicy(
+			"bitcoin-mainnet-legacy",
+			value_objects.SupportedChainBitcoin,
+			value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+			string(value_objects.BitcoinAddressSchemeLegacy),
+			"satoshi",
+			8,
+			"xpub-main",
+			testPublicKeyFingerprintAlgo,
+			"fingerprint-main-legacy",
+			"m/44'/0'/0'",
+		),
 	})
 	useCase := NewGenerateAddressUseCase(deriver, catalog)
 
 	response, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
-		Chain:           value_objects.ChainBitcoin,
+		Chain:           value_objects.SupportedChainBitcoin,
 		AddressPolicyID: "bitcoin-mainnet-legacy",
 		Index:           9,
 	})
@@ -47,28 +52,31 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	if response.Decimals != 8 {
 		t.Fatalf("unexpected decimals: got %d", response.Decimals)
 	}
-	if deriver.lastNetwork != value_objects.BitcoinNetworkMainnet {
-		t.Fatalf("unexpected network: got %q", deriver.lastNetwork)
+	if deriver.lastInput.Network != value_objects.NetworkID(value_objects.BitcoinNetworkMainnet) {
+		t.Fatalf("unexpected network: got %q", deriver.lastInput.Network)
 	}
-	if deriver.lastScheme != value_objects.BitcoinAddressSchemeLegacy {
-		t.Fatalf("unexpected scheme: got %q", deriver.lastScheme)
+	if deriver.lastInput.Scheme != string(value_objects.BitcoinAddressSchemeLegacy) {
+		t.Fatalf("unexpected scheme: got %q", deriver.lastInput.Scheme)
 	}
-	if deriver.lastXPub != "xpub-main" {
-		t.Fatalf("unexpected xpub: got %q", deriver.lastXPub)
+	if deriver.lastInput.AccountPublicKey != "xpub-main" {
+		t.Fatalf("unexpected public key: got %q", deriver.lastInput.AccountPublicKey)
 	}
-	if deriver.lastIndex != 9 {
-		t.Fatalf("unexpected index: got %d", deriver.lastIndex)
+	if deriver.lastInput.Index != 9 {
+		t.Fatalf("unexpected index: got %d", deriver.lastInput.Index)
+	}
+	if deriver.lastInput.Chain != value_objects.SupportedChainBitcoin {
+		t.Fatalf("unexpected chain: got %q", deriver.lastInput.Chain)
 	}
 }
 
 func TestGenerateAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 	useCase := NewGenerateAddressUseCase(
-		&fakePolicyBitcoinAddressDeriver{},
+		newFakeChainAddressDeriver(),
 		newInMemoryAddressPolicyReader(nil),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
-		Chain:           value_objects.Chain("eth"),
+		Chain:           value_objects.SupportedChain("eth"),
 		AddressPolicyID: "eth-mainnet",
 		Index:           0,
 	})
@@ -79,12 +87,12 @@ func TestGenerateAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 
 func TestGenerateAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 	useCase := NewGenerateAddressUseCase(
-		&fakePolicyBitcoinAddressDeriver{},
+		newFakeChainAddressDeriver(),
 		newInMemoryAddressPolicyReader(nil),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
-		Chain:           value_objects.ChainBitcoin,
+		Chain:           value_objects.SupportedChainBitcoin,
 		AddressPolicyID: "bitcoin-mainnet-legacy",
 		Index:           0,
 	})
@@ -94,21 +102,24 @@ func TestGenerateAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 }
 
 func TestGenerateAddressUseCaseRejectDisabledPolicy(t *testing.T) {
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressPolicy{
-		{
-			AddressPolicyID: "bitcoin-mainnet-legacy",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkMainnet,
-			Scheme:          value_objects.BitcoinAddressSchemeLegacy,
-			MinorUnit:       "satoshi",
-			Decimals:        8,
-			XPub:            "",
-		},
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newAddressIssuancePolicy(
+			"bitcoin-mainnet-legacy",
+			value_objects.SupportedChainBitcoin,
+			value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+			string(value_objects.BitcoinAddressSchemeLegacy),
+			"satoshi",
+			8,
+			"",
+			"",
+			"",
+			"",
+		),
 	})
-	useCase := NewGenerateAddressUseCase(&fakePolicyBitcoinAddressDeriver{}, catalog)
+	useCase := NewGenerateAddressUseCase(newFakeChainAddressDeriver(), catalog)
 
 	_, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
-		Chain:           value_objects.ChainBitcoin,
+		Chain:           value_objects.SupportedChainBitcoin,
 		AddressPolicyID: "bitcoin-mainnet-legacy",
 		Index:           0,
 	})
@@ -119,21 +130,26 @@ func TestGenerateAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 
 func TestGenerateAddressUseCaseDerivationError(t *testing.T) {
 	expectedErr := errors.New("derive failed")
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressPolicy{
-		{
-			AddressPolicyID: "bitcoin-testnet4-native-segwit",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkTestnet4,
-			Scheme:          value_objects.BitcoinAddressSchemeNativeSegwit,
-			MinorUnit:       "satoshi",
-			Decimals:        8,
-			XPub:            "tpub-testnet4",
-		},
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newAddressIssuancePolicy(
+			"bitcoin-testnet4-native-segwit",
+			value_objects.SupportedChainBitcoin,
+			value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
+			string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			"satoshi",
+			8,
+			"tpub-testnet4",
+			testPublicKeyFingerprintAlgo,
+			"fingerprint-testnet4-native-segwit",
+			"m/84'/1'/0'",
+		),
 	})
-	useCase := NewGenerateAddressUseCase(&fakePolicyBitcoinAddressDeriver{err: expectedErr}, catalog)
+	deriver := newFakeChainAddressDeriver()
+	deriver.err = expectedErr
+	useCase := NewGenerateAddressUseCase(deriver, catalog)
 
 	_, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
-		Chain:           value_objects.ChainBitcoin,
+		Chain:           value_objects.SupportedChainBitcoin,
 		AddressPolicyID: "bitcoin-testnet4-native-segwit",
 		Index:           3,
 	})
@@ -146,69 +162,79 @@ func TestGenerateAddressUseCaseRoutesAllSchemes(t *testing.T) {
 	tests := []struct {
 		name            string
 		addressPolicyID string
-		scheme          value_objects.BitcoinAddressScheme
+		scheme          string
 	}{
-		{name: "legacy", addressPolicyID: "bitcoin-mainnet-legacy", scheme: value_objects.BitcoinAddressSchemeLegacy},
-		{name: "segwit", addressPolicyID: "bitcoin-mainnet-segwit", scheme: value_objects.BitcoinAddressSchemeSegwit},
-		{name: "native segwit", addressPolicyID: "bitcoin-mainnet-native-segwit", scheme: value_objects.BitcoinAddressSchemeNativeSegwit},
-		{name: "taproot", addressPolicyID: "bitcoin-mainnet-taproot", scheme: value_objects.BitcoinAddressSchemeTaproot},
+		{name: "legacy", addressPolicyID: "bitcoin-mainnet-legacy", scheme: string(value_objects.BitcoinAddressSchemeLegacy)},
+		{name: "segwit", addressPolicyID: "bitcoin-mainnet-segwit", scheme: string(value_objects.BitcoinAddressSchemeSegwit)},
+		{name: "native segwit", addressPolicyID: "bitcoin-mainnet-native-segwit", scheme: string(value_objects.BitcoinAddressSchemeNativeSegwit)},
+		{name: "taproot", addressPolicyID: "bitcoin-mainnet-taproot", scheme: string(value_objects.BitcoinAddressSchemeTaproot)},
 	}
 
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressPolicy{
-		{
-			AddressPolicyID: "bitcoin-mainnet-legacy",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkMainnet,
-			Scheme:          value_objects.BitcoinAddressSchemeLegacy,
-			MinorUnit:       "satoshi",
-			Decimals:        8,
-			XPub:            "xpub-main",
-		},
-		{
-			AddressPolicyID: "bitcoin-mainnet-segwit",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkMainnet,
-			Scheme:          value_objects.BitcoinAddressSchemeSegwit,
-			MinorUnit:       "satoshi",
-			Decimals:        8,
-			XPub:            "xpub-main",
-		},
-		{
-			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkMainnet,
-			Scheme:          value_objects.BitcoinAddressSchemeNativeSegwit,
-			MinorUnit:       "satoshi",
-			Decimals:        8,
-			XPub:            "xpub-main",
-		},
-		{
-			AddressPolicyID: "bitcoin-mainnet-taproot",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkMainnet,
-			Scheme:          value_objects.BitcoinAddressSchemeTaproot,
-			MinorUnit:       "satoshi",
-			Decimals:        8,
-			XPub:            "xpub-main",
-		},
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newAddressIssuancePolicy("bitcoin-mainnet-legacy", value_objects.SupportedChainBitcoin, value_objects.NetworkID(value_objects.BitcoinNetworkMainnet), string(value_objects.BitcoinAddressSchemeLegacy), "satoshi", 8, "xpub-main", testPublicKeyFingerprintAlgo, "fingerprint-main-legacy", "m/44'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-segwit", value_objects.SupportedChainBitcoin, value_objects.NetworkID(value_objects.BitcoinNetworkMainnet), string(value_objects.BitcoinAddressSchemeSegwit), "satoshi", 8, "xpub-main", testPublicKeyFingerprintAlgo, "fingerprint-main-segwit", "m/49'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-native-segwit", value_objects.SupportedChainBitcoin, value_objects.NetworkID(value_objects.BitcoinNetworkMainnet), string(value_objects.BitcoinAddressSchemeNativeSegwit), "satoshi", 8, "xpub-main", testPublicKeyFingerprintAlgo, "fingerprint-main-native-segwit", "m/84'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-taproot", value_objects.SupportedChainBitcoin, value_objects.NetworkID(value_objects.BitcoinNetworkMainnet), string(value_objects.BitcoinAddressSchemeTaproot), "satoshi", 8, "xpub-main", testPublicKeyFingerprintAlgo, "fingerprint-main-taproot", "m/86'/0'/0'"),
 	})
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			deriver := &fakePolicyBitcoinAddressDeriver{address: "1BitcoinAddressExample"}
+			deriver := newFakeChainAddressDeriver()
+			deriver.output = dtoToDeriveOutput("1BitcoinAddressExample", "0/1")
 			useCase := NewGenerateAddressUseCase(deriver, catalog)
 
 			_, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
-				Chain:           value_objects.ChainBitcoin,
+				Chain:           value_objects.SupportedChainBitcoin,
 				AddressPolicyID: tc.addressPolicyID,
 				Index:           1,
 			})
 			if err != nil {
 				t.Fatalf("Execute returned error: %v", err)
 			}
-			if deriver.lastScheme != tc.scheme {
-				t.Fatalf("unexpected scheme routed to deriver: got %q, want %q", deriver.lastScheme, tc.scheme)
+			if deriver.lastInput.Scheme != tc.scheme {
+				t.Fatalf("unexpected scheme routed to deriver: got %q, want %q", deriver.lastInput.Scheme, tc.scheme)
 			}
 		})
+	}
+}
+
+func TestGenerateAddressUseCaseValidationMissingDependencies(t *testing.T) {
+	input := dto.GenerateAddressInput{
+		Chain:           value_objects.SupportedChainBitcoin,
+		AddressPolicyID: "bitcoin-mainnet-legacy",
+		Index:           1,
+	}
+
+	tests := []struct {
+		name    string
+		useCase *generateAddressUseCase
+		wantErr string
+	}{
+		{
+			name:    "missing deriver",
+			useCase: &generateAddressUseCase{policyReader: newInMemoryAddressPolicyReader(nil)},
+			wantErr: "chain address deriver is not configured",
+		},
+		{
+			name:    "missing policy reader",
+			useCase: &generateAddressUseCase{deriver: newFakeChainAddressDeriver()},
+			wantErr: "address policy reader is not configured",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := tc.useCase.Execute(context.Background(), input)
+			if err == nil || err.Error() != tc.wantErr {
+				t.Fatalf("unexpected error: got %v want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func dtoToDeriveOutput(address string, path string) outport.DeriveChainAddressOutput {
+	return outport.DeriveChainAddressOutput{
+		Address:                address,
+		RelativeDerivationPath: path,
 	}
 }

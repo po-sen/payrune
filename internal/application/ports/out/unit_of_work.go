@@ -2,15 +2,15 @@ package out
 
 import "context"
 
-type TxRepositories struct {
-	PaymentAddressAllocation         PaymentAddressAllocationRepository
-	PaymentReceiptTracking           PaymentReceiptTrackingRepository
-	PaymentReceiptStatusNotification PaymentReceiptStatusNotificationRepository
+type TxScope struct {
+	PaymentAddressAllocation               PaymentAddressAllocationStore
+	PaymentReceiptTracking                 PaymentReceiptTrackingStore
+	PaymentReceiptStatusNotificationOutbox PaymentReceiptStatusNotificationOutbox
 }
 
 type UnitOfWork interface {
 	WithinTransaction(
 		ctx context.Context,
-		fn func(txRepositories TxRepositories) error,
+		fn func(txScope TxScope) error,
 	) error
 }

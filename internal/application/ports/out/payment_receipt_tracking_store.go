@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"payrune/internal/domain/entities"
+	"payrune/internal/domain/value_objects"
 )
 
 type ClaimPaymentReceiptTrackingsInput struct {
@@ -13,30 +14,23 @@ type ClaimPaymentReceiptTrackingsInput struct {
 	ClaimUntil time.Time
 	Chain      string
 	Network    string
+	Statuses   []value_objects.PaymentReceiptStatus
 }
 
-type PaymentReceiptTrackingRepository interface {
-	RegisterIssuedAllocation(
+type PaymentReceiptTrackingStore interface {
+	Create(
 		ctx context.Context,
-		paymentAddressID int64,
-		defaultRequiredConfirmations int32,
-		expiresAt time.Time,
-	) (bool, error)
+		tracking entities.PaymentReceiptTracking,
+		nextPollAt time.Time,
+	) error
 	ClaimDue(
 		ctx context.Context,
 		input ClaimPaymentReceiptTrackingsInput,
 	) ([]entities.PaymentReceiptTracking, error)
-	SaveObservation(
+	Save(
 		ctx context.Context,
 		tracking entities.PaymentReceiptTracking,
-		now time.Time,
-		nextPollAt time.Time,
-	) error
-	SavePollingError(
-		ctx context.Context,
-		paymentAddressID int64,
-		errorReason string,
-		now time.Time,
+		polledAt time.Time,
 		nextPollAt time.Time,
 	) error
 }

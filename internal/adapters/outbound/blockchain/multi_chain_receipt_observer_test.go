@@ -28,20 +28,20 @@ func (f *fakeChainObserver) ObserveAddress(
 	return f.output, nil
 }
 
-func TestNewChainRouterReceiptObserverValidation(t *testing.T) {
-	_, err := NewChainRouterReceiptObserver(nil)
+func TestNewMultiChainReceiptObserverValidation(t *testing.T) {
+	_, err := NewMultiChainReceiptObserver(nil)
 	if err == nil {
 		t.Fatal("expected error for empty observer map")
 	}
 
-	_, err = NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+	_, err = NewMultiChainReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
 		value_objects.ChainIDBitcoin: nil,
 	})
 	if err == nil {
 		t.Fatal("expected error for nil observer")
 	}
 
-	_, err = NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+	_, err = NewMultiChainReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
 		value_objects.ChainID("eth/mainnet"): &fakeChainObserver{},
 	})
 	if err == nil {
@@ -49,13 +49,13 @@ func TestNewChainRouterReceiptObserverValidation(t *testing.T) {
 	}
 }
 
-func TestChainRouterReceiptObserverObserveAddress(t *testing.T) {
+func TestMultiChainReceiptObserverObserveAddress(t *testing.T) {
 	bitcoinObserver := &fakeChainObserver{
 		output: outport.ObservePaymentAddressOutput{
 			ObservedTotalMinor: 123,
 		},
 	}
-	router, err := NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+	router, err := NewMultiChainReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
 		value_objects.ChainIDBitcoin: bitcoinObserver,
 	})
 	if err != nil {
@@ -82,9 +82,9 @@ func TestChainRouterReceiptObserverObserveAddress(t *testing.T) {
 	}
 }
 
-func TestChainRouterReceiptObserverObserveAddressValidation(t *testing.T) {
+func TestMultiChainReceiptObserverObserveAddressValidation(t *testing.T) {
 	bitcoinObserver := &fakeChainObserver{}
-	router, err := NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+	router, err := NewMultiChainReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
 		value_objects.ChainIDBitcoin: bitcoinObserver,
 	})
 	if err != nil {
@@ -122,9 +122,9 @@ func TestChainRouterReceiptObserverObserveAddressValidation(t *testing.T) {
 	}
 }
 
-func TestChainRouterReceiptObserverObserveAddressPassThroughError(t *testing.T) {
+func TestMultiChainReceiptObserverObserveAddressPassThroughError(t *testing.T) {
 	bitcoinObserver := &fakeChainObserver{err: errors.New("boom")}
-	router, err := NewChainRouterReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
+	router, err := NewMultiChainReceiptObserver(map[value_objects.ChainID]outport.ChainReceiptObserver{
 		value_objects.ChainIDBitcoin: bitcoinObserver,
 	})
 	if err != nil {

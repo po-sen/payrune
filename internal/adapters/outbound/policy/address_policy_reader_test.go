@@ -7,54 +7,54 @@ import (
 	"payrune/internal/domain/value_objects"
 )
 
-func TestAddressPolicyReaderComputesXPubFingerprint(t *testing.T) {
+func TestAddressPolicyReaderComputesPublicKeyFingerprint(t *testing.T) {
 	reader := NewAddressPolicyReader([]AddressPolicyConfig{
 		{
-			AddressPolicyID: "policy-a",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkMainnet,
-			Scheme:          value_objects.BitcoinAddressSchemeLegacy,
-			XPub:            "xpub-a",
+			AddressPolicyID:  "policy-a",
+			Chain:            value_objects.SupportedChainBitcoin,
+			Network:          value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+			Scheme:           string(value_objects.BitcoinAddressSchemeLegacy),
+			AccountPublicKey: "xpub-a",
 		},
 		{
-			AddressPolicyID: "policy-b",
-			Chain:           value_objects.ChainBitcoin,
-			Network:         value_objects.BitcoinNetworkMainnet,
-			Scheme:          value_objects.BitcoinAddressSchemeLegacy,
-			XPub:            "xpub-b",
+			AddressPolicyID:  "policy-b",
+			Chain:            value_objects.SupportedChainBitcoin,
+			Network:          value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+			Scheme:           string(value_objects.BitcoinAddressSchemeLegacy),
+			AccountPublicKey: "xpub-b",
 		},
 	})
 
-	policyA, ok, err := reader.FindByID(context.Background(), "policy-a")
+	policyA, ok, err := reader.FindIssuanceByID(context.Background(), "policy-a")
 	if err != nil {
-		t.Fatalf("FindByID returned error for policy-a: %v", err)
+		t.Fatalf("FindIssuanceByID returned error for policy-a: %v", err)
 	}
 	if !ok {
 		t.Fatalf("expected policy-a exists")
 	}
 
-	policyB, ok, err := reader.FindByID(context.Background(), "policy-b")
+	policyB, ok, err := reader.FindIssuanceByID(context.Background(), "policy-b")
 	if err != nil {
-		t.Fatalf("FindByID returned error for policy-b: %v", err)
+		t.Fatalf("FindIssuanceByID returned error for policy-b: %v", err)
 	}
 	if !ok {
 		t.Fatalf("expected policy-b exists")
 	}
 
-	if policyA.XPubFingerprintAlgo != xpubFingerprintAlgorithmSHA256Trunc64HexV1 {
-		t.Fatalf("unexpected fingerprint algorithm for policy-a: got %q", policyA.XPubFingerprintAlgo)
+	if policyA.DerivationConfig.PublicKeyFingerprintAlgo != accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1 {
+		t.Fatalf("unexpected fingerprint algorithm for policy-a: got %q", policyA.DerivationConfig.PublicKeyFingerprintAlgo)
 	}
-	if policyB.XPubFingerprintAlgo != xpubFingerprintAlgorithmSHA256Trunc64HexV1 {
-		t.Fatalf("unexpected fingerprint algorithm for policy-b: got %q", policyB.XPubFingerprintAlgo)
+	if policyB.DerivationConfig.PublicKeyFingerprintAlgo != accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1 {
+		t.Fatalf("unexpected fingerprint algorithm for policy-b: got %q", policyB.DerivationConfig.PublicKeyFingerprintAlgo)
 	}
-	if policyA.XPubFingerprint == "" {
+	if policyA.DerivationConfig.PublicKeyFingerprint == "" {
 		t.Fatalf("expected non-empty fingerprint for policy-a")
 	}
-	if policyB.XPubFingerprint == "" {
+	if policyB.DerivationConfig.PublicKeyFingerprint == "" {
 		t.Fatalf("expected non-empty fingerprint for policy-b")
 	}
-	if policyA.XPubFingerprint == policyB.XPubFingerprint {
-		t.Fatalf("expected different fingerprints for different xpub values")
+	if policyA.DerivationConfig.PublicKeyFingerprint == policyB.DerivationConfig.PublicKeyFingerprint {
+		t.Fatalf("expected different fingerprints for different account public keys")
 	}
 }
 
@@ -62,47 +62,47 @@ func TestAddressPolicyReaderUsesConfiguredDerivationPathPrefix(t *testing.T) {
 	reader := NewAddressPolicyReader([]AddressPolicyConfig{
 		{
 			AddressPolicyID:      "native-mainnet",
-			Chain:                value_objects.ChainBitcoin,
-			Network:              value_objects.BitcoinNetworkMainnet,
-			Scheme:               value_objects.BitcoinAddressSchemeNativeSegwit,
-			XPub:                 "xpub-a",
+			Chain:                value_objects.SupportedChainBitcoin,
+			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+			Scheme:               string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			AccountPublicKey:     "xpub-a",
 			DerivationPathPrefix: "m/84'/0'/0'",
 		},
 		{
 			AddressPolicyID:      "taproot-testnet4",
-			Chain:                value_objects.ChainBitcoin,
-			Network:              value_objects.BitcoinNetworkTestnet4,
-			Scheme:               value_objects.BitcoinAddressSchemeTaproot,
-			XPub:                 "xpub-b",
+			Chain:                value_objects.SupportedChainBitcoin,
+			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
+			Scheme:               string(value_objects.BitcoinAddressSchemeTaproot),
+			AccountPublicKey:     "xpub-b",
 			DerivationPathPrefix: "m/86'/1'/0'",
 		},
 	})
 
-	nativeMainnet, ok, err := reader.FindByID(context.Background(), "native-mainnet")
+	nativeMainnet, ok, err := reader.FindIssuanceByID(context.Background(), "native-mainnet")
 	if err != nil {
-		t.Fatalf("FindByID returned error for native-mainnet: %v", err)
+		t.Fatalf("FindIssuanceByID returned error for native-mainnet: %v", err)
 	}
 	if !ok {
 		t.Fatalf("expected native-mainnet exists")
 	}
-	if nativeMainnet.DerivationPathPrefix != "m/84'/0'/0'" {
+	if nativeMainnet.DerivationConfig.DerivationPathPrefix != "m/84'/0'/0'" {
 		t.Fatalf(
 			"unexpected derivation path prefix for native-mainnet: got %q",
-			nativeMainnet.DerivationPathPrefix,
+			nativeMainnet.DerivationConfig.DerivationPathPrefix,
 		)
 	}
 
-	taprootTestnet4, ok, err := reader.FindByID(context.Background(), "taproot-testnet4")
+	taprootTestnet4, ok, err := reader.FindIssuanceByID(context.Background(), "taproot-testnet4")
 	if err != nil {
-		t.Fatalf("FindByID returned error for taproot-testnet4: %v", err)
+		t.Fatalf("FindIssuanceByID returned error for taproot-testnet4: %v", err)
 	}
 	if !ok {
 		t.Fatalf("expected taproot-testnet4 exists")
 	}
-	if taprootTestnet4.DerivationPathPrefix != "m/86'/1'/0'" {
+	if taprootTestnet4.DerivationConfig.DerivationPathPrefix != "m/86'/1'/0'" {
 		t.Fatalf(
 			"unexpected derivation path prefix for taproot-testnet4: got %q",
-			taprootTestnet4.DerivationPathPrefix,
+			taprootTestnet4.DerivationConfig.DerivationPathPrefix,
 		)
 	}
 }

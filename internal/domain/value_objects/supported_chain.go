@@ -1,12 +1,12 @@
 package value_objects
 
-type Chain string
+type SupportedChain string
 
 const (
-	ChainBitcoin Chain = "bitcoin"
+	SupportedChainBitcoin SupportedChain = "bitcoin"
 )
 
-func ParseChain(raw string) (Chain, bool) {
+func ParseSupportedChain(raw string) (SupportedChain, bool) {
 	chainID, ok := ParseChainID(raw)
 	if !ok {
 		return "", false
@@ -14,7 +14,7 @@ func ParseChain(raw string) (Chain, bool) {
 
 	switch chainID {
 	case ChainIDBitcoin:
-		return ChainBitcoin, true
+		return SupportedChainBitcoin, true
 	default:
 		return "", false
 	}

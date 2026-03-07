@@ -17,7 +17,7 @@ var (
 )
 
 type ListAddressPoliciesUseCase interface {
-	Execute(ctx context.Context, chain value_objects.Chain) (dto.ListAddressPoliciesResponse, error)
+	Execute(ctx context.Context, chain value_objects.SupportedChain) (dto.ListAddressPoliciesResponse, error)
 }
 
 type GenerateAddressUseCase interface {

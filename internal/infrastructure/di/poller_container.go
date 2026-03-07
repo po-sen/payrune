@@ -19,6 +19,7 @@ import (
 	inport "payrune/internal/application/ports/in"
 	outport "payrune/internal/application/ports/out"
 	"payrune/internal/application/use_cases"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/value_objects"
 )
 
@@ -69,13 +70,13 @@ func NewPollerContainer() (*PollerContainer, error) {
 		return nil, fmt.Errorf("ping database connection: %w", err)
 	}
 
-	unitOfWork := postgresadapter.NewUnitOfWork(db, postgresadapter.NewTxRepositories)
+	unitOfWork := postgresadapter.NewUnitOfWork(db, postgresadapter.NewTxScope)
 	bitcoinObserver, err := bitcoin.NewBitcoinEsploraReceiptObserver(loadBitcoinEsploraConfigsFromEnv())
 	if err != nil {
 		_ = db.Close()
 		return nil, err
 	}
-	receiptObserver, err := blockchainadapter.NewChainRouterReceiptObserver(
+	receiptObserver, err := blockchainadapter.NewMultiChainReceiptObserver(
 		map[value_objects.ChainID]outport.ChainReceiptObserver{
 			value_objects.ChainIDBitcoin: bitcoinObserver,
 		},
@@ -85,7 +86,7 @@ func NewPollerContainer() (*PollerContainer, error) {
 		return nil, err
 	}
 	clock := system.NewClock()
-	receiptPollingConfig, err := loadReceiptPollingExpiryConfigFromEnv()
+	receiptLifecyclePolicy, err := loadReceiptTrackingLifecyclePolicyFromEnv()
 	if err != nil {
 		_ = db.Close()
 		return nil, err
@@ -94,7 +95,7 @@ func NewPollerContainer() (*PollerContainer, error) {
 		unitOfWork,
 		receiptObserver,
 		clock,
-		receiptPollingConfig,
+		receiptLifecyclePolicy,
 	)
 
 	return &PollerContainer{
@@ -169,15 +170,13 @@ func loadBitcoinEsploraConfig(keys bitcoinEsploraEnvKeys) *bitcoin.BitcoinEsplor
 	}
 }
 
-func loadReceiptPollingExpiryConfigFromEnv() (use_cases.RunReceiptPollingCycleUseCaseConfig, error) {
+func loadReceiptTrackingLifecyclePolicyFromEnv() (policies.PaymentReceiptTrackingLifecyclePolicy, error) {
 	paidUnconfirmedExtension, err := parsePositiveDurationEnv(envPaymentReceiptPaidUnconfirmedExpiryExtension)
 	if err != nil {
-		return use_cases.RunReceiptPollingCycleUseCaseConfig{}, err
+		return policies.PaymentReceiptTrackingLifecyclePolicy{}, err
 	}
 
-	return use_cases.RunReceiptPollingCycleUseCaseConfig{
-		PaidUnconfirmedExpiryExtension: paidUnconfirmedExtension,
-	}, nil
+	return policies.NewPaymentReceiptTrackingLifecyclePolicy(paidUnconfirmedExtension), nil
 }
 
 func parsePositiveDurationEnv(key string) (time.Duration, error) {

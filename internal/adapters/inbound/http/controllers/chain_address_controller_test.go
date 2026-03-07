@@ -17,12 +17,12 @@ import (
 type fakeListAddressPoliciesUseCase struct {
 	response  dto.ListAddressPoliciesResponse
 	err       error
-	lastChain value_objects.Chain
+	lastChain value_objects.SupportedChain
 }
 
 func (f *fakeListAddressPoliciesUseCase) Execute(
 	_ context.Context,
-	chain value_objects.Chain,
+	chain value_objects.SupportedChain,
 ) (dto.ListAddressPoliciesResponse, error) {
 	f.lastChain = chain
 	if f.err != nil {
@@ -92,7 +92,7 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if listUC.lastChain != value_objects.ChainBitcoin {
+	if listUC.lastChain != value_objects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain passed to use case: got %q", listUC.lastChain)
 	}
 
@@ -136,7 +136,7 @@ func TestChainAddressControllerGenerateSuccess(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if generateUC.lastInput.Chain != value_objects.ChainBitcoin {
+	if generateUC.lastInput.Chain != value_objects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain in input: got %q", generateUC.lastInput.Chain)
 	}
 	if generateUC.lastInput.AddressPolicyID != "bitcoin-mainnet-legacy" {
@@ -292,7 +292,7 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if allocateUC.lastInput.Chain != value_objects.ChainBitcoin {
+	if allocateUC.lastInput.Chain != value_objects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain in input: got %q", allocateUC.lastInput.Chain)
 	}
 	if allocateUC.lastInput.AddressPolicyID != "bitcoin-mainnet-native-segwit" {

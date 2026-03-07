@@ -43,7 +43,7 @@ func (c *ChainAddressController) handleChainsV1(w http.ResponseWriter, r *http.R
 		http.NotFound(w, r)
 		return
 	}
-	chain, ok := value_objects.ParseChain(chainRaw)
+	chain, ok := value_objects.ParseSupportedChain(chainRaw)
 	if !ok {
 		writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: inport.ErrChainNotSupported.Error()})
 		return
@@ -64,7 +64,7 @@ func (c *ChainAddressController) handleChainsV1(w http.ResponseWriter, r *http.R
 func (c *ChainAddressController) handleListAddressPolicies(
 	w http.ResponseWriter,
 	r *http.Request,
-	chain value_objects.Chain,
+	chain value_objects.SupportedChain,
 ) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
@@ -94,7 +94,7 @@ type allocatePaymentAddressRequest struct {
 func (c *ChainAddressController) handleAllocatePaymentAddress(
 	w http.ResponseWriter,
 	r *http.Request,
-	chain value_objects.Chain,
+	chain value_objects.SupportedChain,
 ) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -154,7 +154,7 @@ func (c *ChainAddressController) handleAllocatePaymentAddress(
 func (c *ChainAddressController) handleGenerateAddress(
 	w http.ResponseWriter,
 	r *http.Request,
-	chain value_objects.Chain,
+	chain value_objects.SupportedChain,
 ) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)

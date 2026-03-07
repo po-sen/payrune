@@ -8,6 +8,6 @@ import (
 )
 
 type AddressPolicyReader interface {
-	ListByChain(ctx context.Context, chain value_objects.Chain) ([]entities.AddressPolicy, error)
-	FindByID(ctx context.Context, addressPolicyID string) (entities.AddressPolicy, bool, error)
+	ListByChain(ctx context.Context, chain value_objects.SupportedChain) ([]entities.AddressPolicy, error)
+	FindIssuanceByID(ctx context.Context, addressPolicyID string) (entities.AddressIssuancePolicy, bool, error)
 }

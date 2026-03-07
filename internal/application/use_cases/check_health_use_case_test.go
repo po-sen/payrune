@@ -31,3 +31,12 @@ func TestCheckHealthUseCaseExecute(t *testing.T) {
 		t.Fatalf("unexpected timestamp: got %s", response.Timestamp)
 	}
 }
+
+func TestCheckHealthUseCaseValidationMissingClock(t *testing.T) {
+	useCase := NewCheckHealthUseCase(nil)
+
+	_, err := useCase.Execute(context.Background())
+	if err == nil || err.Error() != "clock is not configured" {
+		t.Fatalf("unexpected error: got %v", err)
+	}
+}

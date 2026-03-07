@@ -2,6 +2,7 @@ package use_cases
 
 import (
 	"context"
+	"errors"
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/in"
@@ -19,10 +20,10 @@ func NewListAddressPoliciesUseCase(policyReader outport.AddressPolicyReader) inp
 
 func (uc *listAddressPoliciesUseCase) Execute(
 	ctx context.Context,
-	chain value_objects.Chain,
+	chain value_objects.SupportedChain,
 ) (dto.ListAddressPoliciesResponse, error) {
-	if chain != value_objects.ChainBitcoin {
-		return dto.ListAddressPoliciesResponse{}, inport.ErrChainNotSupported
+	if uc.policyReader == nil {
+		return dto.ListAddressPoliciesResponse{}, errors.New("address policy reader is not configured")
 	}
 
 	policyEntities, err := uc.policyReader.ListByChain(ctx, chain)

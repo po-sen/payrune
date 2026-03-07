@@ -3,6 +3,7 @@ package entities
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"payrune/internal/domain/value_objects"
 )
@@ -14,9 +15,9 @@ type PaymentAddressAllocation struct {
 	ExpectedAmountMinor int64
 	CustomerReference   string
 	Status              value_objects.PaymentAddressAllocationStatus
-	Chain               value_objects.Chain
-	Network             value_objects.BitcoinNetwork
-	Scheme              value_objects.BitcoinAddressScheme
+	Chain               value_objects.SupportedChain
+	Network             value_objects.NetworkID
+	Scheme              string
 	Address             string
 	DerivationPath      string
 	FailureReason       string
@@ -51,15 +52,15 @@ func NewPaymentAddressAllocation(
 }
 
 func (a PaymentAddressAllocation) MarkIssued(
-	policy AddressPolicy,
+	policy AddressIssuancePolicy,
 	address string,
 	relativeDerivationPath string,
 ) (PaymentAddressAllocation, error) {
 	policy = policy.Normalize()
-	if policy.AddressPolicyID == "" {
+	if policy.AddressPolicy.AddressPolicyID == "" {
 		return PaymentAddressAllocation{}, errors.New("address policy id is required")
 	}
-	if policy.AddressPolicyID != a.AddressPolicyID {
+	if policy.AddressPolicy.AddressPolicyID != a.AddressPolicyID {
 		return PaymentAddressAllocation{}, errors.New("address policy mismatch")
 	}
 
@@ -68,16 +69,16 @@ func (a PaymentAddressAllocation) MarkIssued(
 		return PaymentAddressAllocation{}, errors.New("address is required")
 	}
 
-	absolutePath, err := policy.AbsoluteDerivationPath(relativeDerivationPath)
+	absolutePath, err := policy.DerivationConfig.AbsoluteDerivationPath(relativeDerivationPath)
 	if err != nil {
 		return PaymentAddressAllocation{}, err
 	}
 
 	issued := a
 	issued.Status = value_objects.PaymentAddressAllocationStatusIssued
-	issued.Chain = policy.Chain
-	issued.Network = policy.Network
-	issued.Scheme = policy.Scheme
+	issued.Chain = policy.AddressPolicy.Chain
+	issued.Network = policy.AddressPolicy.Network
+	issued.Scheme = policy.AddressPolicy.Scheme
 	issued.Address = normalizedAddress
 	issued.DerivationPath = absolutePath
 	issued.FailureReason = ""
@@ -100,4 +101,44 @@ func (a PaymentAddressAllocation) MarkDerivationFailed(reason string) (PaymentAd
 	failed.Address = ""
 	failed.DerivationPath = ""
 	return failed, nil
+}
+
+func (a PaymentAddressAllocation) IssueReceiptTracking(
+	issuedAt time.Time,
+	requiredConfirmations int32,
+	expiresAt time.Time,
+) (PaymentReceiptTracking, error) {
+	if a.Status != value_objects.PaymentAddressAllocationStatusIssued {
+		return PaymentReceiptTracking{}, errors.New("payment address allocation is not issued")
+	}
+	if expiresAt.IsZero() {
+		return PaymentReceiptTracking{}, errors.New("expires at is required")
+	}
+
+	chainID, ok := value_objects.ParseChainID(string(a.Chain))
+	if !ok {
+		return PaymentReceiptTracking{}, errors.New("chain is invalid")
+	}
+	networkID, ok := value_objects.ParseNetworkID(string(a.Network))
+	if !ok {
+		return PaymentReceiptTracking{}, errors.New("network is invalid")
+	}
+
+	tracking, err := NewPaymentReceiptTracking(
+		a.PaymentAddressID,
+		a.AddressPolicyID,
+		chainID,
+		networkID,
+		a.Address,
+		issuedAt,
+		a.ExpectedAmountMinor,
+		requiredConfirmations,
+	)
+	if err != nil {
+		return PaymentReceiptTracking{}, err
+	}
+
+	expiresAtUTC := expiresAt.UTC()
+	tracking.ExpiresAt = &expiresAtUTC
+	return tracking, nil
 }

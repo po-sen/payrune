@@ -2,20 +2,20 @@ package use_cases
 
 import (
 	"context"
+	"errors"
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/in"
 	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
 )
 
 type generateAddressUseCase struct {
-	deriver      outport.BitcoinAddressDeriver
+	deriver      outport.ChainAddressDeriver
 	policyReader outport.AddressPolicyReader
 }
 
 func NewGenerateAddressUseCase(
-	deriver outport.BitcoinAddressDeriver,
+	deriver outport.ChainAddressDeriver,
 	policyReader outport.AddressPolicyReader,
 ) inport.GenerateAddressUseCase {
 	return &generateAddressUseCase{
@@ -28,34 +28,46 @@ func (uc *generateAddressUseCase) Execute(
 	ctx context.Context,
 	input dto.GenerateAddressInput,
 ) (dto.GenerateAddressResponse, error) {
-	if input.Chain != value_objects.ChainBitcoin {
+	if uc.deriver == nil {
+		return dto.GenerateAddressResponse{}, errors.New("chain address deriver is not configured")
+	}
+	if uc.policyReader == nil {
+		return dto.GenerateAddressResponse{}, errors.New("address policy reader is not configured")
+	}
+	if !uc.deriver.SupportsChain(input.Chain) {
 		return dto.GenerateAddressResponse{}, inport.ErrChainNotSupported
 	}
 
-	policy, ok, err := uc.policyReader.FindByID(ctx, input.AddressPolicyID)
+	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, input.AddressPolicyID)
 	if err != nil {
 		return dto.GenerateAddressResponse{}, err
 	}
-	if !ok || policy.Chain != input.Chain {
+	if !ok || policy.AddressPolicy.Chain != input.Chain {
 		return dto.GenerateAddressResponse{}, inport.ErrAddressPolicyNotFound
 	}
 	if !policy.IsEnabled() {
 		return dto.GenerateAddressResponse{}, inport.ErrAddressPolicyNotEnabled
 	}
 
-	address, err := uc.deriver.DeriveAddress(policy.Network, policy.Scheme, policy.XPub, input.Index)
+	output, err := uc.deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
+		Chain:            input.Chain,
+		Network:          policy.AddressPolicy.Network,
+		Scheme:           policy.AddressPolicy.Scheme,
+		AccountPublicKey: policy.DerivationConfig.AccountPublicKey,
+		Index:            input.Index,
+	})
 	if err != nil {
 		return dto.GenerateAddressResponse{}, err
 	}
 
 	return dto.GenerateAddressResponse{
-		AddressPolicyID: policy.AddressPolicyID,
-		Chain:           string(policy.Chain),
-		Network:         string(policy.Network),
-		Scheme:          string(policy.Scheme),
-		MinorUnit:       policy.MinorUnit,
-		Decimals:        policy.Decimals,
+		AddressPolicyID: policy.AddressPolicy.AddressPolicyID,
+		Chain:           string(policy.AddressPolicy.Chain),
+		Network:         string(policy.AddressPolicy.Network),
+		Scheme:          string(policy.AddressPolicy.Scheme),
+		MinorUnit:       policy.AddressPolicy.MinorUnit,
+		Decimals:        policy.AddressPolicy.Decimals,
 		Index:           input.Index,
-		Address:         address,
+		Address:         output.Address,
 	}, nil
 }

@@ -16,10 +16,10 @@ func TestLoadBitcoinRequiredConfirmationsFromEnvDefaults(t *testing.T) {
 		t.Fatalf("loadBitcoinRequiredConfirmationsFromEnv returned error: %v", err)
 	}
 
-	if got := config[value_objects.BitcoinNetworkMainnet]; got != 1 {
+	if got := config[value_objects.NetworkID(value_objects.BitcoinNetworkMainnet)]; got != 1 {
 		t.Fatalf("unexpected mainnet confirmations: got %d", got)
 	}
-	if got := config[value_objects.BitcoinNetworkTestnet4]; got != 1 {
+	if got := config[value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4)]; got != 1 {
 		t.Fatalf("unexpected testnet4 confirmations: got %d", got)
 	}
 }
@@ -33,10 +33,10 @@ func TestLoadBitcoinRequiredConfirmationsFromEnvCustom(t *testing.T) {
 		t.Fatalf("loadBitcoinRequiredConfirmationsFromEnv returned error: %v", err)
 	}
 
-	if got := config[value_objects.BitcoinNetworkMainnet]; got != 6 {
+	if got := config[value_objects.NetworkID(value_objects.BitcoinNetworkMainnet)]; got != 6 {
 		t.Fatalf("unexpected mainnet confirmations: got %d", got)
 	}
-	if got := config[value_objects.BitcoinNetworkTestnet4]; got != 2 {
+	if got := config[value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4)]; got != 2 {
 		t.Fatalf("unexpected testnet4 confirmations: got %d", got)
 	}
 }
@@ -70,10 +70,10 @@ func TestLoadBitcoinReceiptExpiresAfterByNetworkFromEnvDefaults(t *testing.T) {
 		t.Fatalf("loadBitcoinReceiptExpiresAfterByNetworkFromEnv returned error: %v", err)
 	}
 
-	if got := config[value_objects.BitcoinNetworkMainnet]; got != defaultBitcoinReceiptExpiresAfter {
+	if got := config[value_objects.NetworkID(value_objects.BitcoinNetworkMainnet)]; got != defaultBitcoinReceiptExpiresAfter {
 		t.Fatalf("unexpected mainnet receipt expires after: got %s", got)
 	}
-	if got := config[value_objects.BitcoinNetworkTestnet4]; got != defaultBitcoinReceiptExpiresAfter {
+	if got := config[value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4)]; got != defaultBitcoinReceiptExpiresAfter {
 		t.Fatalf("unexpected testnet4 receipt expires after: got %s", got)
 	}
 }
@@ -87,10 +87,10 @@ func TestLoadBitcoinReceiptExpiresAfterByNetworkFromEnvCustom(t *testing.T) {
 		t.Fatalf("loadBitcoinReceiptExpiresAfterByNetworkFromEnv returned error: %v", err)
 	}
 
-	if got := config[value_objects.BitcoinNetworkMainnet]; got != 240*time.Hour {
+	if got := config[value_objects.NetworkID(value_objects.BitcoinNetworkMainnet)]; got != 240*time.Hour {
 		t.Fatalf("unexpected mainnet receipt expires after: got %s", got)
 	}
-	if got := config[value_objects.BitcoinNetworkTestnet4]; got != 36*time.Hour {
+	if got := config[value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4)]; got != 36*time.Hour {
 		t.Fatalf("unexpected testnet4 receipt expires after: got %s", got)
 	}
 }

@@ -1,50 +1,46 @@
 package entities
 
-import "testing"
+import (
+	"testing"
 
-func TestAddressPolicyAbsoluteDerivationPath(t *testing.T) {
+	"payrune/internal/domain/value_objects"
+)
+
+func TestAddressPolicyNormalize(t *testing.T) {
 	policy := AddressPolicy{
-		AddressPolicyID:      "bitcoin-mainnet-native-segwit",
-		DerivationPathPrefix: "m/84'/0'/0'",
+		AddressPolicyID: " bitcoin-mainnet-native-segwit ",
+		Chain:           value_objects.SupportedChainBitcoin,
+		Network:         value_objects.NetworkID(" MAINNET "),
+		Scheme:          " native-segwit ",
+		MinorUnit:       " satoshi ",
+		Decimals:        8,
+		Enabled:         true,
 	}
 
-	tests := []struct {
-		name     string
-		relative string
-		want     string
-		wantErr  bool
-	}{
-		{name: "relative", relative: "0/42", want: "m/84'/0'/0'/0/42"},
-		{name: "absolute", relative: "m/84'/0'/0'/0/99", want: "m/84'/0'/0'/0/99"},
-		{name: "empty", relative: "", wantErr: true},
-	}
+	normalized := policy.Normalize()
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := policy.AbsoluteDerivationPath(tc.relative)
-			if tc.wantErr {
-				if err == nil {
-					t.Fatalf("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got != tc.want {
-				t.Fatalf("unexpected path: got %q, want %q", got, tc.want)
-			}
-		})
+	if normalized.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
+		t.Fatalf("unexpected address policy id: got %q", normalized.AddressPolicyID)
+	}
+	if normalized.Network != value_objects.NetworkID(value_objects.BitcoinNetworkMainnet) {
+		t.Fatalf("unexpected network: got %q", normalized.Network)
+	}
+	if normalized.Scheme != "native-segwit" {
+		t.Fatalf("unexpected scheme: got %q", normalized.Scheme)
+	}
+	if normalized.MinorUnit != "satoshi" {
+		t.Fatalf("unexpected minor unit: got %q", normalized.MinorUnit)
+	}
+	if !normalized.IsEnabled() {
+		t.Fatal("expected normalized policy enabled")
 	}
 }
 
-func TestAddressPolicyAbsoluteDerivationPathRejectMissingPrefix(t *testing.T) {
-	policy := AddressPolicy{
-		AddressPolicyID:      "bitcoin-mainnet-native-segwit",
-		DerivationPathPrefix: "",
+func TestAddressPolicyIsEnabled(t *testing.T) {
+	if (AddressPolicy{Enabled: true}).IsEnabled() != true {
+		t.Fatal("expected enabled policy to report enabled")
 	}
-
-	if _, err := policy.AbsoluteDerivationPath("0/1"); err == nil {
-		t.Fatalf("expected error when derivation path prefix is missing")
+	if (AddressPolicy{Enabled: false}).IsEnabled() != false {
+		t.Fatal("expected disabled policy to report disabled")
 	}
 }

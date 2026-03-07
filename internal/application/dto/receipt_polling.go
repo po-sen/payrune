@@ -11,7 +11,8 @@ type RunReceiptPollingCycleInput struct {
 }
 
 type RunReceiptPollingCycleOutput struct {
-	ClaimedCount int
-	UpdatedCount int
-	FailedCount  int
+	ClaimedCount         int
+	UpdatedCount         int
+	TerminalFailedCount  int
+	ProcessingErrorCount int
 }

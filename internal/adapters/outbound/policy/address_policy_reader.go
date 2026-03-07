@@ -11,74 +11,81 @@ import (
 	"payrune/internal/domain/value_objects"
 )
 
-const xpubFingerprintAlgorithmSHA256Trunc64HexV1 = "sha256-trunc64-hex-v1"
+const accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1 = "sha256-trunc64-hex-v1"
 
 type AddressPolicyConfig struct {
-	AddressPolicyID      string
-	Chain                value_objects.Chain
-	Network              value_objects.BitcoinNetwork
-	Scheme               value_objects.BitcoinAddressScheme
-	MinorUnit            string
-	Decimals             uint8
-	XPub                 string
-	XPubFingerprintAlgo  string
-	XPubFingerprint      string
-	DerivationPathPrefix string
+	AddressPolicyID          string
+	Chain                    value_objects.SupportedChain
+	Network                  value_objects.NetworkID
+	Scheme                   string
+	MinorUnit                string
+	Decimals                 uint8
+	AccountPublicKey         string
+	PublicKeyFingerprintAlgo string
+	PublicKeyFingerprint     string
+	DerivationPathPrefix     string
 }
 
 type addressPolicyReader struct {
-	ordered []entities.AddressPolicy
-	byID    map[string]entities.AddressPolicy
+	ordered      []entities.AddressPolicy
+	issuanceByID map[string]entities.AddressIssuancePolicy
 }
 
 var _ outport.AddressPolicyReader = (*addressPolicyReader)(nil)
 
 func NewAddressPolicyReader(configs []AddressPolicyConfig) outport.AddressPolicyReader {
 	ordered := make([]entities.AddressPolicy, 0, len(configs))
-	byID := make(map[string]entities.AddressPolicy, len(configs))
+	issuanceByID := make(map[string]entities.AddressIssuancePolicy, len(configs))
 
 	for _, cfg := range configs {
-		normalized := entities.AddressPolicy{
-			AddressPolicyID:      strings.TrimSpace(cfg.AddressPolicyID),
-			Chain:                cfg.Chain,
-			Network:              cfg.Network,
-			Scheme:               cfg.Scheme,
-			MinorUnit:            strings.TrimSpace(cfg.MinorUnit),
-			Decimals:             cfg.Decimals,
-			XPub:                 strings.TrimSpace(cfg.XPub),
-			XPubFingerprintAlgo:  strings.TrimSpace(cfg.XPubFingerprintAlgo),
-			XPubFingerprint:      strings.TrimSpace(cfg.XPubFingerprint),
-			DerivationPathPrefix: strings.TrimSpace(cfg.DerivationPathPrefix),
+		issuancePolicy := entities.AddressIssuancePolicy{
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: strings.TrimSpace(cfg.AddressPolicyID),
+				Chain:           cfg.Chain,
+				Network:         cfg.Network,
+				Scheme:          cfg.Scheme,
+				MinorUnit:       strings.TrimSpace(cfg.MinorUnit),
+				Decimals:        cfg.Decimals,
+			},
+			DerivationConfig: value_objects.AddressDerivationConfig{
+				AccountPublicKey:         strings.TrimSpace(cfg.AccountPublicKey),
+				PublicKeyFingerprintAlgo: strings.TrimSpace(cfg.PublicKeyFingerprintAlgo),
+				PublicKeyFingerprint:     strings.TrimSpace(cfg.PublicKeyFingerprint),
+				DerivationPathPrefix:     strings.TrimSpace(cfg.DerivationPathPrefix),
+			},
 		}.Normalize()
 
-		if normalized.XPub != "" && normalized.XPubFingerprintAlgo == "" {
-			normalized.XPubFingerprintAlgo = xpubFingerprintAlgorithmSHA256Trunc64HexV1
+		if issuancePolicy.DerivationConfig.IsEnabled() && issuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo == "" {
+			issuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo = accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1
 		}
-		if normalized.XPub != "" && normalized.XPubFingerprint == "" {
-			normalized.XPubFingerprintAlgo = xpubFingerprintAlgorithmSHA256Trunc64HexV1
-			normalized.XPubFingerprint = fingerprintSHA256Trunc64HexV1(normalized.XPub)
+		if issuancePolicy.DerivationConfig.IsEnabled() && issuancePolicy.DerivationConfig.PublicKeyFingerprint == "" {
+			issuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo = accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1
+			issuancePolicy.DerivationConfig.PublicKeyFingerprint = fingerprintAccountPublicKeySHA256Trunc64HexV1(
+				issuancePolicy.DerivationConfig.AccountPublicKey,
+			)
 		}
+		issuancePolicy = issuancePolicy.Normalize()
 
-		if normalized.AddressPolicyID == "" {
+		if issuancePolicy.AddressPolicy.AddressPolicyID == "" {
 			continue
 		}
-		if _, exists := byID[normalized.AddressPolicyID]; exists {
+		if _, exists := issuanceByID[issuancePolicy.AddressPolicy.AddressPolicyID]; exists {
 			continue
 		}
 
-		ordered = append(ordered, normalized)
-		byID[normalized.AddressPolicyID] = normalized
+		ordered = append(ordered, issuancePolicy.AddressPolicy)
+		issuanceByID[issuancePolicy.AddressPolicy.AddressPolicyID] = issuancePolicy
 	}
 
 	return &addressPolicyReader{
-		ordered: ordered,
-		byID:    byID,
+		ordered:      ordered,
+		issuanceByID: issuanceByID,
 	}
 }
 
 func (r *addressPolicyReader) ListByChain(
 	_ context.Context,
-	chain value_objects.Chain,
+	chain value_objects.SupportedChain,
 ) ([]entities.AddressPolicy, error) {
 	policies := make([]entities.AddressPolicy, 0)
 	for _, policy := range r.ordered {
@@ -90,19 +97,19 @@ func (r *addressPolicyReader) ListByChain(
 	return policies, nil
 }
 
-func (r *addressPolicyReader) FindByID(
+func (r *addressPolicyReader) FindIssuanceByID(
 	_ context.Context,
 	addressPolicyID string,
-) (entities.AddressPolicy, bool, error) {
-	policy, ok := r.byID[strings.TrimSpace(addressPolicyID)]
+) (entities.AddressIssuancePolicy, bool, error) {
+	policy, ok := r.issuanceByID[strings.TrimSpace(addressPolicyID)]
 	if !ok {
-		return entities.AddressPolicy{}, false, nil
+		return entities.AddressIssuancePolicy{}, false, nil
 	}
 	return policy, true, nil
 }
 
-func fingerprintSHA256Trunc64HexV1(xpub string) string {
-	trimmed := strings.TrimSpace(xpub)
+func fingerprintAccountPublicKeySHA256Trunc64HexV1(accountPublicKey string) string {
+	trimmed := strings.TrimSpace(accountPublicKey)
 	if trimmed == "" {
 		return ""
 	}
