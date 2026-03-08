@@ -11,12 +11,12 @@ import (
 )
 
 func TestUnitOfWorkWithinTransactionValidation(t *testing.T) {
-	uow := NewUnitOfWork(nil, nil)
+	uow := NewUnitOfWork(nil)
 
 	err := uow.WithinTransaction(context.Background(), func(outport.TxScope) error {
 		return nil
 	})
-	if err == nil || err.Error() != "tx scope builder is not configured" {
+	if err == nil || err.Error() != "database is not configured" {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
@@ -31,7 +31,7 @@ func TestUnitOfWorkWithinTransactionCommitsOnSuccess(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectCommit()
 
-	uow := NewUnitOfWork(db, NewTxScope)
+	uow := NewUnitOfWork(db)
 	called := false
 
 	err = uow.WithinTransaction(context.Background(), func(txScope outport.TxScope) error {
@@ -68,7 +68,7 @@ func TestUnitOfWorkWithinTransactionRollsBackOnError(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectRollback()
 
-	uow := NewUnitOfWork(db, NewTxScope)
+	uow := NewUnitOfWork(db)
 	expectedErr := errors.New("boom")
 
 	err = uow.WithinTransaction(context.Background(), func(outport.TxScope) error {

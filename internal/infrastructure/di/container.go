@@ -170,7 +170,7 @@ func NewContainer() (*Container, error) {
 	allocationStore := postgresadapter.NewPaymentAddressAllocationStore(db)
 	paymentAddressStatusFinder := postgresadapter.NewPaymentAddressStatusFinder(db)
 	idempotencyStore := postgresadapter.NewPaymentAddressIdempotencyStore(db)
-	unitOfWork := postgresadapter.NewUnitOfWork(db, postgresadapter.NewTxScope)
+	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
 		requiredConfirmationsByNetwork,
 		receiptExpiresAfterByNetwork,

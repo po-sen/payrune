@@ -8,26 +8,13 @@ import (
 	outport "payrune/internal/application/ports/out"
 )
 
-type TxScopeBuilder func(tx *sql.Tx) outport.TxScope
-
 type UnitOfWork struct {
-	db           *sql.DB
-	buildTxScope TxScopeBuilder
+	db *sql.DB
 }
 
-func NewTxScope(tx *sql.Tx) outport.TxScope {
-	return outport.TxScope{
-		PaymentAddressAllocation:               NewPaymentAddressAllocationStore(tx),
-		PaymentAddressIdempotency:              NewPaymentAddressIdempotencyStore(tx),
-		PaymentReceiptTracking:                 NewPaymentReceiptTrackingStore(tx),
-		PaymentReceiptStatusNotificationOutbox: NewPaymentReceiptStatusNotificationOutboxStore(tx),
-	}
-}
-
-func NewUnitOfWork(db *sql.DB, buildTxScope TxScopeBuilder) *UnitOfWork {
+func NewUnitOfWork(db *sql.DB) *UnitOfWork {
 	return &UnitOfWork{
-		db:           db,
-		buildTxScope: buildTxScope,
+		db: db,
 	}
 }
 
@@ -35,8 +22,8 @@ func (u *UnitOfWork) WithinTransaction(
 	ctx context.Context,
 	fn func(txScope outport.TxScope) error,
 ) error {
-	if u.buildTxScope == nil {
-		return errors.New("tx scope builder is not configured")
+	if u.db == nil {
+		return errors.New("database is not configured")
 	}
 
 	tx, err := u.db.BeginTx(ctx, nil)
@@ -44,7 +31,12 @@ func (u *UnitOfWork) WithinTransaction(
 		return err
 	}
 
-	txScope := u.buildTxScope(tx)
+	txScope := outport.TxScope{
+		PaymentAddressAllocation:               NewPaymentAddressAllocationStore(tx),
+		PaymentAddressIdempotency:              NewPaymentAddressIdempotencyStore(tx),
+		PaymentReceiptTracking:                 NewPaymentReceiptTrackingStore(tx),
+		PaymentReceiptStatusNotificationOutbox: NewPaymentReceiptStatusNotificationOutboxStore(tx),
+	}
 	if err := fn(txScope); err != nil {
 		_ = tx.Rollback()
 		return err

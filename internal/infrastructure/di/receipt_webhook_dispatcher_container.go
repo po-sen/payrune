@@ -60,7 +60,7 @@ func NewReceiptWebhookDispatcherContainer() (*ReceiptWebhookDispatcherContainer,
 		return nil, err
 	}
 
-	unitOfWork := postgresadapter.NewUnitOfWork(db, postgresadapter.NewTxScope)
+	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	clock := system.NewClock()
 	useCase := use_cases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, notifier, clock)
 

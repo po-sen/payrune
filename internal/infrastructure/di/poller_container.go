@@ -70,7 +70,7 @@ func NewPollerContainer() (*PollerContainer, error) {
 		return nil, fmt.Errorf("ping database connection: %w", err)
 	}
 
-	unitOfWork := postgresadapter.NewUnitOfWork(db, postgresadapter.NewTxScope)
+	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	bitcoinObserver, err := bitcoin.NewBitcoinEsploraReceiptObserver(loadBitcoinEsploraConfigsFromEnv())
 	if err != nil {
 		_ = db.Close()
