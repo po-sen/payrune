@@ -167,9 +167,6 @@ func NewContainer() (*Container, error) {
 	})
 	listAddressPoliciesUseCase := use_cases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	generateAddressUseCase := use_cases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
-	allocationStore := postgresadapter.NewPaymentAddressAllocationStore(db)
-	paymentAddressStatusFinder := postgresadapter.NewPaymentAddressStatusFinder(db)
-	idempotencyStore := postgresadapter.NewPaymentAddressIdempotencyStore(db)
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
 		requiredConfirmationsByNetwork,
@@ -177,15 +174,13 @@ func NewContainer() (*Container, error) {
 	)
 	allocatePaymentAddressUseCase := use_cases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
-		allocationStore,
-		idempotencyStore,
 		chainAddressDeriver,
 		addressPolicyReader,
 		allocationIssuancePolicy,
 		clock,
 	)
 	getPaymentAddressStatusUseCase := use_cases.NewGetPaymentAddressStatusUseCase(
-		paymentAddressStatusFinder,
+		postgresadapter.NewPaymentAddressStatusFinder(db),
 		addressPolicyReader,
 	)
 	chainAddressController := httpcontroller.NewChainAddressController(

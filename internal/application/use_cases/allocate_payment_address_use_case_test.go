@@ -67,7 +67,6 @@ func newAllocationPolicy(
 
 func newAllocatePaymentAddressUseCaseForTest(
 	txManager *fakeUnitOfWork,
-	allocationStore outport.PaymentAddressAllocationStore,
 	deriver outport.ChainAddressDeriver,
 	policyReader outport.AddressPolicyReader,
 	issuancePolicy policies.PaymentAddressAllocationIssuancePolicy,
@@ -75,8 +74,6 @@ func newAllocatePaymentAddressUseCaseForTest(
 ) inport.AllocatePaymentAddressUseCase {
 	return NewAllocatePaymentAddressUseCase(
 		txManager,
-		allocationStore,
-		txManager.idempotencyStore,
 		deriver,
 		policyReader,
 		issuancePolicy,
@@ -108,7 +105,6 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	}
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -128,8 +124,8 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.reopenCalls != 1 {
 		t.Fatalf("expected reopen failed reservation call count 1, got %d", allocator.reopenCalls)
 	}
-	if txManager.calls != 1 {
-		t.Fatalf("expected transaction manager call count 1, got %d", txManager.calls)
+	if txManager.calls != 2 {
+		t.Fatalf("expected transaction manager call count 2, got %d", txManager.calls)
 	}
 	if allocator.reserveFreshCalls != 1 {
 		t.Fatalf("expected reserve fresh index call count 1, got %d", allocator.reserveFreshCalls)
@@ -292,7 +288,6 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 	})
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -321,8 +316,8 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 	if allocator.lastFindIssuedByID.PaymentAddressID != 71 {
 		t.Fatalf("unexpected payment address id lookup input: got %d", allocator.lastFindIssuedByID.PaymentAddressID)
 	}
-	if txManager.calls != 0 {
-		t.Fatalf("expected no transaction for duplicate replay, got %d", txManager.calls)
+	if txManager.calls != 1 {
+		t.Fatalf("expected one replay lookup transaction, got %d", txManager.calls)
 	}
 	if allocator.reserveFreshCalls != 0 {
 		t.Fatalf("expected no fresh reservation for duplicate replay, got %d", allocator.reserveFreshCalls)
@@ -358,7 +353,6 @@ func TestAllocatePaymentAddressUseCaseRejectsConflictingDuplicateIdempotencyKey(
 	txManager.idempotencyStore = idempotencyStore
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		newFakeChainAddressDeriver(),
 		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 			newAllocationPolicy(
@@ -384,8 +378,8 @@ func TestAllocatePaymentAddressUseCaseRejectsConflictingDuplicateIdempotencyKey(
 	if !errors.Is(err, inport.ErrIdempotencyKeyConflict) {
 		t.Fatalf("expected idempotency key conflict error, got %v", err)
 	}
-	if txManager.calls != 0 {
-		t.Fatalf("expected no transaction for conflicting replay, got %d", txManager.calls)
+	if txManager.calls != 1 {
+		t.Fatalf("expected one replay lookup transaction, got %d", txManager.calls)
 	}
 	if allocator.findIssuedByIDCalls != 0 {
 		t.Fatalf("expected no allocation lookup on conflicting replay, got %d", allocator.findIssuedByIDCalls)
@@ -435,7 +429,6 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 	deriver.output = newAllocateDeriveOutput("bc1qloserrace", "0/12")
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		deriver,
 		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 			newAllocationPolicy(
@@ -464,8 +457,8 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 	if idempotencyStore.findCalls != 2 {
 		t.Fatalf("expected duplicate idempotency lookup call count 2, got %d", idempotencyStore.findCalls)
 	}
-	if txManager.calls != 1 {
-		t.Fatalf("expected one transaction attempt, got %d", txManager.calls)
+	if txManager.calls != 3 {
+		t.Fatalf("expected three transaction attempts, got %d", txManager.calls)
 	}
 	if idempotencyStore.claimCalls != 1 {
 		t.Fatalf("expected one idempotency claim attempt, got %d", idempotencyStore.claimCalls)
@@ -519,7 +512,6 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(
@@ -586,7 +578,6 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testin
 
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(
@@ -651,7 +642,6 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 	})
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -730,7 +720,6 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 	}
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		newFakeChainAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -780,7 +769,6 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 	})
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -808,7 +796,6 @@ func TestAllocatePaymentAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		newFakeChainAddressDeriver(),
 		newInMemoryAddressPolicyReader(nil),
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -830,7 +817,6 @@ func TestAllocatePaymentAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		newFakeChainAddressDeriver(),
 		newInMemoryAddressPolicyReader(nil),
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -866,7 +852,6 @@ func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		newFakeChainAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -898,7 +883,6 @@ func TestAllocatePaymentAddressUseCaseMapsExhaustedError(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		newFakeChainAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -938,7 +922,6 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		&fakeChainAddressDeriver{
 			supportedChains: map[value_objects.SupportedChain]bool{
 				value_objects.SupportedChainBitcoin: true,
@@ -1012,7 +995,6 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		&fakeChainAddressDeriver{
 			supportedChains: map[value_objects.SupportedChain]bool{
 				value_objects.SupportedChainBitcoin: true,
@@ -1055,7 +1037,6 @@ func TestAllocatePaymentAddressUseCaseRejectInvalidExpectedAmount(t *testing.T) 
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		allocator,
 		newFakeChainAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -1090,59 +1071,31 @@ func TestAllocatePaymentAddressUseCaseValidationMissingDependencies(t *testing.T
 			wantErr: "unit of work is not configured",
 		},
 		{
-			name: "missing idempotency store",
-			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork:      newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				allocationStore: &fakePaymentAddressAllocationStore{},
-				deriver:         newFakeChainAddressDeriver(),
-				policyReader:    newInMemoryAddressPolicyReader(nil),
-				clock:           newAllocatePaymentAddressClock(),
-			},
-			wantErr: "payment address idempotency store is not configured",
-		},
-		{
 			name: "missing deriver",
 			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork:       newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				allocationStore:  &fakePaymentAddressAllocationStore{},
-				idempotencyStore: &fakePaymentAddressIdempotencyStore{},
-				policyReader:     newInMemoryAddressPolicyReader(nil),
-				clock:            newAllocatePaymentAddressClock(),
+				unitOfWork:   newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				policyReader: newInMemoryAddressPolicyReader(nil),
+				clock:        newAllocatePaymentAddressClock(),
 			},
 			wantErr: "chain address deriver is not configured",
 		},
 		{
 			name: "missing policy reader",
 			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork:       newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				allocationStore:  &fakePaymentAddressAllocationStore{},
-				idempotencyStore: &fakePaymentAddressIdempotencyStore{},
-				deriver:          newFakeChainAddressDeriver(),
-				clock:            newAllocatePaymentAddressClock(),
+				unitOfWork: newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				deriver:    newFakeChainAddressDeriver(),
+				clock:      newAllocatePaymentAddressClock(),
 			},
 			wantErr: "address policy reader is not configured",
 		},
 		{
 			name: "missing clock",
 			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork:       newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				allocationStore:  &fakePaymentAddressAllocationStore{},
-				idempotencyStore: &fakePaymentAddressIdempotencyStore{},
-				deriver:          newFakeChainAddressDeriver(),
-				policyReader:     newInMemoryAddressPolicyReader(nil),
+				unitOfWork:   newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				deriver:      newFakeChainAddressDeriver(),
+				policyReader: newInMemoryAddressPolicyReader(nil),
 			},
 			wantErr: "clock is not configured",
-		},
-		{
-			name: "missing allocation store",
-			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork:       newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				idempotencyStore: &fakePaymentAddressIdempotencyStore{},
-				deriver:          newFakeChainAddressDeriver(),
-				policyReader:     newInMemoryAddressPolicyReader(nil),
-				clock:            newAllocatePaymentAddressClock(),
-			},
-			wantErr: "payment address allocation store is not configured",
 		},
 	}
 

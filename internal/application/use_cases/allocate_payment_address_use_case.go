@@ -15,13 +15,11 @@ import (
 )
 
 type allocatePaymentAddressUseCase struct {
-	unitOfWork       outport.UnitOfWork
-	allocationStore  outport.PaymentAddressAllocationStore
-	idempotencyStore outport.PaymentAddressIdempotencyStore
-	deriver          outport.ChainAddressDeriver
-	policyReader     outport.AddressPolicyReader
-	issuancePolicy   policies.PaymentAddressAllocationIssuancePolicy
-	clock            outport.Clock
+	unitOfWork     outport.UnitOfWork
+	deriver        outport.ChainAddressDeriver
+	policyReader   outport.AddressPolicyReader
+	issuancePolicy policies.PaymentAddressAllocationIssuancePolicy
+	clock          outport.Clock
 }
 
 type allocatePaymentAddressTxOutcome struct {
@@ -45,23 +43,24 @@ type allocatePaymentAddressDerivationOutcome struct {
 	persistedDerivationFailureErr error
 }
 
+type allocatePaymentAddressReplayTxScope struct {
+	allocationStore  outport.PaymentAddressAllocationStore
+	idempotencyStore outport.PaymentAddressIdempotencyStore
+}
+
 func NewAllocatePaymentAddressUseCase(
 	unitOfWork outport.UnitOfWork,
-	allocationStore outport.PaymentAddressAllocationStore,
-	idempotencyStore outport.PaymentAddressIdempotencyStore,
 	deriver outport.ChainAddressDeriver,
 	policyReader outport.AddressPolicyReader,
 	issuancePolicy policies.PaymentAddressAllocationIssuancePolicy,
 	clock outport.Clock,
 ) inport.AllocatePaymentAddressUseCase {
 	return &allocatePaymentAddressUseCase{
-		unitOfWork:       unitOfWork,
-		allocationStore:  allocationStore,
-		idempotencyStore: idempotencyStore,
-		deriver:          deriver,
-		policyReader:     policyReader,
-		issuancePolicy:   issuancePolicy,
-		clock:            clock,
+		unitOfWork:     unitOfWork,
+		deriver:        deriver,
+		policyReader:   policyReader,
+		issuancePolicy: issuancePolicy,
+		clock:          clock,
 	}
 }
 
@@ -71,12 +70,6 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 ) (dto.AllocatePaymentAddressResponse, error) {
 	if uc.unitOfWork == nil {
 		return dto.AllocatePaymentAddressResponse{}, errors.New("unit of work is not configured")
-	}
-	if uc.allocationStore == nil {
-		return dto.AllocatePaymentAddressResponse{}, errors.New("payment address allocation store is not configured")
-	}
-	if uc.idempotencyStore == nil {
-		return dto.AllocatePaymentAddressResponse{}, errors.New("payment address idempotency store is not configured")
 	}
 	if uc.deriver == nil {
 		return dto.AllocatePaymentAddressResponse{}, errors.New("chain address deriver is not configured")
@@ -91,12 +84,12 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 		return dto.AllocatePaymentAddressResponse{}, inport.ErrChainNotSupported
 	}
 
-	existingRecord, found, err := uc.findExistingCompletedIdempotency(ctx, input)
+	existingAllocation, found, err := uc.findExistingIssuedAllocation(ctx, input)
 	if err != nil {
 		return dto.AllocatePaymentAddressResponse{}, err
 	}
 	if found {
-		return uc.buildExistingIssuedAllocationResponse(ctx, input, existingRecord)
+		return uc.buildExistingIssuedAllocationResponse(ctx, existingAllocation)
 	}
 
 	policy, err := uc.loadIssuancePolicy(ctx, input.AddressPolicyID)
@@ -111,12 +104,12 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 	txOutcome, err := uc.executeIssuanceTransaction(ctx, input, issuancePlan, issuedAt)
 	if err != nil {
 		if errors.Is(err, outport.ErrPaymentAddressIdempotencyKeyExists) {
-			existingRecord, found, lookupErr := uc.findExistingCompletedIdempotency(ctx, input)
+			existingAllocation, found, lookupErr := uc.findExistingIssuedAllocation(ctx, input)
 			if lookupErr != nil {
 				return dto.AllocatePaymentAddressResponse{}, lookupErr
 			}
 			if found {
-				return uc.buildExistingIssuedAllocationResponse(ctx, input, existingRecord)
+				return uc.buildExistingIssuedAllocationResponse(ctx, existingAllocation)
 			}
 			return dto.AllocatePaymentAddressResponse{}, errors.New(
 				"idempotency key claim conflict occurred but no completed idempotency record was found",
@@ -372,58 +365,87 @@ func requireAllocatePaymentAddressTxScope(
 	}, nil
 }
 
-func (uc *allocatePaymentAddressUseCase) findExistingCompletedIdempotency(
-	ctx context.Context,
-	input dto.AllocatePaymentAddressInput,
-) (outport.PaymentAddressIdempotencyRecord, bool, error) {
-	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
-	if idempotencyKey == "" {
-		return outport.PaymentAddressIdempotencyRecord{}, false, nil
+func requireAllocatePaymentAddressReplayTxScope(
+	txScope outport.TxScope,
+) (allocatePaymentAddressReplayTxScope, error) {
+	if txScope.PaymentAddressAllocation == nil {
+		return allocatePaymentAddressReplayTxScope{}, errors.New("payment address allocation store is not configured")
+	}
+	if txScope.PaymentAddressIdempotency == nil {
+		return allocatePaymentAddressReplayTxScope{}, errors.New("payment address idempotency store is not configured")
 	}
 
-	record, found, err := uc.idempotencyStore.FindByKey(
-		ctx,
-		outport.FindPaymentAddressIdempotencyInput{
-			Chain:          input.Chain,
-			IdempotencyKey: idempotencyKey,
-		},
-	)
+	return allocatePaymentAddressReplayTxScope{
+		allocationStore:  txScope.PaymentAddressAllocation,
+		idempotencyStore: txScope.PaymentAddressIdempotency,
+	}, nil
+}
+
+func (uc *allocatePaymentAddressUseCase) findExistingIssuedAllocation(
+	ctx context.Context,
+	input dto.AllocatePaymentAddressInput,
+) (entities.PaymentAddressAllocation, bool, error) {
+	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
+	if idempotencyKey == "" {
+		return entities.PaymentAddressAllocation{}, false, nil
+	}
+
+	var allocation entities.PaymentAddressAllocation
+	found := false
+
+	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+		stores, err := requireAllocatePaymentAddressReplayTxScope(txScope)
+		if err != nil {
+			return err
+		}
+
+		record, recordFound, err := stores.idempotencyStore.FindByKey(
+			ctx,
+			outport.FindPaymentAddressIdempotencyInput{
+				Chain:          input.Chain,
+				IdempotencyKey: idempotencyKey,
+			},
+		)
+		if err != nil {
+			return err
+		}
+		if !recordFound {
+			return nil
+		}
+		if record.PaymentAddressID <= 0 {
+			return errors.New("payment address idempotency record is incomplete")
+		}
+		if record.AddressPolicyID != strings.TrimSpace(input.AddressPolicyID) ||
+			record.ExpectedAmountMinor != input.ExpectedAmountMinor ||
+			record.CustomerReference != strings.TrimSpace(input.CustomerReference) {
+			return inport.ErrIdempotencyKeyConflict
+		}
+
+		existingAllocation, allocationFound, err := stores.allocationStore.FindIssuedByID(
+			ctx,
+			outport.FindIssuedPaymentAddressAllocationByIDInput{PaymentAddressID: record.PaymentAddressID},
+		)
+		if err != nil {
+			return err
+		}
+		if !allocationFound {
+			return errors.New("completed payment address idempotency record references missing issued allocation")
+		}
+
+		allocation = existingAllocation
+		found = true
+		return nil
+	})
 	if err != nil {
-		return outport.PaymentAddressIdempotencyRecord{}, false, err
+		return entities.PaymentAddressAllocation{}, false, err
 	}
-	if !found {
-		return outport.PaymentAddressIdempotencyRecord{}, false, nil
-	}
-	if record.PaymentAddressID <= 0 {
-		return outport.PaymentAddressIdempotencyRecord{}, false, errors.New("payment address idempotency record is incomplete")
-	}
-	return record, true, nil
+	return allocation, found, nil
 }
 
 func (uc *allocatePaymentAddressUseCase) buildExistingIssuedAllocationResponse(
 	ctx context.Context,
-	input dto.AllocatePaymentAddressInput,
-	record outport.PaymentAddressIdempotencyRecord,
+	allocation entities.PaymentAddressAllocation,
 ) (dto.AllocatePaymentAddressResponse, error) {
-	if record.AddressPolicyID != strings.TrimSpace(input.AddressPolicyID) ||
-		record.ExpectedAmountMinor != input.ExpectedAmountMinor ||
-		record.CustomerReference != strings.TrimSpace(input.CustomerReference) {
-		return dto.AllocatePaymentAddressResponse{}, inport.ErrIdempotencyKeyConflict
-	}
-
-	allocation, found, err := uc.allocationStore.FindIssuedByID(
-		ctx,
-		outport.FindIssuedPaymentAddressAllocationByIDInput{PaymentAddressID: record.PaymentAddressID},
-	)
-	if err != nil {
-		return dto.AllocatePaymentAddressResponse{}, err
-	}
-	if !found {
-		return dto.AllocatePaymentAddressResponse{}, errors.New(
-			"completed payment address idempotency record references missing issued allocation",
-		)
-	}
-
 	policy, err := uc.loadIssuancePolicy(ctx, allocation.AddressPolicyID)
 	if err != nil {
 		return dto.AllocatePaymentAddressResponse{}, err
