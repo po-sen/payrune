@@ -25,13 +25,12 @@ func main() {
 	if raw := os.Getenv("FAKE_WEBHOOK_RECEIVER_ADDR"); raw != "" {
 		address = raw
 	}
+	secret := loadFakeWebhookReceiverSecret()
+	logger := log.Default()
 
 	server := &http.Server{
-		Addr: address,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("fake webhook received method=%s path=%s", r.Method, r.URL.Path)
-			w.WriteHeader(http.StatusNoContent)
-		}),
+		Addr:    address,
+		Handler: newFakeWebhookHandler(logger, secret),
 		TLSConfig: &tls.Config{
 			MinVersion:   tls.VersionTLS12,
 			Certificates: []tls.Certificate{certificate},
@@ -43,10 +42,21 @@ func main() {
 		log.Fatalf("listen: %v", err)
 	}
 
-	log.Printf("fake webhook receiver listening on %s", address)
+	logger.Printf(
+		"fake webhook receiver listening on %s verification_method=hmac-sha256 verification_enabled=%t",
+		address,
+		secret != "",
+	)
 	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("serve: %v", err)
 	}
+}
+
+func loadFakeWebhookReceiverSecret() string {
+	if secret := os.Getenv("FAKE_WEBHOOK_RECEIVER_SECRET"); secret != "" {
+		return secret
+	}
+	return os.Getenv("PAYMENT_RECEIPT_WEBHOOK_SECRET")
 }
 
 func generateSelfSignedCertificate() (tls.Certificate, error) {

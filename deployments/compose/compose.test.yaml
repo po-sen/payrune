@@ -8,4 +8,6 @@ services:
     build:
       context: ../..
       dockerfile: build/fake-webhook-receiver/Dockerfile
+    environment:
+      FAKE_WEBHOOK_RECEIVER_SECRET: ${PAYMENT_RECEIPT_WEBHOOK_SECRET}
     restart: unless-stopped
