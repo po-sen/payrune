@@ -287,6 +287,12 @@ paths:
             type: string
             enum:
               - bitcoin
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional request replay key. Reusing the same key with the same request returns the same allocation.
       requestBody:
         required: true
         content:
@@ -311,6 +317,13 @@ paths:
       responses:
         "201":
           description: Payment address allocated successfully.
+          headers:
+            Idempotency-Replayed:
+              description: Present with value `true` when this success response is replayed from an existing idempotency record.
+              schema:
+                type: string
+                enum:
+                  - "true"
           content:
             application/json:
               schema:
@@ -372,7 +385,7 @@ paths:
                     type: string
                     example: method not allowed
         "409":
-          description: Address pool exhausted.
+          description: Allocation conflict.
           content:
             application/json:
               schema:
@@ -382,7 +395,14 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: address pool is exhausted
+                    example: idempotency key conflicts with existing payment address
+              examples:
+                poolExhausted:
+                  value:
+                    error: address pool is exhausted
+                idempotencyKeyConflict:
+                  value:
+                    error: idempotency key conflicts with existing payment address
         "501":
           description: Address policy is currently disabled.
           content:

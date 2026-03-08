@@ -39,6 +39,7 @@ type AllocatePaymentAddressInput struct {
 	AddressPolicyID     string
 	ExpectedAmountMinor int64
 	CustomerReference   string
+	IdempotencyKey      string
 }
 
 type AllocatePaymentAddressResponse struct {
@@ -52,4 +53,5 @@ type AllocatePaymentAddressResponse struct {
 	Decimals            uint8  `json:"decimals"`
 	Address             string `json:"address"`
 	CustomerReference   string `json:"customerReference,omitempty"`
+	IdempotencyReplayed bool   `json:"-"`
 }

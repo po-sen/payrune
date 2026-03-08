@@ -24,6 +24,94 @@ func NewPaymentAddressAllocationStore(executor Executor) *PaymentAddressAllocati
 	return &PaymentAddressAllocationStore{executor: executor}
 }
 
+func (r *PaymentAddressAllocationStore) FindIssuedByID(
+	ctx context.Context,
+	input outport.FindIssuedPaymentAddressAllocationByIDInput,
+) (entities.PaymentAddressAllocation, bool, error) {
+	if input.PaymentAddressID <= 0 {
+		return entities.PaymentAddressAllocation{}, false, nil
+	}
+
+	var (
+		paymentAddressID    int64
+		addressPolicyID     string
+		derivationIndex     int64
+		expectedAmountMinor int64
+		customerReference   string
+		rawChain            string
+		rawNetwork          string
+		scheme              string
+		address             string
+		derivationPath      string
+		failureReason       string
+	)
+
+	err := r.executor.QueryRowContext(
+		ctx,
+		`SELECT id,
+		        address_policy_id,
+		        derivation_index,
+		        expected_amount_minor,
+		        COALESCE(customer_reference, ''),
+		        COALESCE(chain, ''),
+		        COALESCE(network, ''),
+		        COALESCE(scheme, ''),
+		        COALESCE(address, ''),
+		        COALESCE(derivation_path, ''),
+		        COALESCE(failure_reason, '')
+		   FROM address_policy_allocations
+		  WHERE id = $1
+		    AND allocation_status = 'issued'
+		  LIMIT 1`,
+		input.PaymentAddressID,
+	).Scan(
+		&paymentAddressID,
+		&addressPolicyID,
+		&derivationIndex,
+		&expectedAmountMinor,
+		&customerReference,
+		&rawChain,
+		&rawNetwork,
+		&scheme,
+		&address,
+		&derivationPath,
+		&failureReason,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return entities.PaymentAddressAllocation{}, false, nil
+	}
+	if err != nil {
+		return entities.PaymentAddressAllocation{}, false, err
+	}
+	if derivationIndex < 0 || derivationIndex > maxNonHardenedIndex {
+		return entities.PaymentAddressAllocation{}, false, outport.ErrAddressIndexExhausted
+	}
+
+	chain, ok := value_objects.ParseSupportedChain(rawChain)
+	if !ok {
+		return entities.PaymentAddressAllocation{}, false, errors.New("persisted allocation chain is invalid")
+	}
+	network, ok := value_objects.ParseNetworkID(rawNetwork)
+	if !ok {
+		return entities.PaymentAddressAllocation{}, false, errors.New("persisted allocation network is invalid")
+	}
+
+	return entities.PaymentAddressAllocation{
+		PaymentAddressID:    paymentAddressID,
+		AddressPolicyID:     strings.TrimSpace(addressPolicyID),
+		DerivationIndex:     uint32(derivationIndex),
+		ExpectedAmountMinor: expectedAmountMinor,
+		CustomerReference:   customerReference,
+		Status:              value_objects.PaymentAddressAllocationStatusIssued,
+		Chain:               chain,
+		Network:             network,
+		Scheme:              strings.TrimSpace(scheme),
+		Address:             strings.TrimSpace(address),
+		DerivationPath:      strings.TrimSpace(derivationPath),
+		FailureReason:       strings.TrimSpace(failureReason),
+	}, true, nil
+}
+
 func (r *PaymentAddressAllocationStore) Complete(
 	ctx context.Context,
 	allocation entities.PaymentAddressAllocation,

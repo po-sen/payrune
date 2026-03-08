@@ -16,7 +16,15 @@ type ReservePaymentAddressAllocationInput struct {
 	CustomerReference   string
 }
 
+type FindIssuedPaymentAddressAllocationByIDInput struct {
+	PaymentAddressID int64
+}
+
 type PaymentAddressAllocationStore interface {
+	FindIssuedByID(
+		ctx context.Context,
+		input FindIssuedPaymentAddressAllocationByIDInput,
+	) (entities.PaymentAddressAllocation, bool, error)
 	ReopenFailedReservation(
 		ctx context.Context,
 		input ReservePaymentAddressAllocationInput,

@@ -65,6 +65,25 @@ func newAllocationPolicy(
 	)
 }
 
+func newAllocatePaymentAddressUseCaseForTest(
+	txManager *fakeUnitOfWork,
+	allocationStore outport.PaymentAddressAllocationStore,
+	deriver outport.ChainAddressDeriver,
+	policyReader outport.AddressPolicyReader,
+	issuancePolicy policies.PaymentAddressAllocationIssuancePolicy,
+	clock outport.Clock,
+) inport.AllocatePaymentAddressUseCase {
+	return NewAllocatePaymentAddressUseCase(
+		txManager,
+		allocationStore,
+		txManager.idempotencyStore,
+		deriver,
+		policyReader,
+		issuancePolicy,
+		clock,
+	)
+}
+
 func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
@@ -87,8 +106,9 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 		ExpectedAmountMinor: 120000,
 		CustomerReference:   "order-001",
 	}
-	useCase := NewAllocatePaymentAddressUseCase(
+	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
+		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -100,6 +120,7 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 120000,
 		CustomerReference:   " order-001 ",
+		IdempotencyKey:      " idem-001 ",
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -145,6 +166,25 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	}
 	if allocator.lastReserveFreshInput.ExpectedAmountMinor != 120000 {
 		t.Fatalf("unexpected expected amount minor passed to allocator reserve fresh: got %d", allocator.lastReserveFreshInput.ExpectedAmountMinor)
+	}
+	idempotencyStore, ok := txManager.idempotencyStore.(*fakePaymentAddressIdempotencyStore)
+	if !ok {
+		t.Fatal("expected fake idempotency store")
+	}
+	if idempotencyStore.claimCalls != 1 {
+		t.Fatalf("expected idempotency claim call count 1, got %d", idempotencyStore.claimCalls)
+	}
+	if idempotencyStore.lastClaim.IdempotencyKey != "idem-001" {
+		t.Fatalf("unexpected idempotency key in claim input: got %q", idempotencyStore.lastClaim.IdempotencyKey)
+	}
+	if idempotencyStore.completeCalls != 1 {
+		t.Fatalf("expected idempotency complete call count 1, got %d", idempotencyStore.completeCalls)
+	}
+	if idempotencyStore.lastComplete.PaymentAddressID != 44 {
+		t.Fatalf("unexpected payment address id in idempotency complete input: got %d", idempotencyStore.lastComplete.PaymentAddressID)
+	}
+	if idempotencyStore.releaseCalls != 0 {
+		t.Fatalf("expected idempotency release not to be called, got %d", idempotencyStore.releaseCalls)
 	}
 	if allocator.completeCalls != 1 {
 		t.Fatalf("expected complete allocation call count 1, got %d", allocator.completeCalls)
@@ -204,6 +244,254 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if response.CustomerReference != "order-001" {
 		t.Fatalf("unexpected customer reference: got %q", response.CustomerReference)
 	}
+	if response.IdempotencyReplayed {
+		t.Fatal("expected fresh allocation response not to be marked as replayed")
+	}
+}
+
+func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicateIdempotencyKey(t *testing.T) {
+	allocator := &fakePaymentAddressAllocationStore{
+		issuedByIDFound: true,
+		issuedByID: entities.PaymentAddressAllocation{
+			PaymentAddressID:    71,
+			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+			DerivationIndex:     9,
+			ExpectedAmountMinor: 120000,
+			CustomerReference:   "order-duplicate",
+			Status:              value_objects.PaymentAddressAllocationStatusIssued,
+			Chain:               value_objects.SupportedChainBitcoin,
+			Network:             value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+			Scheme:              string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Address:             "bc1qexistingduplicate",
+			DerivationPath:      "m/84'/0'/0'/0/9",
+		},
+	}
+	idempotencyStore := &fakePaymentAddressIdempotencyStore{
+		found: true,
+		record: outport.PaymentAddressIdempotencyRecord{
+			Chain:               value_objects.SupportedChainBitcoin,
+			IdempotencyKey:      "idem-duplicate",
+			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+			ExpectedAmountMinor: 120000,
+			CustomerReference:   "order-duplicate",
+			PaymentAddressID:    71,
+		},
+	}
+	txManager := newFakeUnitOfWork(allocator)
+	txManager.idempotencyStore = idempotencyStore
+	deriver := newFakeChainAddressDeriver()
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newAllocationPolicy(
+			"bitcoin-mainnet-native-segwit",
+			value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+			string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			"xpub-main",
+			"fingerprint-main-native-segwit",
+			"m/84'/0'/0'",
+		),
+	})
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
+		deriver,
+		catalog,
+		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
+		newAllocatePaymentAddressClock(),
+	)
+
+	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               value_objects.SupportedChainBitcoin,
+		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+		ExpectedAmountMinor: 120000,
+		CustomerReference:   " order-duplicate ",
+		IdempotencyKey:      " idem-duplicate ",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if idempotencyStore.findCalls != 1 {
+		t.Fatalf("expected duplicate idempotency lookup call count 1, got %d", idempotencyStore.findCalls)
+	}
+	if idempotencyStore.lastFindByKey.IdempotencyKey != "idem-duplicate" {
+		t.Fatalf("unexpected idempotency key lookup input: got %q", idempotencyStore.lastFindByKey.IdempotencyKey)
+	}
+	if allocator.findIssuedByIDCalls != 1 {
+		t.Fatalf("expected allocation lookup by id call count 1, got %d", allocator.findIssuedByIDCalls)
+	}
+	if allocator.lastFindIssuedByID.PaymentAddressID != 71 {
+		t.Fatalf("unexpected payment address id lookup input: got %d", allocator.lastFindIssuedByID.PaymentAddressID)
+	}
+	if txManager.calls != 0 {
+		t.Fatalf("expected no transaction for duplicate replay, got %d", txManager.calls)
+	}
+	if allocator.reserveFreshCalls != 0 {
+		t.Fatalf("expected no fresh reservation for duplicate replay, got %d", allocator.reserveFreshCalls)
+	}
+	if deriver.calls != 0 {
+		t.Fatalf("expected deriver not to be called, got %d", deriver.calls)
+	}
+	if response.PaymentAddressID != "71" {
+		t.Fatalf("unexpected payment address id: got %q", response.PaymentAddressID)
+	}
+	if response.Address != "bc1qexistingduplicate" {
+		t.Fatalf("unexpected address: got %q", response.Address)
+	}
+	if !response.IdempotencyReplayed {
+		t.Fatal("expected duplicate replay response to be marked as replayed")
+	}
+}
+
+func TestAllocatePaymentAddressUseCaseRejectsConflictingDuplicateIdempotencyKey(t *testing.T) {
+	allocator := &fakePaymentAddressAllocationStore{}
+	txManager := newFakeUnitOfWork(allocator)
+	idempotencyStore := &fakePaymentAddressIdempotencyStore{
+		found: true,
+		record: outport.PaymentAddressIdempotencyRecord{
+			Chain:               value_objects.SupportedChainBitcoin,
+			IdempotencyKey:      "idem-conflict",
+			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+			ExpectedAmountMinor: 120000,
+			CustomerReference:   "order-conflict",
+			PaymentAddressID:    72,
+		},
+	}
+	txManager.idempotencyStore = idempotencyStore
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
+		newFakeChainAddressDeriver(),
+		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+			newAllocationPolicy(
+				"bitcoin-mainnet-native-segwit",
+				value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+				string(value_objects.BitcoinAddressSchemeNativeSegwit),
+				"xpub-main",
+				"fingerprint-main-native-segwit",
+				"m/84'/0'/0'",
+			),
+		}),
+		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
+		newAllocatePaymentAddressClock(),
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               value_objects.SupportedChainBitcoin,
+		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+		ExpectedAmountMinor: 99999,
+		CustomerReference:   "order-conflict",
+		IdempotencyKey:      "idem-conflict",
+	})
+	if !errors.Is(err, inport.ErrIdempotencyKeyConflict) {
+		t.Fatalf("expected idempotency key conflict error, got %v", err)
+	}
+	if txManager.calls != 0 {
+		t.Fatalf("expected no transaction for conflicting replay, got %d", txManager.calls)
+	}
+	if allocator.findIssuedByIDCalls != 0 {
+		t.Fatalf("expected no allocation lookup on conflicting replay, got %d", allocator.findIssuedByIDCalls)
+	}
+	if allocator.reserveFreshCalls != 0 {
+		t.Fatalf("expected no fresh reservation for conflicting replay, got %d", allocator.reserveFreshCalls)
+	}
+}
+
+func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConflict(t *testing.T) {
+	allocator := &fakePaymentAddressAllocationStore{
+		issuedByIDFound: true,
+		issuedByID: entities.PaymentAddressAllocation{
+			PaymentAddressID:    73,
+			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+			DerivationIndex:     12,
+			ExpectedAmountMinor: 88000,
+			CustomerReference:   "order-race",
+			Status:              value_objects.PaymentAddressAllocationStatusIssued,
+			Chain:               value_objects.SupportedChainBitcoin,
+			Network:             value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+			Scheme:              string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Address:             "bc1qracewinner",
+			DerivationPath:      "m/84'/0'/0'/0/12",
+		},
+	}
+	idempotencyStore := &fakePaymentAddressIdempotencyStore{
+		findByKeyResults: []fakeFindPaymentAddressIdempotencyResult{
+			{},
+			{
+				record: outport.PaymentAddressIdempotencyRecord{
+					Chain:               value_objects.SupportedChainBitcoin,
+					IdempotencyKey:      "idem-race",
+					AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+					ExpectedAmountMinor: 88000,
+					CustomerReference:   "order-race",
+					PaymentAddressID:    73,
+				},
+				found: true,
+			},
+		},
+		claimErr: outport.ErrPaymentAddressIdempotencyKeyExists,
+	}
+	txManager := newFakeUnitOfWork(allocator)
+	txManager.idempotencyStore = idempotencyStore
+	deriver := newFakeChainAddressDeriver()
+	deriver.output = newAllocateDeriveOutput("bc1qloserrace", "0/12")
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
+		deriver,
+		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+			newAllocationPolicy(
+				"bitcoin-mainnet-native-segwit",
+				value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+				string(value_objects.BitcoinAddressSchemeNativeSegwit),
+				"xpub-main",
+				"fingerprint-main-native-segwit",
+				"m/84'/0'/0'",
+			),
+		}),
+		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
+		newAllocatePaymentAddressClock(),
+	)
+
+	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               value_objects.SupportedChainBitcoin,
+		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+		ExpectedAmountMinor: 88000,
+		CustomerReference:   "order-race",
+		IdempotencyKey:      "idem-race",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if idempotencyStore.findCalls != 2 {
+		t.Fatalf("expected duplicate idempotency lookup call count 2, got %d", idempotencyStore.findCalls)
+	}
+	if txManager.calls != 1 {
+		t.Fatalf("expected one transaction attempt, got %d", txManager.calls)
+	}
+	if idempotencyStore.claimCalls != 1 {
+		t.Fatalf("expected one idempotency claim attempt, got %d", idempotencyStore.claimCalls)
+	}
+	if allocator.reserveFreshCalls != 0 {
+		t.Fatalf("expected no allocation reservation after duplicate claim, got %d", allocator.reserveFreshCalls)
+	}
+	if allocator.completeCalls != 0 {
+		t.Fatalf("expected no allocation complete after duplicate claim, got %d", allocator.completeCalls)
+	}
+	trackingStore, ok := txManager.receiptTrackingStore.(*fakeAllocatePaymentReceiptTrackingStore)
+	if !ok {
+		t.Fatal("expected fake receipt tracking store")
+	}
+	if trackingStore.createCalls != 0 {
+		t.Fatalf("expected no receipt tracking create after unique conflict, got %d", trackingStore.createCalls)
+	}
+	if response.PaymentAddressID != "73" {
+		t.Fatalf("unexpected payment address id: got %q", response.PaymentAddressID)
+	}
+	if response.Address != "bc1qracewinner" {
+		t.Fatalf("unexpected address: got %q", response.Address)
+	}
+	if deriver.calls != 0 {
+		t.Fatalf("expected deriver not to be called after duplicate claim, got %d", deriver.calls)
+	}
 }
 
 func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t *testing.T) {
@@ -229,8 +517,9 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 		CustomerReference:   "order-66",
 	}
 
-	useCase := NewAllocatePaymentAddressUseCase(
+	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
+		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(
@@ -295,8 +584,9 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testin
 		},
 	}
 
-	useCase := NewAllocatePaymentAddressUseCase(
+	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
+		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(
@@ -359,8 +649,9 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 			"m/84'/0'/0'",
 		),
 	})
-	useCase := NewAllocatePaymentAddressUseCase(
+	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
+		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -433,11 +724,13 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 		},
 	}
 	txManager := &fakeUnitOfWork{
-		err:             expectedErr,
-		allocationStore: allocator,
+		err:              expectedErr,
+		allocationStore:  allocator,
+		idempotencyStore: &fakePaymentAddressIdempotencyStore{},
 	}
-	useCase := NewAllocatePaymentAddressUseCase(
+	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
+		allocator,
 		newFakeChainAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -485,8 +778,9 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 			"m/84'/0'/0'",
 		),
 	})
-	useCase := NewAllocatePaymentAddressUseCase(
+	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
+		allocator,
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -511,8 +805,10 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 
 func TestAllocatePaymentAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
-	useCase := NewAllocatePaymentAddressUseCase(
-		newFakeUnitOfWork(allocator),
+	txManager := newFakeUnitOfWork(allocator)
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
 		newFakeChainAddressDeriver(),
 		newInMemoryAddressPolicyReader(nil),
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -531,8 +827,10 @@ func TestAllocatePaymentAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 
 func TestAllocatePaymentAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
-	useCase := NewAllocatePaymentAddressUseCase(
-		newFakeUnitOfWork(allocator),
+	txManager := newFakeUnitOfWork(allocator)
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
 		newFakeChainAddressDeriver(),
 		newInMemoryAddressPolicyReader(nil),
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -565,8 +863,10 @@ func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 		),
 	})
 	allocator := &fakePaymentAddressAllocationStore{}
-	useCase := NewAllocatePaymentAddressUseCase(
-		newFakeUnitOfWork(allocator),
+	txManager := newFakeUnitOfWork(allocator)
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
 		newFakeChainAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -595,8 +895,10 @@ func TestAllocatePaymentAddressUseCaseMapsExhaustedError(t *testing.T) {
 		),
 	})
 	allocator := &fakePaymentAddressAllocationStore{reserveFreshErr: outport.ErrAddressIndexExhausted}
-	useCase := NewAllocatePaymentAddressUseCase(
-		newFakeUnitOfWork(allocator),
+	txManager := newFakeUnitOfWork(allocator)
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
 		newFakeChainAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -633,8 +935,10 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 			"m/44'/0'/0'",
 		),
 	})
-	useCase := NewAllocatePaymentAddressUseCase(
-		newFakeUnitOfWork(allocator),
+	txManager := newFakeUnitOfWork(allocator)
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
 		&fakeChainAddressDeriver{
 			supportedChains: map[value_objects.SupportedChain]bool{
 				value_objects.SupportedChainBitcoin: true,
@@ -650,6 +954,7 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 		Chain:               value_objects.SupportedChainBitcoin,
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
+		IdempotencyKey:      "idem-derive-failed",
 	})
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected %v, got %v", expectedErr, err)
@@ -668,6 +973,19 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 	}
 	if allocator.completeCalls != 0 {
 		t.Fatalf("expected complete allocation not to be called on derivation error")
+	}
+	idempotencyStore, ok := txManager.idempotencyStore.(*fakePaymentAddressIdempotencyStore)
+	if !ok {
+		t.Fatal("expected fake idempotency store")
+	}
+	if idempotencyStore.claimCalls != 1 {
+		t.Fatalf("expected idempotency claim call count 1, got %d", idempotencyStore.claimCalls)
+	}
+	if idempotencyStore.releaseCalls != 1 {
+		t.Fatalf("expected idempotency release call count 1, got %d", idempotencyStore.releaseCalls)
+	}
+	if idempotencyStore.completeCalls != 0 {
+		t.Fatalf("expected idempotency complete not to be called, got %d", idempotencyStore.completeCalls)
 	}
 }
 
@@ -691,8 +1009,10 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 			"m/44'/0'/0'",
 		),
 	})
-	useCase := NewAllocatePaymentAddressUseCase(
-		newFakeUnitOfWork(allocator),
+	txManager := newFakeUnitOfWork(allocator)
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
 		&fakeChainAddressDeriver{
 			supportedChains: map[value_objects.SupportedChain]bool{
 				value_objects.SupportedChainBitcoin: true,
@@ -732,8 +1052,10 @@ func TestAllocatePaymentAddressUseCaseRejectInvalidExpectedAmount(t *testing.T) 
 		),
 	})
 	allocator := &fakePaymentAddressAllocationStore{}
-	useCase := NewAllocatePaymentAddressUseCase(
-		newFakeUnitOfWork(allocator),
+	txManager := newFakeUnitOfWork(allocator)
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		allocator,
 		newFakeChainAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
@@ -768,31 +1090,59 @@ func TestAllocatePaymentAddressUseCaseValidationMissingDependencies(t *testing.T
 			wantErr: "unit of work is not configured",
 		},
 		{
+			name: "missing idempotency store",
+			useCase: &allocatePaymentAddressUseCase{
+				unitOfWork:      newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				allocationStore: &fakePaymentAddressAllocationStore{},
+				deriver:         newFakeChainAddressDeriver(),
+				policyReader:    newInMemoryAddressPolicyReader(nil),
+				clock:           newAllocatePaymentAddressClock(),
+			},
+			wantErr: "payment address idempotency store is not configured",
+		},
+		{
 			name: "missing deriver",
 			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork:   newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				policyReader: newInMemoryAddressPolicyReader(nil),
-				clock:        newAllocatePaymentAddressClock(),
+				unitOfWork:       newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				allocationStore:  &fakePaymentAddressAllocationStore{},
+				idempotencyStore: &fakePaymentAddressIdempotencyStore{},
+				policyReader:     newInMemoryAddressPolicyReader(nil),
+				clock:            newAllocatePaymentAddressClock(),
 			},
 			wantErr: "chain address deriver is not configured",
 		},
 		{
 			name: "missing policy reader",
 			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork: newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				deriver:    newFakeChainAddressDeriver(),
-				clock:      newAllocatePaymentAddressClock(),
+				unitOfWork:       newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				allocationStore:  &fakePaymentAddressAllocationStore{},
+				idempotencyStore: &fakePaymentAddressIdempotencyStore{},
+				deriver:          newFakeChainAddressDeriver(),
+				clock:            newAllocatePaymentAddressClock(),
 			},
 			wantErr: "address policy reader is not configured",
 		},
 		{
 			name: "missing clock",
 			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork:   newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				deriver:      newFakeChainAddressDeriver(),
-				policyReader: newInMemoryAddressPolicyReader(nil),
+				unitOfWork:       newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				allocationStore:  &fakePaymentAddressAllocationStore{},
+				idempotencyStore: &fakePaymentAddressIdempotencyStore{},
+				deriver:          newFakeChainAddressDeriver(),
+				policyReader:     newInMemoryAddressPolicyReader(nil),
 			},
 			wantErr: "clock is not configured",
+		},
+		{
+			name: "missing allocation store",
+			useCase: &allocatePaymentAddressUseCase{
+				unitOfWork:       newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				idempotencyStore: &fakePaymentAddressIdempotencyStore{},
+				deriver:          newFakeChainAddressDeriver(),
+				policyReader:     newInMemoryAddressPolicyReader(nil),
+				clock:            newAllocatePaymentAddressClock(),
+			},
+			wantErr: "payment address allocation store is not configured",
 		},
 	}
 

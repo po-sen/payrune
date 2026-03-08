@@ -18,6 +18,7 @@ type UnitOfWork struct {
 func NewTxScope(tx *sql.Tx) outport.TxScope {
 	return outport.TxScope{
 		PaymentAddressAllocation:               NewPaymentAddressAllocationStore(tx),
+		PaymentAddressIdempotency:              NewPaymentAddressIdempotencyStore(tx),
 		PaymentReceiptTracking:                 NewPaymentReceiptTrackingStore(tx),
 		PaymentReceiptStatusNotificationOutbox: NewPaymentReceiptStatusNotificationOutboxStore(tx),
 	}

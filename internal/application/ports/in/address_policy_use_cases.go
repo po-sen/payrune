@@ -14,6 +14,7 @@ var (
 	ErrAddressPolicyNotEnabled = errors.New("address policy is not enabled")
 	ErrAddressPoolExhausted    = errors.New("address pool is exhausted")
 	ErrInvalidExpectedAmount   = errors.New("expected amount is invalid")
+	ErrIdempotencyKeyConflict  = errors.New("idempotency key conflicts with existing payment address")
 )
 
 type ListAddressPoliciesUseCase interface {

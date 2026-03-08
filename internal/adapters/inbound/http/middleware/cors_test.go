@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -28,6 +29,12 @@ func TestCORSAllowsConfiguredOrigin(t *testing.T) {
 	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:8081" {
 		t.Fatalf("unexpected allow-origin header: got %q", got)
 	}
+	if !strings.Contains(rr.Header().Get("Access-Control-Allow-Headers"), "Idempotency-Key") {
+		t.Fatalf("expected allow-headers to include Idempotency-Key, got %q", rr.Header().Get("Access-Control-Allow-Headers"))
+	}
+	if !strings.Contains(rr.Header().Get("Access-Control-Expose-Headers"), "Idempotency-Replayed") {
+		t.Fatalf("expected expose-headers to include Idempotency-Replayed, got %q", rr.Header().Get("Access-Control-Expose-Headers"))
+	}
 }
 
 func TestCORSPreflightReturnsNoContent(t *testing.T) {
@@ -39,6 +46,7 @@ func TestCORSPreflightReturnsNoContent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodOptions, "/health", nil)
 	req.Header.Set("Origin", "http://localhost:8081")
 	req.Header.Set("Access-Control-Request-Method", http.MethodGet)
+	req.Header.Set("Access-Control-Request-Headers", "Idempotency-Key")
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -51,6 +59,9 @@ func TestCORSPreflightReturnsNoContent(t *testing.T) {
 	}
 	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:8081" {
 		t.Fatalf("unexpected allow-origin header: got %q", got)
+	}
+	if !strings.Contains(rr.Header().Get("Access-Control-Allow-Headers"), "Idempotency-Key") {
+		t.Fatalf("expected allow-headers to include Idempotency-Key, got %q", rr.Header().Get("Access-Control-Allow-Headers"))
 	}
 }
 
@@ -67,5 +78,8 @@ func TestCORSDisallowedOriginOmitted(t *testing.T) {
 
 	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "" {
 		t.Fatalf("unexpected allow-origin header: got %q", got)
+	}
+	if got := rr.Header().Get("Access-Control-Expose-Headers"); got != "" {
+		t.Fatalf("unexpected expose-headers: got %q", got)
 	}
 }

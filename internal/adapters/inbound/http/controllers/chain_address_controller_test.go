@@ -286,11 +286,15 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 		"/v1/chains/bitcoin/payment-addresses",
 		strings.NewReader(`{"addressPolicyId":"bitcoin-mainnet-native-segwit","expectedAmountMinor":120000,"customerReference":" order-20260304-001 "}`),
 	)
+	req.Header.Set(idempotencyKeyHeader, " idem-101 ")
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
+	}
+	if got := rr.Header().Get(idempotencyReplayedHeader); got != "" {
+		t.Fatalf("expected no idempotency replayed header on fresh success, got %q", got)
 	}
 	if allocateUC.lastInput.Chain != value_objects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain in input: got %q", allocateUC.lastInput.Chain)
@@ -307,6 +311,9 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 	if allocateUC.lastInput.CustomerReference != "order-20260304-001" {
 		t.Fatalf("unexpected customer reference in input: got %q", allocateUC.lastInput.CustomerReference)
 	}
+	if allocateUC.lastInput.IdempotencyKey != "idem-101" {
+		t.Fatalf("unexpected idempotency key in input: got %q", allocateUC.lastInput.IdempotencyKey)
+	}
 
 	var response dto.AllocatePaymentAddressResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
@@ -320,6 +327,48 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 	}
 	if response.ExpectedAmountMinor != 120000 {
 		t.Fatalf("unexpected expected amount minor: got %d", response.ExpectedAmountMinor)
+	}
+}
+
+func TestChainAddressControllerAllocatePaymentAddressReplayHeader(t *testing.T) {
+	allocateUC := &fakeAllocatePaymentAddressUseCase{
+		response: dto.AllocatePaymentAddressResponse{
+			PaymentAddressID:    "101",
+			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
+			ExpectedAmountMinor: 120000,
+			Chain:               "bitcoin",
+			Network:             "mainnet",
+			Scheme:              "nativeSegwit",
+			MinorUnit:           "satoshi",
+			Decimals:            8,
+			Address:             "bc1qallocatedaddress",
+			CustomerReference:   "order-20260304-001",
+			IdempotencyReplayed: true,
+		},
+	}
+	controller := NewChainAddressController(
+		&fakeListAddressPoliciesUseCase{},
+		&fakeGenerateAddressUseCase{},
+		allocateUC,
+	)
+
+	mux := http.NewServeMux()
+	controller.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/chains/bitcoin/payment-addresses",
+		strings.NewReader(`{"addressPolicyId":"bitcoin-mainnet-native-segwit","expectedAmountMinor":120000}`),
+	)
+	req.Header.Set(idempotencyKeyHeader, "idem-replay")
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("unexpected status code: got %d", rr.Code)
+	}
+	if got := rr.Header().Get(idempotencyReplayedHeader); got != "true" {
+		t.Fatalf("unexpected idempotency replayed header: got %q", got)
 	}
 }
 
@@ -420,6 +469,7 @@ func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) 
 		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented},
 		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound},
 		{name: "pool exhausted", err: inport.ErrAddressPoolExhausted, statusCode: http.StatusConflict},
+		{name: "idempotency key conflict", err: inport.ErrIdempotencyKeyConflict, statusCode: http.StatusConflict},
 		{name: "invalid expected amount", err: inport.ErrInvalidExpectedAmount, statusCode: http.StatusBadRequest},
 		{name: "internal", err: errors.New("boom"), statusCode: http.StatusInternalServerError},
 	}

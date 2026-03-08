@@ -14,6 +14,8 @@ import (
 )
 
 const maxNonHardenedIndex = uint64(0x7fffffff)
+const idempotencyKeyHeader = "Idempotency-Key"
+const idempotencyReplayedHeader = "Idempotency-Replayed"
 
 type ChainAddressController struct {
 	listAddressPolicies    inport.ListAddressPoliciesUseCase
@@ -129,6 +131,7 @@ func (c *ChainAddressController) handleAllocatePaymentAddress(
 		AddressPolicyID:     addressPolicyID,
 		ExpectedAmountMinor: *request.ExpectedAmountMinor,
 		CustomerReference:   strings.TrimSpace(request.CustomerReference),
+		IdempotencyKey:      strings.TrimSpace(r.Header.Get(idempotencyKeyHeader)),
 	})
 	if err != nil {
 		switch {
@@ -140,6 +143,8 @@ func (c *ChainAddressController) handleAllocatePaymentAddress(
 			writeJSON(w, http.StatusNotImplemented, dto.ErrorResponse{Error: err.Error()})
 		case errors.Is(err, inport.ErrAddressPoolExhausted):
 			writeJSON(w, http.StatusConflict, dto.ErrorResponse{Error: err.Error()})
+		case errors.Is(err, inport.ErrIdempotencyKeyConflict):
+			writeJSON(w, http.StatusConflict, dto.ErrorResponse{Error: err.Error()})
 		case errors.Is(err, inport.ErrInvalidExpectedAmount):
 			writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		default:
@@ -148,6 +153,9 @@ func (c *ChainAddressController) handleAllocatePaymentAddress(
 		return
 	}
 
+	if response.IdempotencyReplayed {
+		w.Header().Set(idempotencyReplayedHeader, "true")
+	}
 	writeJSON(w, http.StatusCreated, response)
 }
 

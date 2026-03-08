@@ -137,6 +137,10 @@ func (f *fakeChainAddressDeriver) DeriveAddress(
 }
 
 type fakePaymentAddressAllocationStore struct {
+	findIssuedByIDResults []fakeFindIssuedPaymentAddressAllocationResult
+	issuedByID            entities.PaymentAddressAllocation
+	issuedByIDFound       bool
+	issuedByIDErr         error
 	reopenReservation     entities.PaymentAddressAllocation
 	reopenFound           bool
 	reopenErr             error
@@ -144,15 +148,42 @@ type fakePaymentAddressAllocationStore struct {
 	reserveFreshErr       error
 	completeErr           error
 	markFailedErr         error
+	lastFindIssuedByID    outport.FindIssuedPaymentAddressAllocationByIDInput
 	lastReopenInput       outport.ReservePaymentAddressAllocationInput
 	lastReserveFreshInput outport.ReservePaymentAddressAllocationInput
 	lastCompleteInput     entities.PaymentAddressAllocation
 	lastCompleteIssuedAt  time.Time
 	lastFailedInput       entities.PaymentAddressAllocation
+	findIssuedByIDCalls   int
 	reopenCalls           int
 	reserveFreshCalls     int
 	completeCalls         int
 	markFailedCalls       int
+}
+
+type fakeFindIssuedPaymentAddressAllocationResult struct {
+	allocation entities.PaymentAddressAllocation
+	found      bool
+	err        error
+}
+
+func (f *fakePaymentAddressAllocationStore) FindIssuedByID(
+	_ context.Context,
+	input outport.FindIssuedPaymentAddressAllocationByIDInput,
+) (entities.PaymentAddressAllocation, bool, error) {
+	f.findIssuedByIDCalls++
+	f.lastFindIssuedByID = input
+	if len(f.findIssuedByIDResults) >= f.findIssuedByIDCalls {
+		result := f.findIssuedByIDResults[f.findIssuedByIDCalls-1]
+		return result.allocation, result.found, result.err
+	}
+	if f.issuedByIDErr != nil {
+		return entities.PaymentAddressAllocation{}, false, f.issuedByIDErr
+	}
+	if f.issuedByIDFound {
+		return f.issuedByID, true, nil
+	}
+	return entities.PaymentAddressAllocation{}, false, nil
 }
 
 func (f *fakePaymentAddressAllocationStore) ReopenFailedReservation(
@@ -206,6 +237,7 @@ type fakeUnitOfWork struct {
 	err                  error
 	calls                int
 	allocationStore      outport.PaymentAddressAllocationStore
+	idempotencyStore     outport.PaymentAddressIdempotencyStore
 	receiptTrackingStore outport.PaymentReceiptTrackingStore
 	notificationOutbox   outport.PaymentReceiptStatusNotificationOutbox
 }
@@ -213,6 +245,7 @@ type fakeUnitOfWork struct {
 func newFakeUnitOfWork(store outport.PaymentAddressAllocationStore) *fakeUnitOfWork {
 	return &fakeUnitOfWork{
 		allocationStore:      store,
+		idempotencyStore:     &fakePaymentAddressIdempotencyStore{},
 		receiptTrackingStore: &fakeAllocatePaymentReceiptTrackingStore{},
 		notificationOutbox:   &fakeAllocatePaymentReceiptStatusNotificationOutbox{},
 	}
@@ -229,14 +262,97 @@ func (f *fakeUnitOfWork) WithinTransaction(
 	if f.allocationStore == nil {
 		return errors.New("payment address allocation store is not configured")
 	}
+	if f.idempotencyStore == nil {
+		return errors.New("payment address idempotency store is not configured")
+	}
 	if f.receiptTrackingStore == nil {
 		return errors.New("payment receipt tracking store is not configured")
 	}
 	return fn(outport.TxScope{
 		PaymentAddressAllocation:               f.allocationStore,
+		PaymentAddressIdempotency:              f.idempotencyStore,
 		PaymentReceiptTracking:                 f.receiptTrackingStore,
 		PaymentReceiptStatusNotificationOutbox: f.notificationOutbox,
 	})
+}
+
+type fakePaymentAddressIdempotencyStore struct {
+	findByKeyResults []fakeFindPaymentAddressIdempotencyResult
+	record           outport.PaymentAddressIdempotencyRecord
+	found            bool
+	findErr          error
+	claimErr         error
+	releaseErr       error
+	completeErr      error
+	lastFindByKey    outport.FindPaymentAddressIdempotencyInput
+	lastClaim        outport.ClaimPaymentAddressIdempotencyInput
+	lastRelease      outport.ReleasePaymentAddressIdempotencyInput
+	lastComplete     outport.CompletePaymentAddressIdempotencyInput
+	findCalls        int
+	claimCalls       int
+	releaseCalls     int
+	completeCalls    int
+}
+
+type fakeFindPaymentAddressIdempotencyResult struct {
+	record outport.PaymentAddressIdempotencyRecord
+	found  bool
+	err    error
+}
+
+func (f *fakePaymentAddressIdempotencyStore) FindByKey(
+	_ context.Context,
+	input outport.FindPaymentAddressIdempotencyInput,
+) (outport.PaymentAddressIdempotencyRecord, bool, error) {
+	f.findCalls++
+	f.lastFindByKey = input
+	if len(f.findByKeyResults) >= f.findCalls {
+		result := f.findByKeyResults[f.findCalls-1]
+		return result.record, result.found, result.err
+	}
+	if f.findErr != nil {
+		return outport.PaymentAddressIdempotencyRecord{}, false, f.findErr
+	}
+	if f.found {
+		return f.record, true, nil
+	}
+	return outport.PaymentAddressIdempotencyRecord{}, false, nil
+}
+
+func (f *fakePaymentAddressIdempotencyStore) Claim(
+	_ context.Context,
+	input outport.ClaimPaymentAddressIdempotencyInput,
+) (outport.PaymentAddressIdempotencyRecord, error) {
+	f.claimCalls++
+	f.lastClaim = input
+	if f.claimErr != nil {
+		return outport.PaymentAddressIdempotencyRecord{}, f.claimErr
+	}
+	return outport.PaymentAddressIdempotencyRecord{
+		Chain:               input.Chain,
+		IdempotencyKey:      input.IdempotencyKey,
+		AddressPolicyID:     input.AddressPolicyID,
+		ExpectedAmountMinor: input.ExpectedAmountMinor,
+		CustomerReference:   input.CustomerReference,
+	}, nil
+}
+
+func (f *fakePaymentAddressIdempotencyStore) Complete(
+	_ context.Context,
+	input outport.CompletePaymentAddressIdempotencyInput,
+) error {
+	f.completeCalls++
+	f.lastComplete = input
+	return f.completeErr
+}
+
+func (f *fakePaymentAddressIdempotencyStore) Release(
+	_ context.Context,
+	input outport.ReleasePaymentAddressIdempotencyInput,
+) error {
+	f.releaseCalls++
+	f.lastRelease = input
+	return f.releaseErr
 }
 
 type fakeAllocatePaymentReceiptTrackingStore struct {

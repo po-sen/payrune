@@ -39,6 +39,12 @@ func newReservePaymentAddressAllocationInput(customerReference string) outport.R
 	}
 }
 
+func newFindIssuedPaymentAddressAllocationByIDInput(paymentAddressID int64) outport.FindIssuedPaymentAddressAllocationByIDInput {
+	return outport.FindIssuedPaymentAddressAllocationByIDInput{
+		PaymentAddressID: paymentAddressID,
+	}
+}
+
 func TestPaymentAddressAllocationStoreCompleteValidation(t *testing.T) {
 	store := NewPaymentAddressAllocationStore(&stubNotificationExecutor{})
 
@@ -102,6 +108,88 @@ func TestPaymentAddressAllocationStoreCompleteNotReserved(t *testing.T) {
 	err = store.Complete(context.Background(), entities.PaymentAddressAllocation{PaymentAddressID: 44}, issuedAt)
 	if !errors.Is(err, errAllocationNotReserved) {
 		t.Fatalf("expected errAllocationNotReserved, got %v", err)
+	}
+}
+
+func TestPaymentAddressAllocationStoreFindIssuedByIDInvalidID(t *testing.T) {
+	store := NewPaymentAddressAllocationStore(&stubNotificationExecutor{})
+
+	allocation, found, err := store.FindIssuedByID(
+		context.Background(),
+		newFindIssuedPaymentAddressAllocationByIDInput(0),
+	)
+	if err != nil {
+		t.Fatalf("FindIssuedByID returned error: %v", err)
+	}
+	if found {
+		t.Fatal("expected found=false")
+	}
+	if allocation != (entities.PaymentAddressAllocation{}) {
+		t.Fatalf("unexpected allocation: %+v", allocation)
+	}
+}
+
+func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	store := NewPaymentAddressAllocationStore(db)
+	input := newFindIssuedPaymentAddressAllocationByIDInput(199)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"address_policy_id",
+		"derivation_index",
+		"expected_amount_minor",
+		"customer_reference",
+		"chain",
+		"network",
+		"scheme",
+		"address",
+		"derivation_path",
+		"failure_reason",
+	}).AddRow(
+		int64(199),
+		"bitcoin-mainnet-native-segwit",
+		int64(21),
+		int64(125000),
+		"order-lookup",
+		"bitcoin",
+		"mainnet",
+		"nativeSegwit",
+		"bc1qlookup",
+		"m/84'/0'/0'/0/21",
+		"",
+	)
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id,")).
+		WithArgs(int64(199)).
+		WillReturnRows(rows)
+
+	allocation, found, err := store.FindIssuedByID(context.Background(), input)
+	if err != nil {
+		t.Fatalf("FindIssuedByID returned error: %v", err)
+	}
+	if !found {
+		t.Fatal("expected found=true")
+	}
+	if allocation.PaymentAddressID != 199 {
+		t.Fatalf("unexpected payment address id: got %d", allocation.PaymentAddressID)
+	}
+	if allocation.ExpectedAmountMinor != 125000 {
+		t.Fatalf("unexpected expected amount minor: got %d", allocation.ExpectedAmountMinor)
+	}
+	if allocation.Address != "bc1qlookup" {
+		t.Fatalf("unexpected address: got %q", allocation.Address)
+	}
+	if allocation.Status != value_objects.PaymentAddressAllocationStatusIssued {
+		t.Fatalf("unexpected status: got %q", allocation.Status)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }
 

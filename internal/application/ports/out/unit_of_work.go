@@ -4,6 +4,7 @@ import "context"
 
 type TxScope struct {
 	PaymentAddressAllocation               PaymentAddressAllocationStore
+	PaymentAddressIdempotency              PaymentAddressIdempotencyStore
 	PaymentReceiptTracking                 PaymentReceiptTrackingStore
 	PaymentReceiptStatusNotificationOutbox PaymentReceiptStatusNotificationOutbox
 }
