@@ -1,6 +1,10 @@
 package dto
 
-import "payrune/internal/domain/value_objects"
+import (
+	"time"
+
+	"payrune/internal/domain/value_objects"
+)
 
 type AddressPolicy struct {
 	AddressPolicyID string `json:"addressPolicyId"`
@@ -54,4 +58,35 @@ type AllocatePaymentAddressResponse struct {
 	Address             string `json:"address"`
 	CustomerReference   string `json:"customerReference,omitempty"`
 	IdempotencyReplayed bool   `json:"-"`
+}
+
+type GetPaymentAddressStatusInput struct {
+	Chain            value_objects.SupportedChain
+	PaymentAddressID int64
+}
+
+type GetPaymentAddressStatusResponse struct {
+	PaymentAddressID        string     `json:"paymentAddressId"`
+	AddressPolicyID         string     `json:"addressPolicyId"`
+	ExpectedAmountMinor     int64      `json:"expectedAmountMinor"`
+	Chain                   string     `json:"chain"`
+	Network                 string     `json:"network"`
+	Scheme                  string     `json:"scheme"`
+	MinorUnit               string     `json:"minorUnit"`
+	Decimals                uint8      `json:"decimals"`
+	Address                 string     `json:"address"`
+	CustomerReference       string     `json:"customerReference,omitempty"`
+	PaymentStatus           string     `json:"paymentStatus"`
+	ObservedTotalMinor      int64      `json:"observedTotalMinor"`
+	ConfirmedTotalMinor     int64      `json:"confirmedTotalMinor"`
+	UnconfirmedTotalMinor   int64      `json:"unconfirmedTotalMinor"`
+	ConflictTotalMinor      int64      `json:"conflictTotalMinor"`
+	RequiredConfirmations   int32      `json:"requiredConfirmations"`
+	LastObservedBlockHeight int64      `json:"lastObservedBlockHeight"`
+	IssuedAt                time.Time  `json:"issuedAt"`
+	FirstObservedAt         *time.Time `json:"firstObservedAt,omitempty"`
+	PaidAt                  *time.Time `json:"paidAt,omitempty"`
+	ConfirmedAt             *time.Time `json:"confirmedAt,omitempty"`
+	ExpiresAt               *time.Time `json:"expiresAt,omitempty"`
+	LastError               string     `json:"lastError,omitempty"`
 }

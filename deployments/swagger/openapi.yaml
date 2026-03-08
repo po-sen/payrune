@@ -427,6 +427,113 @@ paths:
                   error:
                     type: string
                     example: internal server error
+  /v1/chains/{chain}/payment-addresses/{paymentAddressId}:
+    get:
+      summary: Get current payment status for one payment address
+      operationId: getPaymentAddressStatus
+      tags:
+        - Addresses
+      parameters:
+        - name: chain
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - bitcoin
+        - name: paymentAddressId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 101
+      responses:
+        "200":
+          description: Current payment status returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPaymentAddressStatusResponse"
+              examples:
+                partiallyPaid:
+                  value:
+                    paymentAddressId: "101"
+                    addressPolicyId: bitcoin-mainnet-native-segwit
+                    expectedAmountMinor: 120000
+                    customerReference: order-20260308-001
+                    chain: bitcoin
+                    network: mainnet
+                    scheme: nativeSegwit
+                    minorUnit: satoshi
+                    decimals: 8
+                    address: bc1qexamplepaymentaddress
+                    paymentStatus: partially_paid
+                    observedTotalMinor: 80000
+                    confirmedTotalMinor: 40000
+                    unconfirmedTotalMinor: 40000
+                    conflictTotalMinor: 0
+                    requiredConfirmations: 1
+                    lastObservedBlockHeight: 123
+                    issuedAt: "2026-03-08T11:00:00Z"
+                    firstObservedAt: "2026-03-08T11:05:00Z"
+                    expiresAt: "2026-03-15T11:00:00Z"
+        "400":
+          description: Invalid payment address id.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: invalid paymentAddressId
+        "404":
+          description: Chain or payment address not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: payment address is not found
+              examples:
+                paymentAddressNotFound:
+                  value:
+                    error: payment address is not found
+                chainNotSupported:
+                  value:
+                    error: chain is not supported
+        "405":
+          description: Method not allowed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: method not allowed
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    example: internal server error
 components:
   schemas:
     HealthResponse:
@@ -546,3 +653,125 @@ components:
         address:
           type: string
           example: bc1qexamplepaymentaddress
+    GetPaymentAddressStatusResponse:
+      type: object
+      required:
+        - paymentAddressId
+        - addressPolicyId
+        - expectedAmountMinor
+        - chain
+        - network
+        - scheme
+        - minorUnit
+        - decimals
+        - address
+        - paymentStatus
+        - observedTotalMinor
+        - confirmedTotalMinor
+        - unconfirmedTotalMinor
+        - conflictTotalMinor
+        - requiredConfirmations
+        - lastObservedBlockHeight
+        - issuedAt
+      properties:
+        paymentAddressId:
+          type: string
+          example: "101"
+        addressPolicyId:
+          type: string
+          example: bitcoin-mainnet-native-segwit
+        expectedAmountMinor:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 120000
+        customerReference:
+          type: string
+          example: order-20260308-001
+        chain:
+          type: string
+          example: bitcoin
+        network:
+          type: string
+          example: mainnet
+        scheme:
+          type: string
+          enum:
+            - legacy
+            - segwit
+            - nativeSegwit
+            - taproot
+          example: nativeSegwit
+        minorUnit:
+          type: string
+          example: satoshi
+        decimals:
+          type: integer
+          minimum: 0
+          maximum: 18
+          example: 8
+        address:
+          type: string
+          example: bc1qexamplepaymentaddress
+        paymentStatus:
+          type: string
+          enum:
+            - watching
+            - partially_paid
+            - paid_unconfirmed
+            - paid_confirmed
+            - double_spend_suspected
+            - failed_expired
+          example: partially_paid
+        observedTotalMinor:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 80000
+        confirmedTotalMinor:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 40000
+        unconfirmedTotalMinor:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 40000
+        conflictTotalMinor:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 0
+        requiredConfirmations:
+          type: integer
+          minimum: 1
+          example: 1
+        lastObservedBlockHeight:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 123
+        issuedAt:
+          type: string
+          format: date-time
+          example: "2026-03-08T11:00:00Z"
+        firstObservedAt:
+          type: string
+          format: date-time
+          example: "2026-03-08T11:05:00Z"
+        paidAt:
+          type: string
+          format: date-time
+          example: "2026-03-08T11:09:00Z"
+        confirmedAt:
+          type: string
+          format: date-time
+          example: "2026-03-08T11:20:00Z"
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2026-03-15T11:00:00Z"
+        lastError:
+          type: string
+          example: bitcoin observer timeout

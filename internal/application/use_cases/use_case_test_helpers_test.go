@@ -136,6 +136,29 @@ func (f *fakeChainAddressDeriver) DeriveAddress(
 	return f.output, nil
 }
 
+type fakePaymentAddressStatusFinder struct {
+	record    outport.PaymentAddressStatusRecord
+	found     bool
+	err       error
+	lastInput outport.FindPaymentAddressStatusInput
+	calls     int
+}
+
+func (f *fakePaymentAddressStatusFinder) FindByID(
+	_ context.Context,
+	input outport.FindPaymentAddressStatusInput,
+) (outport.PaymentAddressStatusRecord, bool, error) {
+	f.calls++
+	f.lastInput = input
+	if f.err != nil {
+		return outport.PaymentAddressStatusRecord{}, false, f.err
+	}
+	if f.found {
+		return f.record, true, nil
+	}
+	return outport.PaymentAddressStatusRecord{}, false, nil
+}
+
 type fakePaymentAddressAllocationStore struct {
 	findIssuedByIDResults []fakeFindIssuedPaymentAddressAllocationResult
 	issuedByID            entities.PaymentAddressAllocation

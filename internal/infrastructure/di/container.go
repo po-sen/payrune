@@ -168,6 +168,7 @@ func NewContainer() (*Container, error) {
 	listAddressPoliciesUseCase := use_cases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	generateAddressUseCase := use_cases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
 	allocationStore := postgresadapter.NewPaymentAddressAllocationStore(db)
+	paymentAddressStatusFinder := postgresadapter.NewPaymentAddressStatusFinder(db)
 	idempotencyStore := postgresadapter.NewPaymentAddressIdempotencyStore(db)
 	unitOfWork := postgresadapter.NewUnitOfWork(db, postgresadapter.NewTxScope)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
@@ -183,10 +184,15 @@ func NewContainer() (*Container, error) {
 		allocationIssuancePolicy,
 		clock,
 	)
+	getPaymentAddressStatusUseCase := use_cases.NewGetPaymentAddressStatusUseCase(
+		paymentAddressStatusFinder,
+		addressPolicyReader,
+	)
 	chainAddressController := httpcontroller.NewChainAddressController(
 		listAddressPoliciesUseCase,
 		generateAddressUseCase,
 		allocatePaymentAddressUseCase,
+		getPaymentAddressStatusUseCase,
 	)
 
 	return &Container{

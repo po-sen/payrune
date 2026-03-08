@@ -15,6 +15,7 @@ var (
 	ErrAddressPoolExhausted    = errors.New("address pool is exhausted")
 	ErrInvalidExpectedAmount   = errors.New("expected amount is invalid")
 	ErrIdempotencyKeyConflict  = errors.New("idempotency key conflicts with existing payment address")
+	ErrPaymentAddressNotFound  = errors.New("payment address is not found")
 )
 
 type ListAddressPoliciesUseCase interface {
@@ -30,4 +31,11 @@ type AllocatePaymentAddressUseCase interface {
 		ctx context.Context,
 		input dto.AllocatePaymentAddressInput,
 	) (dto.AllocatePaymentAddressResponse, error)
+}
+
+type GetPaymentAddressStatusUseCase interface {
+	Execute(
+		ctx context.Context,
+		input dto.GetPaymentAddressStatusInput,
+	) (dto.GetPaymentAddressStatusResponse, error)
 }
