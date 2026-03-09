@@ -125,10 +125,7 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 		`WITH due AS (
 		     SELECT id
 		     FROM payment_receipt_trackings
-		     WHERE (
-		           next_poll_at <= $1
-		           OR (paid_at IS NULL AND expires_at IS NOT NULL AND expires_at <= $1)
-		         )
+		     WHERE next_poll_at <= $1
 		       AND (lease_until IS NULL OR lease_until <= $1)
 		       AND receipt_status = ANY($4)
 		       AND ($5 = '' OR chain = $5)

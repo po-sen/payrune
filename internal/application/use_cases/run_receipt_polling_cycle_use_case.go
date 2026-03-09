@@ -123,42 +123,6 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			output.ProcessingErrorCount++
 			continue
 		}
-		expiredTracking, expired, err := uc.lifecyclePolicy.ExpireIfDue(tracking, now)
-		if err != nil {
-			return output, err
-		}
-		if expired {
-			statusChangedEvent, statusChanged, err := expiredTracking.StatusChangedEvent(tracking.Status, now)
-			if err != nil {
-				return output, err
-			}
-			if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-				trackingStore := txScope.PaymentReceiptTracking
-				if trackingStore == nil {
-					return errors.New("payment receipt tracking store is not configured")
-				}
-				if err := trackingStore.Save(
-					ctx,
-					expiredTracking,
-					now,
-					now.Add(rescheduleInterval),
-				); err != nil {
-					return err
-				}
-				if !statusChanged {
-					return nil
-				}
-				notificationOutbox := txScope.PaymentReceiptStatusNotificationOutbox
-				if notificationOutbox == nil {
-					return errors.New("payment receipt status notification outbox is not configured")
-				}
-				return notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent)
-			}); err != nil {
-				return output, err
-			}
-			output.TerminalFailedCount++
-			continue
-		}
 
 		latestBlockHeight, tipHeightErr := uc.fetchLatestBlockHeightForTracking(
 			ctx,
@@ -232,6 +196,43 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 				return output, err
 			}
 			output.ProcessingErrorCount++
+			continue
+		}
+
+		finalTracking, expired, err := uc.lifecyclePolicy.ExpireIfDue(updatedTracking, now)
+		if err != nil {
+			return output, err
+		}
+		if expired {
+			statusChangedEvent, statusChanged, err := finalTracking.StatusChangedEvent(tracking.Status, now)
+			if err != nil {
+				return output, err
+			}
+			if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+				trackingStore := txScope.PaymentReceiptTracking
+				if trackingStore == nil {
+					return errors.New("payment receipt tracking store is not configured")
+				}
+				if err := trackingStore.Save(
+					ctx,
+					finalTracking,
+					now,
+					now.Add(rescheduleInterval),
+				); err != nil {
+					return err
+				}
+				if !statusChanged {
+					return nil
+				}
+				notificationOutbox := txScope.PaymentReceiptStatusNotificationOutbox
+				if notificationOutbox == nil {
+					return errors.New("payment receipt status notification outbox is not configured")
+				}
+				return notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent)
+			}); err != nil {
+				return output, err
+			}
+			output.TerminalFailedCount++
 			continue
 		}
 		statusChangedEvent, statusChanged, err := updatedTracking.StatusChangedEvent(tracking.Status, now)

@@ -426,6 +426,66 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 	}
 }
 
+func TestPaymentReceiptTrackingStoreClaimDueSkipsExpiredUntilNextPollAt(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	store := NewPaymentReceiptTrackingStore(db)
+	now := time.Date(2026, 3, 7, 14, 0, 0, 0, time.UTC)
+	claimUntil := now.Add(30 * time.Second)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"payment_address_id",
+		"address_policy_id",
+		"chain",
+		"network",
+		"address",
+		"issued_at",
+		"expected_amount_minor",
+		"required_confirmations",
+		"receipt_status",
+		"observed_total_minor",
+		"confirmed_total_minor",
+		"unconfirmed_total_minor",
+		"last_observed_block_height",
+		"first_observed_at",
+		"paid_at",
+		"confirmed_at",
+		"expires_at",
+		"last_error",
+	})
+
+	mock.ExpectQuery(regexp.QuoteMeta("WITH due AS")).
+		WithArgs(
+			now,
+			1,
+			claimUntil,
+			sqlmock.AnyArg(),
+			"",
+			"",
+		).
+		WillReturnRows(rows)
+
+	trackings, err := store.ClaimDue(context.Background(), outport.ClaimPaymentReceiptTrackingsInput{
+		Now:        now,
+		ClaimUntil: claimUntil,
+		Limit:      1,
+		Statuses: []value_objects.PaymentReceiptStatus{
+			value_objects.PaymentReceiptStatusWatching,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ClaimDue returned error: %v", err)
+	}
+	if len(trackings) != 0 {
+		t.Fatalf("unexpected tracking count: got %d", len(trackings))
+	}
+}
+
 func TestPaymentReceiptTrackingStoreSaveValidation(t *testing.T) {
 	store := NewPaymentReceiptTrackingStore(&stubNotificationExecutor{})
 
