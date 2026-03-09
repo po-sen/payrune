@@ -8,26 +8,22 @@ import (
 )
 
 const (
-	defaultPaymentReceiptExpiredReason                  = "payment window expired"
-	defaultPaymentReceiptPaidUnconfirmedExpiryExtension = 7 * 24 * time.Hour
+	defaultPaymentReceiptExpiredReason = "payment window expired"
 )
 
-type PaymentReceiptTrackingLifecyclePolicy struct {
-	paidUnconfirmedExpiryExtension time.Duration
-}
+type PaymentReceiptTrackingLifecyclePolicy struct{}
 
-func NewPaymentReceiptTrackingLifecyclePolicy(
-	paidUnconfirmedExpiryExtension time.Duration,
-) PaymentReceiptTrackingLifecyclePolicy {
-	return PaymentReceiptTrackingLifecyclePolicy{
-		paidUnconfirmedExpiryExtension: paidUnconfirmedExpiryExtension,
-	}
+func NewPaymentReceiptTrackingLifecyclePolicy() PaymentReceiptTrackingLifecyclePolicy {
+	return PaymentReceiptTrackingLifecyclePolicy{}
 }
 
 func (p PaymentReceiptTrackingLifecyclePolicy) ExpireIfDue(
 	tracking entities.PaymentReceiptTracking,
 	now time.Time,
 ) (entities.PaymentReceiptTracking, bool, error) {
+	if !tracking.CanExpireByPaymentWindow() {
+		return tracking, false, nil
+	}
 	if !tracking.IsExpired(now) {
 		return tracking, false, nil
 	}
@@ -44,21 +40,5 @@ func (p PaymentReceiptTrackingLifecyclePolicy) ApplyObservation(
 	observation value_objects.PaymentReceiptObservation,
 	observedAt time.Time,
 ) (entities.PaymentReceiptTracking, error) {
-	updatedTracking, err := tracking.ApplyObservation(observation, observedAt)
-	if err != nil {
-		return entities.PaymentReceiptTracking{}, err
-	}
-
-	return updatedTracking.ExtendExpiryOnTransitionToPaidUnconfirmed(
-		tracking.Status,
-		observedAt,
-		p.paidUnconfirmedExpiryExtensionOrDefault(),
-	), nil
-}
-
-func (p PaymentReceiptTrackingLifecyclePolicy) paidUnconfirmedExpiryExtensionOrDefault() time.Duration {
-	if p.paidUnconfirmedExpiryExtension > 0 {
-		return p.paidUnconfirmedExpiryExtension
-	}
-	return defaultPaymentReceiptPaidUnconfirmedExpiryExtension
+	return tracking.ApplyObservation(observation, observedAt)
 }

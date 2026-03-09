@@ -17,7 +17,6 @@ func TestNewPaymentReceiptStatusChanged(t *testing.T) {
 		1000,
 		1000,
 		0,
-		0,
 		now,
 	)
 	if err != nil {
@@ -39,7 +38,6 @@ func TestNewPaymentReceiptStatusChangedValidation(t *testing.T) {
 		0,
 		0,
 		0,
-		0,
 		time.Now().UTC(),
 	)
 	if err == nil {
@@ -50,7 +48,6 @@ func TestNewPaymentReceiptStatusChangedValidation(t *testing.T) {
 		1,
 		value_objects.PaymentReceiptStatusWatching,
 		value_objects.PaymentReceiptStatusWatching,
-		0,
 		0,
 		0,
 		0,

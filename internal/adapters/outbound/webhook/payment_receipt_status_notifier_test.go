@@ -66,7 +66,6 @@ func TestPaymentReceiptStatusWebhookNotifierNotifyStatusChangedSuccess(t *testin
 		ObservedTotalMinor:    1000,
 		ConfirmedTotalMinor:   1000,
 		UnconfirmedTotalMinor: 0,
-		ConflictTotalMinor:    0,
 		StatusChangedAt:       time.Date(2026, 3, 6, 19, 0, 0, 0, time.UTC),
 	}
 	if err := notifier.NotifyStatusChanged(context.Background(), input); err != nil {

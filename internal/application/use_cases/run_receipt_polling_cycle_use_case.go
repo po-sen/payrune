@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultReceiptPollInterval    = 15 * time.Second
+	defaultRescheduleInterval     = 15 * time.Second
 	defaultReceiptPollingClaimTTL = 30 * time.Second
 )
 
@@ -62,9 +62,9 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 	}
 
 	now := uc.clock.NowUTC()
-	receiptPollInterval := input.ReceiptPollInterval
-	if receiptPollInterval <= 0 {
-		receiptPollInterval = defaultReceiptPollInterval
+	rescheduleInterval := input.RescheduleInterval
+	if rescheduleInterval <= 0 {
+		rescheduleInterval = defaultRescheduleInterval
 	}
 	claimTTL := input.ClaimTTL
 	if claimTTL <= 0 {
@@ -116,7 +116,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 				if trackingStore == nil {
 					return errors.New("payment receipt tracking store is not configured")
 				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(receiptPollInterval))
+				return trackingStore.Save(ctx, trackingWithError, now, now.Add(rescheduleInterval))
 			}); err != nil {
 				return output, err
 			}
@@ -141,7 +141,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 					ctx,
 					expiredTracking,
 					now,
-					now.Add(receiptPollInterval),
+					now.Add(rescheduleInterval),
 				); err != nil {
 					return err
 				}
@@ -176,7 +176,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 				if trackingStore == nil {
 					return errors.New("payment receipt tracking store is not configured")
 				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(receiptPollInterval))
+				return trackingStore.Save(ctx, trackingWithError, now, now.Add(rescheduleInterval))
 			}); err != nil {
 				return output, err
 			}
@@ -203,7 +203,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 				if trackingStore == nil {
 					return errors.New("payment receipt tracking store is not configured")
 				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(receiptPollInterval))
+				return trackingStore.Save(ctx, trackingWithError, now, now.Add(rescheduleInterval))
 			}); err != nil {
 				return output, err
 			}
@@ -215,7 +215,6 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			ObservedTotalMinor:    observation.ObservedTotalMinor,
 			ConfirmedTotalMinor:   observation.ConfirmedTotalMinor,
 			UnconfirmedTotalMinor: observation.UnconfirmedTotalMinor,
-			ConflictTotalMinor:    observation.ConflictTotalMinor,
 			LatestBlockHeight:     observation.LatestBlockHeight,
 		}, now)
 		if err != nil {
@@ -228,7 +227,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 				if trackingStore == nil {
 					return errors.New("payment receipt tracking store is not configured")
 				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(receiptPollInterval))
+				return trackingStore.Save(ctx, trackingWithError, now, now.Add(rescheduleInterval))
 			}); err != nil {
 				return output, err
 			}
@@ -240,7 +239,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			return output, err
 		}
 
-		nextPollAt := now.Add(receiptPollInterval)
+		nextPollAt := now.Add(rescheduleInterval)
 
 		if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 			trackingStore := txScope.PaymentReceiptTracking

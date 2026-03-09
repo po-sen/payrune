@@ -63,7 +63,6 @@ func TestPaymentAddressStatusFinderFindByIDSuccess(t *testing.T) {
 		"observed_total_minor",
 		"confirmed_total_minor",
 		"unconfirmed_total_minor",
-		"conflict_total_minor",
 		"last_observed_block_height",
 		"first_observed_at",
 		"paid_at",
@@ -82,11 +81,10 @@ func TestPaymentAddressStatusFinderFindByIDSuccess(t *testing.T) {
 		issuedAt,
 		int64(55),
 		int32(1),
-		"partially_paid",
+		"paid_unconfirmed_reverted",
 		int64(80000),
 		int64(40000),
 		int64(40000),
-		int64(0),
 		int64(123),
 		firstObservedAt,
 		nil,
@@ -109,7 +107,7 @@ func TestPaymentAddressStatusFinderFindByIDSuccess(t *testing.T) {
 	if record.PaymentAddressID != 101 {
 		t.Fatalf("unexpected payment address id: got %d", record.PaymentAddressID)
 	}
-	if record.PaymentStatus != value_objects.PaymentReceiptStatusPartiallyPaid {
+	if record.PaymentStatus != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
 		t.Fatalf("unexpected payment status: got %q", record.PaymentStatus)
 	}
 	if record.FirstObservedAt == nil || !record.FirstObservedAt.Equal(firstObservedAt) {
@@ -171,7 +169,6 @@ func TestPaymentAddressStatusFinderFindByIDIncompleteTracking(t *testing.T) {
 		"observed_total_minor",
 		"confirmed_total_minor",
 		"unconfirmed_total_minor",
-		"conflict_total_minor",
 		"last_observed_block_height",
 		"first_observed_at",
 		"paid_at",
@@ -188,7 +185,6 @@ func TestPaymentAddressStatusFinderFindByIDIncompleteTracking(t *testing.T) {
 		"nativeSegwit",
 		"bc1qstatus",
 		issuedAt,
-		nil,
 		nil,
 		nil,
 		nil,

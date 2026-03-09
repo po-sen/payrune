@@ -96,7 +96,6 @@ func (n *paymentReceiptStatusWebhookNotifier) NotifyStatusChanged(
 		ObservedTotalMinor:    input.ObservedTotalMinor,
 		ConfirmedTotalMinor:   input.ConfirmedTotalMinor,
 		UnconfirmedTotalMinor: input.UnconfirmedTotalMinor,
-		ConflictTotalMinor:    input.ConflictTotalMinor,
 		StatusChangedAt:       input.StatusChangedAt.UTC(),
 	})
 	if err != nil {
@@ -137,7 +136,6 @@ type paymentReceiptStatusChangedPayload struct {
 	ObservedTotalMinor    int64     `json:"observedTotalMinor"`
 	ConfirmedTotalMinor   int64     `json:"confirmedTotalMinor"`
 	UnconfirmedTotalMinor int64     `json:"unconfirmedTotalMinor"`
-	ConflictTotalMinor    int64     `json:"conflictTotalMinor"`
 	StatusChangedAt       time.Time `json:"statusChangedAt"`
 }
 

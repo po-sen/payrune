@@ -98,7 +98,6 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 			ObservedTotalMinor:    notification.ObservedTotalMinor,
 			ConfirmedTotalMinor:   notification.ConfirmedTotalMinor,
 			UnconfirmedTotalMinor: notification.UnconfirmedTotalMinor,
-			ConflictTotalMinor:    notification.ConflictTotalMinor,
 			StatusChangedAt:       notification.StatusChangedAt,
 		})
 		if err != nil {

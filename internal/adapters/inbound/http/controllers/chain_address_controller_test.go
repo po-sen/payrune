@@ -598,11 +598,10 @@ func TestChainAddressControllerGetPaymentStatusSuccess(t *testing.T) {
 			Decimals:                8,
 			Address:                 "bc1qstatus",
 			CustomerReference:       "order-20260308-001",
-			PaymentStatus:           "partially_paid",
+			PaymentStatus:           "paid_unconfirmed_reverted",
 			ObservedTotalMinor:      80000,
 			ConfirmedTotalMinor:     40000,
 			UnconfirmedTotalMinor:   40000,
-			ConflictTotalMinor:      0,
 			RequiredConfirmations:   1,
 			LastObservedBlockHeight: 123,
 			IssuedAt:                issuedAt,
@@ -637,7 +636,7 @@ func TestChainAddressControllerGetPaymentStatusSuccess(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if response.PaymentStatus != "partially_paid" {
+	if response.PaymentStatus != "paid_unconfirmed_reverted" {
 		t.Fatalf("unexpected payment status: got %q", response.PaymentStatus)
 	}
 	if response.PaymentAddressID != "101" {

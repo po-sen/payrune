@@ -78,7 +78,7 @@ func (c *ReceiptWebhookDispatcherContainer) Close() error {
 }
 
 func loadPaymentReceiptWebhookNotifierConfigFromEnv() (webhookadapter.PaymentReceiptWebhookNotifierConfig, error) {
-	timeout, err := parsePositiveDurationEnv(envPaymentReceiptWebhookTimeout)
+	timeout, err := parsePositiveDurationEnvWithDefault(envPaymentReceiptWebhookTimeout, 0)
 	if err != nil {
 		return webhookadapter.PaymentReceiptWebhookNotifierConfig{}, err
 	}

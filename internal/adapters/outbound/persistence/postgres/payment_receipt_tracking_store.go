@@ -48,7 +48,6 @@ func (r *PaymentReceiptTrackingStore) Create(
 		     observed_total_minor,
 		     confirmed_total_minor,
 		     unconfirmed_total_minor,
-		     conflict_total_minor,
 		     last_observed_block_height,
 		     first_observed_at,
 		     paid_at,
@@ -58,7 +57,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 		   )
 		   VALUES (
 		     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-		     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+		     $11, $12, $13, $14, $15, $16, $17, $18, $19
 		   )
 		   ON CONFLICT (payment_address_id) DO NOTHING`,
 		tracking.PaymentAddressID,
@@ -74,7 +73,6 @@ func (r *PaymentReceiptTrackingStore) Create(
 		tracking.ObservedTotalMinor,
 		tracking.ConfirmedTotalMinor,
 		tracking.UnconfirmedTotalMinor,
-		tracking.ConflictTotalMinor,
 		tracking.LastObservedBlockHeight,
 		nullableTimePointer(tracking.FirstObservedAt),
 		nullableTimePointer(tracking.PaidAt),
@@ -127,7 +125,10 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 		`WITH due AS (
 		     SELECT id
 		     FROM payment_receipt_trackings
-		     WHERE (next_poll_at <= $1 OR (expires_at IS NOT NULL AND expires_at <= $1))
+		     WHERE (
+		           next_poll_at <= $1
+		           OR (paid_at IS NULL AND expires_at IS NOT NULL AND expires_at <= $1)
+		         )
 		       AND (lease_until IS NULL OR lease_until <= $1)
 		       AND receipt_status = ANY($4)
 		       AND ($5 = '' OR chain = $5)
@@ -155,7 +156,6 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 		     pr.observed_total_minor,
 		     pr.confirmed_total_minor,
 		     pr.unconfirmed_total_minor,
-		     pr.conflict_total_minor,
 		     pr.last_observed_block_height,
 		     pr.first_observed_at,
 		     pr.paid_at,
@@ -209,15 +209,14 @@ func (r *PaymentReceiptTrackingStore) Save(
 		     observed_total_minor = $3,
 		     confirmed_total_minor = $4,
 		     unconfirmed_total_minor = $5,
-		     conflict_total_minor = $6,
-		     last_observed_block_height = $7,
-		     first_observed_at = $8,
-		     paid_at = $9,
-		     confirmed_at = $10,
-		     expires_at = $11,
-		     last_error = $12,
-		     last_polled_at = $13,
-		     next_poll_at = $14,
+		     last_observed_block_height = $6,
+		     first_observed_at = $7,
+		     paid_at = $8,
+		     confirmed_at = $9,
+		     expires_at = $10,
+		     last_error = $11,
+		     last_polled_at = $12,
+		     next_poll_at = $13,
 		     lease_until = NULL,
 		     updated_at = NOW()
 		 WHERE payment_address_id = $1`,
@@ -226,7 +225,6 @@ func (r *PaymentReceiptTrackingStore) Save(
 		tracking.ObservedTotalMinor,
 		tracking.ConfirmedTotalMinor,
 		tracking.UnconfirmedTotalMinor,
-		tracking.ConflictTotalMinor,
 		tracking.LastObservedBlockHeight,
 		nullableTimePointer(tracking.FirstObservedAt),
 		nullableTimePointer(tracking.PaidAt),
@@ -267,7 +265,6 @@ func scanPaymentReceiptTracking(scanner interface {
 	var observedTotalMinor int64
 	var confirmedTotalMinor int64
 	var unconfirmedTotalMinor int64
-	var conflictTotalMinor int64
 	var lastObservedBlockHeight int64
 	var firstObservedAt sql.NullTime
 	var paidAt sql.NullTime
@@ -289,7 +286,6 @@ func scanPaymentReceiptTracking(scanner interface {
 		&observedTotalMinor,
 		&confirmedTotalMinor,
 		&unconfirmedTotalMinor,
-		&conflictTotalMinor,
 		&lastObservedBlockHeight,
 		&firstObservedAt,
 		&paidAt,
@@ -326,7 +322,6 @@ func scanPaymentReceiptTracking(scanner interface {
 		ObservedTotalMinor:      observedTotalMinor,
 		ConfirmedTotalMinor:     confirmedTotalMinor,
 		UnconfirmedTotalMinor:   unconfirmedTotalMinor,
-		ConflictTotalMinor:      conflictTotalMinor,
 		LastObservedBlockHeight: lastObservedBlockHeight,
 		LastError:               lastError,
 	}

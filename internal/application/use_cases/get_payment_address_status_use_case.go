@@ -70,7 +70,6 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 		ObservedTotalMinor:      record.ObservedTotalMinor,
 		ConfirmedTotalMinor:     record.ConfirmedTotalMinor,
 		UnconfirmedTotalMinor:   record.UnconfirmedTotalMinor,
-		ConflictTotalMinor:      record.ConflictTotalMinor,
 		RequiredConfirmations:   record.RequiredConfirmations,
 		LastObservedBlockHeight: record.LastObservedBlockHeight,
 		IssuedAt:                record.IssuedAt,

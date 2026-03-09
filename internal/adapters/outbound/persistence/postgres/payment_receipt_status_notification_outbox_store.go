@@ -36,7 +36,6 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) EnqueueStatusChanged(
 		     observed_total_minor,
 		     confirmed_total_minor,
 		     unconfirmed_total_minor,
-		     conflict_total_minor,
 		     status_changed_at,
 		     delivery_status
 		   )
@@ -48,7 +47,6 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) EnqueueStatusChanged(
 		          $5,
 		          $6,
 		          $7,
-		          $8,
 		          'pending'
 		   FROM address_policy_allocations a
 		   WHERE a.id = $1`,
@@ -58,7 +56,6 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) EnqueueStatusChanged(
 		event.ObservedTotalMinor,
 		event.ConfirmedTotalMinor,
 		event.UnconfirmedTotalMinor,
-		event.ConflictTotalMinor,
 		event.StatusChangedAt.UTC(),
 	)
 	if err != nil {
@@ -116,7 +113,6 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 		     n.observed_total_minor,
 		     n.confirmed_total_minor,
 		     n.unconfirmed_total_minor,
-		     n.conflict_total_minor,
 		     n.status_changed_at,
 		     n.delivery_status,
 		     n.delivery_attempts,
@@ -230,7 +226,6 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		observedTotalMinor    int64
 		confirmedTotalMinor   int64
 		unconfirmedTotalMinor int64
-		conflictTotalMinor    int64
 		statusChangedAt       time.Time
 		deliveryStatusRaw     string
 		deliveryAttempts      int32
@@ -248,7 +243,6 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		&observedTotalMinor,
 		&confirmedTotalMinor,
 		&unconfirmedTotalMinor,
-		&conflictTotalMinor,
 		&statusChangedAt,
 		&deliveryStatusRaw,
 		&deliveryAttempts,
@@ -281,7 +275,6 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		ObservedTotalMinor:    observedTotalMinor,
 		ConfirmedTotalMinor:   confirmedTotalMinor,
 		UnconfirmedTotalMinor: unconfirmedTotalMinor,
-		ConflictTotalMinor:    conflictTotalMinor,
 		StatusChangedAt:       statusChangedAt.UTC(),
 		DeliveryStatus:        deliveryStatus,
 		DeliveryAttempts:      deliveryAttempts,

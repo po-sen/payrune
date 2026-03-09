@@ -13,7 +13,7 @@ func TestPaymentReceiptTrackingLifecyclePolicyExpireIfDue(t *testing.T) {
 	expiresAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
 	tracking.ExpiresAt = &expiresAt
 
-	expiredTracking, expired, err := NewPaymentReceiptTrackingLifecyclePolicy(0).ExpireIfDue(
+	expiredTracking, expired, err := NewPaymentReceiptTrackingLifecyclePolicy().ExpireIfDue(
 		tracking,
 		expiresAt.Add(time.Second),
 	)
@@ -31,55 +31,25 @@ func TestPaymentReceiptTrackingLifecyclePolicyExpireIfDue(t *testing.T) {
 	}
 }
 
-func TestPaymentReceiptTrackingLifecyclePolicyApplyObservationUsesDefaultExtension(t *testing.T) {
+func TestPaymentReceiptTrackingLifecyclePolicyExpireIfDueSkipsFullyPaid(t *testing.T) {
 	tracking := newPolicyTestTracking(t)
 	expiresAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
 	tracking.ExpiresAt = &expiresAt
-	now := time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC)
+	paidAt := time.Date(2026, 3, 7, 8, 30, 0, 0, time.UTC)
+	tracking.PaidAt = &paidAt
 
-	updatedTracking, err := NewPaymentReceiptTrackingLifecyclePolicy(0).ApplyObservation(
+	updatedTracking, expired, err := NewPaymentReceiptTrackingLifecyclePolicy().ExpireIfDue(
 		tracking,
-		value_objects.PaymentReceiptObservation{
-			ObservedTotalMinor:    1000,
-			ConfirmedTotalMinor:   0,
-			UnconfirmedTotalMinor: 1000,
-			ConflictTotalMinor:    0,
-			LatestBlockHeight:     10,
-		},
-		now,
+		expiresAt.Add(time.Second),
 	)
 	if err != nil {
-		t.Fatalf("ApplyObservation returned error: %v", err)
+		t.Fatalf("ExpireIfDue returned error: %v", err)
 	}
-	expectedExpiresAt := now.Add(defaultPaymentReceiptPaidUnconfirmedExpiryExtension)
-	if updatedTracking.ExpiresAt == nil || !updatedTracking.ExpiresAt.Equal(expectedExpiresAt) {
-		t.Fatalf("unexpected expires at: got %v want %s", updatedTracking.ExpiresAt, expectedExpiresAt)
+	if expired {
+		t.Fatal("did not expect fully paid tracking to expire")
 	}
-}
-
-func TestPaymentReceiptTrackingLifecyclePolicyApplyObservationUsesConfiguredExtension(t *testing.T) {
-	tracking := newPolicyTestTracking(t)
-	expiresAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
-	tracking.ExpiresAt = &expiresAt
-	now := time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC)
-
-	updatedTracking, err := NewPaymentReceiptTrackingLifecyclePolicy(6*time.Hour).ApplyObservation(
-		tracking,
-		value_objects.PaymentReceiptObservation{
-			ObservedTotalMinor:    1000,
-			ConfirmedTotalMinor:   0,
-			UnconfirmedTotalMinor: 1000,
-			ConflictTotalMinor:    0,
-			LatestBlockHeight:     10,
-		},
-		now,
-	)
-	if err != nil {
-		t.Fatalf("ApplyObservation returned error: %v", err)
-	}
-	expectedExpiresAt := now.Add(6 * time.Hour)
-	if updatedTracking.ExpiresAt == nil || !updatedTracking.ExpiresAt.Equal(expectedExpiresAt) {
-		t.Fatalf("unexpected expires at: got %v want %s", updatedTracking.ExpiresAt, expectedExpiresAt)
+	if updatedTracking.Status != tracking.Status {
+		t.Fatalf("unexpected status change: got %q", updatedTracking.Status)
 	}
 }
 

@@ -79,7 +79,6 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSuccess(t *te
 		ObservedTotalMinor:    1000,
 		ConfirmedTotalMinor:   0,
 		UnconfirmedTotalMinor: 1000,
-		ConflictTotalMinor:    0,
 		StatusChangedAt:       now,
 	})
 	if err != nil {
@@ -91,7 +90,7 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSuccess(t *te
 	if !strings.Contains(executor.lastQuery, "INSERT INTO payment_receipt_status_notifications") {
 		t.Fatalf("unexpected query: %s", executor.lastQuery)
 	}
-	if got := len(executor.lastArgs); got != 8 {
+	if got := len(executor.lastArgs); got != 7 {
 		t.Fatalf("unexpected arg count: got %d", got)
 	}
 	if got := executor.lastArgs[0]; got != int64(101) {
@@ -103,12 +102,39 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSuccess(t *te
 	if got := executor.lastArgs[2]; got != "paid_unconfirmed" {
 		t.Fatalf("unexpected current status arg: got %#v", got)
 	}
-	statusChangedAt, ok := executor.lastArgs[7].(time.Time)
+	statusChangedAt, ok := executor.lastArgs[6].(time.Time)
 	if !ok {
-		t.Fatalf("unexpected status changed at type: %T", executor.lastArgs[7])
+		t.Fatalf("unexpected status changed at type: %T", executor.lastArgs[6])
 	}
 	if !statusChangedAt.Equal(now) {
 		t.Fatalf("unexpected status changed at arg: got %s want %s", statusChangedAt, now)
+	}
+}
+
+func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSupportsRevertedStatus(t *testing.T) {
+	now := time.Date(2026, 3, 6, 9, 35, 0, 0, time.UTC)
+	executor := &stubNotificationExecutor{
+		execResult: stubSQLResult{rowsAffected: 1},
+	}
+	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(executor)
+
+	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
+		PaymentAddressID:      102,
+		PreviousStatus:        value_objects.PaymentReceiptStatusPaidUnconfirmed,
+		CurrentStatus:         value_objects.PaymentReceiptStatusPaidUnconfirmedReverted,
+		ObservedTotalMinor:    400,
+		ConfirmedTotalMinor:   0,
+		UnconfirmedTotalMinor: 400,
+		StatusChangedAt:       now,
+	})
+	if err != nil {
+		t.Fatalf("EnqueueStatusChanged returned error: %v", err)
+	}
+	if got := executor.lastArgs[1]; got != "paid_unconfirmed" {
+		t.Fatalf("unexpected previous status arg: got %#v", got)
+	}
+	if got := executor.lastArgs[2]; got != "paid_unconfirmed_reverted" {
+		t.Fatalf("unexpected current status arg: got %#v", got)
 	}
 }
 
@@ -124,7 +150,6 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedAddressNotFou
 		ObservedTotalMinor:    100,
 		ConfirmedTotalMinor:   100,
 		UnconfirmedTotalMinor: 0,
-		ConflictTotalMinor:    0,
 		StatusChangedAt:       time.Now().UTC(),
 	})
 	if err == nil {
@@ -144,7 +169,6 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedExecError(t *
 		ObservedTotalMinor:    100,
 		ConfirmedTotalMinor:   100,
 		UnconfirmedTotalMinor: 0,
-		ConflictTotalMinor:    0,
 		StatusChangedAt:       time.Now().UTC(),
 	})
 	if err == nil {
@@ -188,7 +212,6 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 			int64(1000),
 			int64(1000),
 			int64(0),
-			int64(0),
 			now,
 			"sent",
 			int32(2),
@@ -205,6 +228,38 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 	}
 	if notification.DeliveredAt == nil || !notification.DeliveredAt.Equal(deliveredAt) {
 		t.Fatalf("unexpected delivered at: got %+v", notification.DeliveredAt)
+	}
+}
+
+func TestScanPaymentReceiptStatusNotificationSupportsRevertedStatus(t *testing.T) {
+	now := time.Date(2026, 3, 6, 16, 10, 0, 0, time.UTC)
+
+	notification, err := scanPaymentReceiptStatusNotificationOutboxMessage(stubScanner{
+		values: []any{
+			int64(2),
+			int64(12),
+			"order-2",
+			"paid_unconfirmed",
+			"paid_unconfirmed_reverted",
+			int64(400),
+			int64(0),
+			int64(400),
+			now,
+			"pending",
+			int32(0),
+			now.Add(5 * time.Minute),
+			"",
+			sql.NullTime{},
+		},
+	})
+	if err != nil {
+		t.Fatalf("scanPaymentReceiptStatusNotificationOutboxMessage returned error: %v", err)
+	}
+	if notification.PreviousStatus != value_objects.PaymentReceiptStatusPaidUnconfirmed {
+		t.Fatalf("unexpected previous status: got %q", notification.PreviousStatus)
+	}
+	if notification.CurrentStatus != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+		t.Fatalf("unexpected current status: got %q", notification.CurrentStatus)
 	}
 }
 
@@ -232,7 +287,6 @@ func TestScanPaymentReceiptStatusNotificationOutboxMessageRejectsUnsupportedStat
 			"paid_confirmed",
 			int64(1000),
 			int64(1000),
-			int64(0),
 			int64(0),
 			time.Date(2026, 3, 6, 16, 0, 0, 0, time.UTC),
 			"pending",

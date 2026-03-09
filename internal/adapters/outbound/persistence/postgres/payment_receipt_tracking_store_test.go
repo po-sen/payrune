@@ -73,7 +73,6 @@ func TestScanPaymentReceiptTrackingSupportsGenericChainNetwork(t *testing.T) {
 			int64(10),    // observed_total_minor
 			int64(5),     // confirmed_total_minor
 			int64(5),     // unconfirmed_total_minor
-			int64(0),     // conflict_total_minor
 			int64(12345), // last_observed_block_height
 			sql.NullTime{Valid: true, Time: now},
 			sql.NullTime{}, // paid_at
@@ -120,7 +119,6 @@ func TestScanPaymentReceiptTrackingRejectsInvalidNetwork(t *testing.T) {
 			int64(0),
 			int64(0),
 			int64(0),
-			int64(0),
 			sql.NullTime{},
 			sql.NullTime{},
 			sql.NullTime{},
@@ -146,7 +144,6 @@ func TestScanPaymentReceiptTrackingRejectsInvalidChain(t *testing.T) {
 			int64(100),
 			int32(1),
 			"watching",
-			int64(0),
 			int64(0),
 			int64(0),
 			int64(0),
@@ -211,7 +208,6 @@ func newTrackingStoreTestEntity() entities.PaymentReceiptTracking {
 		ObservedTotalMinor:      1000,
 		ConfirmedTotalMinor:     500,
 		UnconfirmedTotalMinor:   500,
-		ConflictTotalMinor:      0,
 		LastObservedBlockHeight: 123,
 		FirstObservedAt:         &firstObservedAt,
 		LastError:               "observer warning",
@@ -253,7 +249,6 @@ func TestPaymentReceiptTrackingStoreCreateSuccess(t *testing.T) {
 			int64(1000),
 			int64(500),
 			int64(500),
-			int64(0),
 			int64(123),
 			tracking.FirstObservedAt.UTC(),
 			nil,
@@ -367,7 +362,6 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 		"observed_total_minor",
 		"confirmed_total_minor",
 		"unconfirmed_total_minor",
-		"conflict_total_minor",
 		"last_observed_block_height",
 		"first_observed_at",
 		"paid_at",
@@ -388,7 +382,6 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 		int64(100000),
 		int64(50000),
 		int64(50000),
-		int64(0),
 		int64(321),
 		firstObservedAt,
 		paidAt,
@@ -469,7 +462,6 @@ func TestPaymentReceiptTrackingStoreSaveSuccess(t *testing.T) {
 			int64(1000),
 			int64(500),
 			int64(500),
-			int64(0),
 			int64(123),
 			tracking.FirstObservedAt.UTC(),
 			paidAt.UTC(),

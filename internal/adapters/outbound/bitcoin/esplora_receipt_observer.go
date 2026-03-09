@@ -133,7 +133,6 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 		ObservedTotalMinor:    confirmedTotalMinor + unconfirmedTotalMinor,
 		ConfirmedTotalMinor:   confirmedTotalMinor,
 		UnconfirmedTotalMinor: unconfirmedTotalMinor,
-		ConflictTotalMinor:    0,
 		LatestBlockHeight:     input.LatestBlockHeight,
 	}, nil
 }

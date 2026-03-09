@@ -203,7 +203,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 				ObservedTotalMinor:    1200,
 				ConfirmedTotalMinor:   1200,
 				UnconfirmedTotalMinor: 0,
-				ConflictTotalMinor:    0,
 				LatestBlockHeight:     1000,
 			},
 		},
@@ -217,13 +216,13 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 20 * time.Second,
-		ClaimTTL:            9 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 20 * time.Second,
+		ClaimTTL:           9 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -318,12 +317,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -397,14 +396,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteSharesLatestBlockHeightByNetwork(t 
 				ObservedTotalMinor:    1000,
 				ConfirmedTotalMinor:   1000,
 				UnconfirmedTotalMinor: 0,
-				ConflictTotalMinor:    0,
 				LatestBlockHeight:     777,
 			},
 			"tb1qbatch2": {
 				ObservedTotalMinor:    1500,
 				ConfirmedTotalMinor:   1500,
 				UnconfirmedTotalMinor: 0,
-				ConflictTotalMinor:    0,
 				LatestBlockHeight:     777,
 			},
 		},
@@ -418,12 +415,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteSharesLatestBlockHeightByNetwork(t 
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -477,12 +474,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteLatestBlockHeightError(t *testing.T
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -539,7 +536,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 				ObservedTotalMinor:    500,
 				ConfirmedTotalMinor:   500,
 				UnconfirmedTotalMinor: 0,
-				ConflictTotalMinor:    0,
 				LatestBlockHeight:     1001,
 			},
 		},
@@ -550,12 +546,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err == nil {
 		t.Fatal("expected enqueue error but got nil")
@@ -603,12 +599,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -645,7 +641,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 	}
 }
 
-func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnconfirmed(t *testing.T) {
+func TestRunReceiptPollingCycleUseCaseExecuteKeepsExpiryOnTransitionToPaidUnconfirmed(t *testing.T) {
 	now := time.Date(2026, 3, 6, 11, 0, 0, 0, time.UTC)
 	tracking, err := entities.NewPaymentReceiptTracking(
 		304,
@@ -677,7 +673,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnco
 				ObservedTotalMinor:    1000,
 				ConfirmedTotalMinor:   0,
 				UnconfirmedTotalMinor: 1000,
-				ConflictTotalMinor:    0,
 				LatestBlockHeight:     101,
 			},
 		},
@@ -688,12 +683,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnco
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -711,9 +706,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnco
 	if updated.ExpiresAt == nil {
 		t.Fatal("expected expires at to be set")
 	}
-	expectedExtendedAt := now.Add(7 * 24 * time.Hour)
-	if !updated.ExpiresAt.Equal(expectedExtendedAt) {
-		t.Fatalf("unexpected extended expires at: got %s, want %s", updated.ExpiresAt, expectedExtendedAt)
+	if !updated.ExpiresAt.Equal(expiresAt) {
+		t.Fatalf("expected expires at unchanged: got %s, want %s", updated.ExpiresAt, expiresAt)
 	}
 	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
@@ -723,7 +717,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnco
 	}
 }
 
-func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiryExtension(t *testing.T) {
+func TestRunReceiptPollingCycleUseCaseExecuteMovesPreviouslyPaidReceiptToRevertedStatus(t *testing.T) {
 	now := time.Date(2026, 3, 6, 11, 30, 0, 0, time.UTC)
 	tracking, err := entities.NewPaymentReceiptTracking(
 		305,
@@ -738,6 +732,9 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 	if err != nil {
 		t.Fatalf("setup tracking: %v", err)
 	}
+	tracking.Status = value_objects.PaymentReceiptStatusPaidUnconfirmed
+	paidAt := now.Add(-15 * time.Minute)
+	tracking.PaidAt = &paidAt
 	expiresAt := now.Add(30 * time.Minute)
 	tracking.ExpiresAt = &expiresAt
 
@@ -752,10 +749,9 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
 			"tb1qpaidunconfirmedcustom": {
-				ObservedTotalMinor:    1000,
+				ObservedTotalMinor:    400,
 				ConfirmedTotalMinor:   0,
-				UnconfirmedTotalMinor: 1000,
-				ConflictTotalMinor:    0,
+				UnconfirmedTotalMinor: 400,
 				LatestBlockHeight:     101,
 			},
 		},
@@ -766,12 +762,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(6*time.Hour),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -783,19 +779,24 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 		t.Fatalf("unexpected saved observations: got %d", got)
 	}
 	updated := trackingStore.savedObservationTrackings[0]
-	if updated.ExpiresAt == nil {
-		t.Fatal("expected expires at to be set")
+	if updated.Status != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+		t.Fatalf("unexpected status: got %q", updated.Status)
 	}
-	expectedExtendedAt := now.Add(6 * time.Hour)
-	if !updated.ExpiresAt.Equal(expectedExtendedAt) {
-		t.Fatalf("unexpected extended expires at: got %s, want %s", updated.ExpiresAt, expectedExtendedAt)
+	if updated.ExpiresAt == nil {
+		t.Fatal("expected expires at to remain set")
+	}
+	if !updated.ExpiresAt.Equal(expiresAt) {
+		t.Fatalf("expected expires at unchanged: got %s, want %s", updated.ExpiresAt, expiresAt)
 	}
 	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
 	}
+	if notificationOutbox.enqueueInputs[0].CurrentStatus != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+		t.Fatalf("unexpected current status: got %q", notificationOutbox.enqueueInputs[0].CurrentStatus)
+	}
 }
 
-func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExtendWhenStatusUnchanged(t *testing.T) {
+func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExpirePreviouslyPaidReceipt(t *testing.T) {
 	now := time.Date(2026, 3, 6, 12, 0, 0, 0, time.UTC)
 	tracking, err := entities.NewPaymentReceiptTracking(
 		306,
@@ -811,7 +812,9 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExtendWhenStatusUnchanged(t 
 		t.Fatalf("setup tracking: %v", err)
 	}
 	tracking.Status = value_objects.PaymentReceiptStatusPaidUnconfirmed
-	expiresAt := now.Add(2 * time.Hour)
+	paidAt := now.Add(-10 * time.Minute)
+	tracking.PaidAt = &paidAt
+	expiresAt := now.Add(-2 * time.Hour)
 	tracking.ExpiresAt = &expiresAt
 
 	trackingStore := &fakePaymentReceiptTrackingStore{
@@ -825,26 +828,28 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExtendWhenStatusUnchanged(t 
 	observer := &fakeBlockchainReceiptObserver{
 		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
 			"tb1qpaidunconfirmedsteady": {
-				ObservedTotalMinor:    1000,
+				ObservedTotalMinor:    0,
 				ConfirmedTotalMinor:   0,
-				UnconfirmedTotalMinor: 1000,
-				ConflictTotalMinor:    0,
+				UnconfirmedTotalMinor: 0,
 				LatestBlockHeight:     101,
 			},
 		},
 		errorsByAddress: map[string]error{},
+		latestBlockHeightsByScope: map[string]int64{
+			"bitcoin/testnet4": 101,
+		},
 	}
 
 	useCase := NewRunReceiptPollingCycleUseCase(
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(72*time.Hour),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -852,18 +857,30 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExtendWhenStatusUnchanged(t 
 	if output.UpdatedCount != 1 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
+	if output.TerminalFailedCount != 0 {
+		t.Fatalf("unexpected terminal failed count: got %d", output.TerminalFailedCount)
+	}
 	if got := len(trackingStore.savedObservationTrackings); got != 1 {
 		t.Fatalf("unexpected saved observations: got %d", got)
 	}
 	updated := trackingStore.savedObservationTrackings[0]
+	if updated.Status != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+		t.Fatalf("unexpected status: got %q", updated.Status)
+	}
 	if updated.ExpiresAt == nil {
 		t.Fatal("expected expires at to be set")
 	}
 	if !updated.ExpiresAt.Equal(expiresAt) {
 		t.Fatalf("expected expires at unchanged: got %s, want %s", updated.ExpiresAt, expiresAt)
 	}
-	if got := len(notificationOutbox.enqueueInputs); got != 0 {
+	if got := len(observer.lastInputs); got != 1 {
+		t.Fatalf("expected observer to be called, got %d", got)
+	}
+	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
+	}
+	if notificationOutbox.enqueueInputs[0].CurrentStatus != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+		t.Fatalf("unexpected current status: got %q", notificationOutbox.enqueueInputs[0].CurrentStatus)
 	}
 }
 
@@ -901,12 +918,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:           10,
-		ReceiptPollInterval: 30 * time.Second,
+		BatchSize:          10,
+		RescheduleInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -945,7 +962,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 			errorsByAddress:  map[string]error{},
 		},
 		&fakeReceiptPollingClock{now: time.Now().UTC()},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{BatchSize: 0})
@@ -1005,7 +1022,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteWithScope(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{

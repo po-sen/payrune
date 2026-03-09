@@ -14,7 +14,6 @@ type PaymentReceiptStatusChanged struct {
 	ObservedTotalMinor    int64
 	ConfirmedTotalMinor   int64
 	UnconfirmedTotalMinor int64
-	ConflictTotalMinor    int64
 	StatusChangedAt       time.Time
 }
 
@@ -25,7 +24,6 @@ func NewPaymentReceiptStatusChanged(
 	observedTotalMinor int64,
 	confirmedTotalMinor int64,
 	unconfirmedTotalMinor int64,
-	conflictTotalMinor int64,
 	statusChangedAt time.Time,
 ) (PaymentReceiptStatusChanged, error) {
 	if paymentAddressID <= 0 {
@@ -49,9 +47,6 @@ func NewPaymentReceiptStatusChanged(
 	if unconfirmedTotalMinor < 0 {
 		return PaymentReceiptStatusChanged{}, errors.New("unconfirmed total minor must be greater than or equal to zero")
 	}
-	if conflictTotalMinor < 0 {
-		return PaymentReceiptStatusChanged{}, errors.New("conflict total minor must be greater than or equal to zero")
-	}
 	if statusChangedAt.IsZero() {
 		return PaymentReceiptStatusChanged{}, errors.New("status changed at is required")
 	}
@@ -63,7 +58,6 @@ func NewPaymentReceiptStatusChanged(
 		ObservedTotalMinor:    observedTotalMinor,
 		ConfirmedTotalMinor:   confirmedTotalMinor,
 		UnconfirmedTotalMinor: unconfirmedTotalMinor,
-		ConflictTotalMinor:    conflictTotalMinor,
 		StatusChangedAt:       statusChangedAt.UTC(),
 	}, nil
 }

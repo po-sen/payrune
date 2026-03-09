@@ -35,7 +35,7 @@ func loadPollerConfigFromEnv() (bootstrap.PollerConfig, error) {
 		return bootstrap.PollerConfig{}, err
 	}
 
-	receiptPollInterval, err := parseDurationEnv("RECEIPT_POLL_INTERVAL")
+	rescheduleInterval, err := parseDurationEnv("POLL_RESCHEDULE_INTERVAL")
 	if err != nil {
 		return bootstrap.PollerConfig{}, err
 	}
@@ -62,12 +62,12 @@ func loadPollerConfigFromEnv() (bootstrap.PollerConfig, error) {
 	}
 
 	return bootstrap.PollerConfig{
-		TickInterval:        tickInterval,
-		ReceiptPollInterval: receiptPollInterval,
-		BatchSize:           batchSize,
-		ClaimTTL:            claimTTL,
-		Chain:               chain,
-		Network:             network,
+		TickInterval:       tickInterval,
+		RescheduleInterval: rescheduleInterval,
+		BatchSize:          batchSize,
+		ClaimTTL:           claimTTL,
+		Chain:              chain,
+		Network:            network,
 	}, nil
 }
 

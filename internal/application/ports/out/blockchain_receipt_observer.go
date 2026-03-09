@@ -30,7 +30,6 @@ type ObservePaymentAddressOutput struct {
 	ObservedTotalMinor    int64
 	ConfirmedTotalMinor   int64
 	UnconfirmedTotalMinor int64
-	ConflictTotalMinor    int64
 	LatestBlockHeight     int64
 }
 

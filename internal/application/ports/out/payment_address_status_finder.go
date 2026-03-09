@@ -28,7 +28,6 @@ type PaymentAddressStatusRecord struct {
 	ObservedTotalMinor      int64
 	ConfirmedTotalMinor     int64
 	UnconfirmedTotalMinor   int64
-	ConflictTotalMinor      int64
 	RequiredConfirmations   int32
 	LastObservedBlockHeight int64
 	IssuedAt                time.Time

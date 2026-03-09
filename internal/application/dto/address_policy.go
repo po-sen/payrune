@@ -80,7 +80,6 @@ type GetPaymentAddressStatusResponse struct {
 	ObservedTotalMinor      int64      `json:"observedTotalMinor"`
 	ConfirmedTotalMinor     int64      `json:"confirmedTotalMinor"`
 	UnconfirmedTotalMinor   int64      `json:"unconfirmedTotalMinor"`
-	ConflictTotalMinor      int64      `json:"conflictTotalMinor"`
 	RequiredConfirmations   int32      `json:"requiredConfirmations"`
 	LastObservedBlockHeight int64      `json:"lastObservedBlockHeight"`
 	IssuedAt                time.Time  `json:"issuedAt"`

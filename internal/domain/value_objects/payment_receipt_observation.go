@@ -6,7 +6,6 @@ type PaymentReceiptObservation struct {
 	ObservedTotalMinor    int64
 	ConfirmedTotalMinor   int64
 	UnconfirmedTotalMinor int64
-	ConflictTotalMinor    int64
 	LatestBlockHeight     int64
 }
 
@@ -19,9 +18,6 @@ func (o PaymentReceiptObservation) Validate() error {
 	}
 	if o.UnconfirmedTotalMinor < 0 {
 		return errors.New("unconfirmed total minor must be non-negative")
-	}
-	if o.ConflictTotalMinor < 0 {
-		return errors.New("conflict total minor must be non-negative")
 	}
 	if o.LatestBlockHeight < 0 {
 		return errors.New("latest block height must be non-negative")

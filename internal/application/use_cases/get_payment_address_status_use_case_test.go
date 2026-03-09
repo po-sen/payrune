@@ -30,11 +30,10 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 				Network:                 value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
 				Scheme:                  string(value_objects.BitcoinAddressSchemeNativeSegwit),
 				Address:                 "bc1qstatus",
-				PaymentStatus:           value_objects.PaymentReceiptStatusPartiallyPaid,
+				PaymentStatus:           value_objects.PaymentReceiptStatusPaidUnconfirmedReverted,
 				ObservedTotalMinor:      80000,
 				ConfirmedTotalMinor:     40000,
 				UnconfirmedTotalMinor:   40000,
-				ConflictTotalMinor:      0,
 				RequiredConfirmations:   1,
 				LastObservedBlockHeight: 123,
 				IssuedAt:                issuedAt,
@@ -74,7 +73,7 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 	if response.Decimals != 8 {
 		t.Fatalf("unexpected decimals: got %d", response.Decimals)
 	}
-	if response.PaymentStatus != "partially_paid" {
+	if response.PaymentStatus != "paid_unconfirmed_reverted" {
 		t.Fatalf("unexpected payment status: got %q", response.PaymentStatus)
 	}
 	if response.IssuedAt != issuedAt {

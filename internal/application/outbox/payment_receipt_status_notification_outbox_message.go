@@ -17,7 +17,6 @@ type PaymentReceiptStatusNotificationOutboxMessage struct {
 	ObservedTotalMinor    int64
 	ConfirmedTotalMinor   int64
 	UnconfirmedTotalMinor int64
-	ConflictTotalMinor    int64
 	StatusChangedAt       time.Time
 	DeliveryStatus        value_objects.PaymentReceiptNotificationDeliveryStatus
 	DeliveryAttempts      int32

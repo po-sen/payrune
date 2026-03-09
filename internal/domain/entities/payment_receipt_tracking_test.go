@@ -90,7 +90,6 @@ func TestPaymentReceiptTrackingApplyObservationTransitions(t *testing.T) {
 		ObservedTotalMinor:    300,
 		ConfirmedTotalMinor:   0,
 		UnconfirmedTotalMinor: 300,
-		ConflictTotalMinor:    0,
 		LatestBlockHeight:     120,
 	}, now)
 	if err != nil {
@@ -110,7 +109,6 @@ func TestPaymentReceiptTrackingApplyObservationTransitions(t *testing.T) {
 		ObservedTotalMinor:    1100,
 		ConfirmedTotalMinor:   200,
 		UnconfirmedTotalMinor: 900,
-		ConflictTotalMinor:    0,
 		LatestBlockHeight:     121,
 	}, now.Add(1*time.Minute))
 	if err != nil {
@@ -126,13 +124,41 @@ func TestPaymentReceiptTrackingApplyObservationTransitions(t *testing.T) {
 		t.Fatal("did not expect confirmed timestamp yet")
 	}
 
-	confirmed, err := unconfirmed.ApplyObservation(value_objects.PaymentReceiptObservation{
+	reverted, err := unconfirmed.ApplyObservation(value_objects.PaymentReceiptObservation{
+		ObservedTotalMinor:    0,
+		ConfirmedTotalMinor:   0,
+		UnconfirmedTotalMinor: 0,
+		LatestBlockHeight:     122,
+	}, now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatalf("paid unconfirmed reverted apply error: %v", err)
+	}
+	if reverted.Status != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+		t.Fatalf("unexpected paid unconfirmed reverted status: got %q", reverted.Status)
+	}
+	if reverted.PaidAt == nil {
+		t.Fatal("expected paid timestamp to stay set")
+	}
+
+	recovered, err := reverted.ApplyObservation(value_objects.PaymentReceiptObservation{
+		ObservedTotalMinor:    1100,
+		ConfirmedTotalMinor:   200,
+		UnconfirmedTotalMinor: 900,
+		LatestBlockHeight:     123,
+	}, now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("paid unconfirmed recovery apply error: %v", err)
+	}
+	if recovered.Status != value_objects.PaymentReceiptStatusPaidUnconfirmed {
+		t.Fatalf("unexpected recovered paid unconfirmed status: got %q", recovered.Status)
+	}
+
+	confirmed, err := recovered.ApplyObservation(value_objects.PaymentReceiptObservation{
 		ObservedTotalMinor:    1100,
 		ConfirmedTotalMinor:   1100,
 		UnconfirmedTotalMinor: 0,
-		ConflictTotalMinor:    0,
-		LatestBlockHeight:     122,
-	}, now.Add(2*time.Minute))
+		LatestBlockHeight:     124,
+	}, now.Add(4*time.Minute))
 	if err != nil {
 		t.Fatalf("paid confirmed apply error: %v", err)
 	}
@@ -143,18 +169,17 @@ func TestPaymentReceiptTrackingApplyObservationTransitions(t *testing.T) {
 		t.Fatal("expected confirmed timestamp")
 	}
 
-	conflicted, err := confirmed.ApplyObservation(value_objects.PaymentReceiptObservation{
+	stillConfirmed, err := confirmed.ApplyObservation(value_objects.PaymentReceiptObservation{
 		ObservedTotalMinor:    1100,
-		ConfirmedTotalMinor:   800,
-		UnconfirmedTotalMinor: 300,
-		ConflictTotalMinor:    200,
-		LatestBlockHeight:     123,
-	}, now.Add(3*time.Minute))
+		ConfirmedTotalMinor:   1100,
+		UnconfirmedTotalMinor: 0,
+		LatestBlockHeight:     125,
+	}, now.Add(5*time.Minute))
 	if err != nil {
 		t.Fatalf("conflict apply error: %v", err)
 	}
-	if conflicted.Status != value_objects.PaymentReceiptStatusDoubleSpendSuspected {
-		t.Fatalf("unexpected conflict status: got %q", conflicted.Status)
+	if stillConfirmed.Status != value_objects.PaymentReceiptStatusPaidConfirmed {
+		t.Fatalf("unexpected conflict status handling: got %q", stillConfirmed.Status)
 	}
 }
 
@@ -177,7 +202,6 @@ func TestPaymentReceiptTrackingApplyObservationValidation(t *testing.T) {
 		ObservedTotalMinor:    100,
 		ConfirmedTotalMinor:   50,
 		UnconfirmedTotalMinor: 30,
-		ConflictTotalMinor:    0,
 		LatestBlockHeight:     1,
 	}, time.Now())
 	if err == nil {
@@ -237,6 +261,16 @@ func TestPaymentReceiptTrackingExpirationHelpers(t *testing.T) {
 	if tracking.IsExpired(time.Date(2026, 3, 5, 12, 59, 59, 0, time.UTC)) {
 		t.Fatal("did not expect tracking to be expired before deadline")
 	}
+	if !tracking.CanExpireByPaymentWindow() {
+		t.Fatal("expected unpaid tracking to remain expiry-eligible")
+	}
+
+	paidAt := expiredAt.Add(-5 * time.Minute)
+	tracking.PaidAt = &paidAt
+	if tracking.CanExpireByPaymentWindow() {
+		t.Fatal("did not expect fully paid tracking to remain expiry-eligible")
+	}
+	tracking.PaidAt = nil
 
 	expired, err := tracking.MarkExpired("payment window expired")
 	if err != nil {
@@ -254,7 +288,7 @@ func TestPaymentReceiptTrackingExpirationHelpers(t *testing.T) {
 	}
 }
 
-func TestPaymentReceiptTrackingExtendExpiryOnTransitionToPaidUnconfirmed(t *testing.T) {
+func TestPaymentReceiptTrackingApplyObservationDoesNotRevertToUnpaidAfterPaidAt(t *testing.T) {
 	base, err := NewPaymentReceiptTracking(
 		24,
 		"bitcoin-testnet4-native-segwit",
@@ -269,76 +303,54 @@ func TestPaymentReceiptTrackingExtendExpiryOnTransitionToPaidUnconfirmed(t *test
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	now := time.Date(2026, 3, 6, 12, 0, 0, 0, time.UTC)
-	initialExpiresAt := now.Add(30 * time.Minute)
+	paidAt := time.Date(2026, 3, 6, 12, 0, 0, 0, time.UTC)
+	base.PaidAt = &paidAt
 
 	tests := []struct {
-		name              string
-		currentStatus     value_objects.PaymentReceiptStatus
-		previousStatus    value_objects.PaymentReceiptStatus
-		expiresAt         *time.Time
-		extension         time.Duration
-		expectUnchanged   bool
-		expectedExpiresAt time.Time
+		name        string
+		observation value_objects.PaymentReceiptObservation
+		want        value_objects.PaymentReceiptStatus
 	}{
 		{
-			name:              "extend on transition to paid unconfirmed",
-			currentStatus:     value_objects.PaymentReceiptStatusPaidUnconfirmed,
-			previousStatus:    value_objects.PaymentReceiptStatusPartiallyPaid,
-			expiresAt:         &initialExpiresAt,
-			extension:         6 * time.Hour,
-			expectUnchanged:   false,
-			expectedExpiresAt: now.Add(6 * time.Hour),
+			name: "zero observed becomes reverted",
+			observation: value_objects.PaymentReceiptObservation{
+				ObservedTotalMinor:    0,
+				ConfirmedTotalMinor:   0,
+				UnconfirmedTotalMinor: 0,
+				LatestBlockHeight:     10,
+			},
+			want: value_objects.PaymentReceiptStatusPaidUnconfirmedReverted,
 		},
 		{
-			name:            "do not extend when status unchanged",
-			currentStatus:   value_objects.PaymentReceiptStatusPaidUnconfirmed,
-			previousStatus:  value_objects.PaymentReceiptStatusPaidUnconfirmed,
-			expiresAt:       &initialExpiresAt,
-			extension:       6 * time.Hour,
-			expectUnchanged: true,
+			name: "partial observed becomes reverted",
+			observation: value_objects.PaymentReceiptObservation{
+				ObservedTotalMinor:    500,
+				ConfirmedTotalMinor:   0,
+				UnconfirmedTotalMinor: 500,
+				LatestBlockHeight:     10,
+			},
+			want: value_objects.PaymentReceiptStatusPaidUnconfirmedReverted,
 		},
 		{
-			name:            "do not extend for non paid-unconfirmed status",
-			currentStatus:   value_objects.PaymentReceiptStatusPartiallyPaid,
-			previousStatus:  value_objects.PaymentReceiptStatusWatching,
-			expiresAt:       &initialExpiresAt,
-			extension:       6 * time.Hour,
-			expectUnchanged: true,
-		},
-		{
-			name:            "do not shorten existing later expiry",
-			currentStatus:   value_objects.PaymentReceiptStatusPaidUnconfirmed,
-			previousStatus:  value_objects.PaymentReceiptStatusPartiallyPaid,
-			expiresAt:       func() *time.Time { v := now.Add(10 * time.Hour); return &v }(),
-			extension:       6 * time.Hour,
-			expectUnchanged: true,
+			name: "full unconfirmed becomes paid unconfirmed",
+			observation: value_objects.PaymentReceiptObservation{
+				ObservedTotalMinor:    1000,
+				ConfirmedTotalMinor:   0,
+				UnconfirmedTotalMinor: 1000,
+				LatestBlockHeight:     10,
+			},
+			want: value_objects.PaymentReceiptStatusPaidUnconfirmed,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			tracking := base
-			tracking.Status = tc.currentStatus
-			tracking.ExpiresAt = tc.expiresAt
-
-			updated := tracking.ExtendExpiryOnTransitionToPaidUnconfirmed(
-				tc.previousStatus,
-				now,
-				tc.extension,
-			)
-
-			if tc.expectUnchanged {
-				if updated.ExpiresAt == nil || tracking.ExpiresAt == nil || !updated.ExpiresAt.Equal(*tracking.ExpiresAt) {
-					t.Fatalf("expected expiry unchanged, got %v", updated.ExpiresAt)
-				}
-				return
+			updated, err := base.ApplyObservation(tc.observation, paidAt.Add(time.Minute))
+			if err != nil {
+				t.Fatalf("ApplyObservation returned error: %v", err)
 			}
-			if updated.ExpiresAt == nil {
-				t.Fatal("expected expiry to be set")
-			}
-			if !updated.ExpiresAt.Equal(tc.expectedExpiresAt) {
-				t.Fatalf("unexpected expiry: got %s, want %s", updated.ExpiresAt, tc.expectedExpiresAt)
+			if updated.Status != tc.want {
+				t.Fatalf("unexpected status: got %q want %q", updated.Status, tc.want)
 			}
 		})
 	}
@@ -399,7 +411,7 @@ func TestPollablePaymentReceiptStatuses(t *testing.T) {
 	if statuses[0] != value_objects.PaymentReceiptStatusWatching {
 		t.Fatalf("unexpected first status: got %q", statuses[0])
 	}
-	if statuses[3] != value_objects.PaymentReceiptStatusDoubleSpendSuspected {
-		t.Fatalf("unexpected last status: got %q", statuses[3])
+	if statuses[3] != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+		t.Fatalf("unexpected reverted status position: got %q", statuses[3])
 	}
 }

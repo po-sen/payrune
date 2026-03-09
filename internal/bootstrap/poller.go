@@ -16,12 +16,12 @@ const (
 )
 
 type PollerConfig struct {
-	TickInterval        time.Duration
-	ReceiptPollInterval time.Duration
-	BatchSize           int
-	ClaimTTL            time.Duration
-	Chain               string
-	Network             string
+	TickInterval       time.Duration
+	RescheduleInterval time.Duration
+	BatchSize          int
+	ClaimTTL           time.Duration
+	Chain              string
+	Network            string
 }
 
 func RunPoller(ctx context.Context, config PollerConfig) error {
@@ -44,11 +44,11 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 
 	runCycle := func() {
 		output, err := container.RunReceiptPollingCycleUseCase.Execute(ctx, dto.RunReceiptPollingCycleInput{
-			BatchSize:           config.BatchSize,
-			ReceiptPollInterval: config.ReceiptPollInterval,
-			ClaimTTL:            config.ClaimTTL,
-			Chain:               config.Chain,
-			Network:             config.Network,
+			BatchSize:          config.BatchSize,
+			RescheduleInterval: config.RescheduleInterval,
+			ClaimTTL:           config.ClaimTTL,
+			Chain:              config.Chain,
+			Network:            config.Network,
 		})
 		if err != nil {
 			log.Printf("poll cycle failed: err=%v", err)

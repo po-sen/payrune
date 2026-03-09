@@ -43,7 +43,6 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		observedTotalMinor      sql.NullInt64
 		confirmedTotalMinor     sql.NullInt64
 		unconfirmedTotalMinor   sql.NullInt64
-		conflictTotalMinor      sql.NullInt64
 		lastObservedBlockHeight sql.NullInt64
 		firstObservedAt         sql.NullTime
 		paidAt                  sql.NullTime
@@ -70,7 +69,6 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		     pr.observed_total_minor,
 		     pr.confirmed_total_minor,
 		     pr.unconfirmed_total_minor,
-		     pr.conflict_total_minor,
 		     pr.last_observed_block_height,
 		     pr.first_observed_at,
 		     pr.paid_at,
@@ -102,7 +100,6 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		&observedTotalMinor,
 		&confirmedTotalMinor,
 		&unconfirmedTotalMinor,
-		&conflictTotalMinor,
 		&lastObservedBlockHeight,
 		&firstObservedAt,
 		&paidAt,
@@ -140,7 +137,7 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		)
 	}
 	if !requiredConfirmations.Valid || !observedTotalMinor.Valid || !confirmedTotalMinor.Valid ||
-		!unconfirmedTotalMinor.Valid || !conflictTotalMinor.Valid || !lastObservedBlockHeight.Valid {
+		!unconfirmedTotalMinor.Valid || !lastObservedBlockHeight.Valid {
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
 	}
 
@@ -157,7 +154,6 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		ObservedTotalMinor:      observedTotalMinor.Int64,
 		ConfirmedTotalMinor:     confirmedTotalMinor.Int64,
 		UnconfirmedTotalMinor:   unconfirmedTotalMinor.Int64,
-		ConflictTotalMinor:      conflictTotalMinor.Int64,
 		RequiredConfirmations:   requiredConfirmations.Int32,
 		LastObservedBlockHeight: lastObservedBlockHeight.Int64,
 		IssuedAt:                issuedAt.Time.UTC(),

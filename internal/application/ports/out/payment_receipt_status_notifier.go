@@ -19,7 +19,6 @@ type NotifyPaymentReceiptStatusChangedInput struct {
 	ObservedTotalMinor    int64
 	ConfirmedTotalMinor   int64
 	UnconfirmedTotalMinor int64
-	ConflictTotalMinor    int64
 	StatusChangedAt       time.Time
 }
 

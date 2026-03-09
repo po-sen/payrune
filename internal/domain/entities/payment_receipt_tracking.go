@@ -23,7 +23,6 @@ type PaymentReceiptTracking struct {
 	ObservedTotalMinor      int64
 	ConfirmedTotalMinor     int64
 	UnconfirmedTotalMinor   int64
-	ConflictTotalMinor      int64
 	LastObservedBlockHeight int64
 	FirstObservedAt         *time.Time
 	PaidAt                  *time.Time
@@ -100,7 +99,6 @@ func (t PaymentReceiptTracking) ApplyObservation(
 	updated.ObservedTotalMinor = observation.ObservedTotalMinor
 	updated.ConfirmedTotalMinor = observation.ConfirmedTotalMinor
 	updated.UnconfirmedTotalMinor = observation.UnconfirmedTotalMinor
-	updated.ConflictTotalMinor = observation.ConflictTotalMinor
 	updated.LastObservedBlockHeight = observation.LatestBlockHeight
 	updated.LastError = ""
 
@@ -139,6 +137,10 @@ func (t PaymentReceiptTracking) IsExpired(now time.Time) bool {
 	return !t.ExpiresAt.After(now)
 }
 
+func (t PaymentReceiptTracking) CanExpireByPaymentWindow() bool {
+	return t.PaidAt == nil
+}
+
 func (t PaymentReceiptTracking) MarkExpired(reason string) (PaymentReceiptTracking, error) {
 	normalizedReason := strings.TrimSpace(reason)
 	if normalizedReason == "" {
@@ -149,32 +151,6 @@ func (t PaymentReceiptTracking) MarkExpired(reason string) (PaymentReceiptTracki
 	updated.Status = value_objects.PaymentReceiptStatusFailedExpired
 	updated.LastError = normalizedReason
 	return updated, nil
-}
-
-func (t PaymentReceiptTracking) ExtendExpiryOnTransitionToPaidUnconfirmed(
-	previousStatus value_objects.PaymentReceiptStatus,
-	now time.Time,
-	extension time.Duration,
-) PaymentReceiptTracking {
-	if t.ExpiresAt == nil || now.IsZero() || extension <= 0 {
-		return t
-	}
-	if previousStatus == t.Status {
-		return t
-	}
-	if t.Status != value_objects.PaymentReceiptStatusPaidUnconfirmed {
-		return t
-	}
-
-	candidate := now.Add(extension)
-	if t.ExpiresAt.After(candidate) {
-		return t
-	}
-
-	updated := t
-	candidateUTC := candidate.UTC()
-	updated.ExpiresAt = &candidateUTC
-	return updated
 }
 
 func (t PaymentReceiptTracking) StatusChangedEvent(
@@ -192,7 +168,6 @@ func (t PaymentReceiptTracking) StatusChangedEvent(
 		t.ObservedTotalMinor,
 		t.ConfirmedTotalMinor,
 		t.UnconfirmedTotalMinor,
-		t.ConflictTotalMinor,
 		changedAt,
 	)
 	if err != nil {
@@ -206,7 +181,7 @@ func PollablePaymentReceiptStatuses() []value_objects.PaymentReceiptStatus {
 		value_objects.PaymentReceiptStatusWatching,
 		value_objects.PaymentReceiptStatusPartiallyPaid,
 		value_objects.PaymentReceiptStatusPaidUnconfirmed,
-		value_objects.PaymentReceiptStatusDoubleSpendSuspected,
+		value_objects.PaymentReceiptStatusPaidUnconfirmedReverted,
 	}
 }
 
@@ -214,17 +189,17 @@ func decidePaymentReceiptStatus(
 	tracking PaymentReceiptTracking,
 	observation value_objects.PaymentReceiptObservation,
 ) value_objects.PaymentReceiptStatus {
-	if observation.ConflictTotalMinor > 0 {
-		return value_objects.PaymentReceiptStatusDoubleSpendSuspected
-	}
-	if observation.ObservedTotalMinor == 0 {
-		return value_objects.PaymentReceiptStatusWatching
-	}
 	if observation.ConfirmedTotalMinor >= tracking.ExpectedAmountMinor {
 		return value_objects.PaymentReceiptStatusPaidConfirmed
 	}
 	if observation.ObservedTotalMinor >= tracking.ExpectedAmountMinor {
 		return value_objects.PaymentReceiptStatusPaidUnconfirmed
+	}
+	if tracking.PaidAt != nil {
+		return value_objects.PaymentReceiptStatusPaidUnconfirmedReverted
+	}
+	if observation.ObservedTotalMinor == 0 {
+		return value_objects.PaymentReceiptStatusWatching
 	}
 	return value_objects.PaymentReceiptStatusPartiallyPaid
 }

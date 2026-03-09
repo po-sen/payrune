@@ -28,15 +28,15 @@ func TestParsePaymentReceiptStatus(t *testing.T) {
 			wantOK: true,
 		},
 		{
-			name:   "paid confirmed",
-			input:  "paid_confirmed",
-			want:   PaymentReceiptStatusPaidConfirmed,
+			name:   "paid unconfirmed reverted",
+			input:  "paid_unconfirmed_reverted",
+			want:   PaymentReceiptStatusPaidUnconfirmedReverted,
 			wantOK: true,
 		},
 		{
-			name:   "double spend suspected",
-			input:  "double_spend_suspected",
-			want:   PaymentReceiptStatusDoubleSpendSuspected,
+			name:   "paid confirmed",
+			input:  "paid_confirmed",
+			want:   PaymentReceiptStatusPaidConfirmed,
 			wantOK: true,
 		},
 		{
@@ -53,6 +53,12 @@ func TestParsePaymentReceiptStatus(t *testing.T) {
 		},
 		{
 			name:   "unknown",
+			input:  "double_spend_suspected",
+			want:   "",
+			wantOK: false,
+		},
+		{
+			name:   "another unknown",
 			input:  "settled",
 			want:   "",
 			wantOK: false,

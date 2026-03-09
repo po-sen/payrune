@@ -118,7 +118,6 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 				ObservedTotalMinor:    1000,
 				ConfirmedTotalMinor:   1000,
 				UnconfirmedTotalMinor: 0,
-				ConflictTotalMinor:    0,
 				StatusChangedAt:       claimNow.Add(-1 * time.Minute),
 				DeliveryAttempts:      0,
 			},

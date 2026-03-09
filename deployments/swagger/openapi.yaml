@@ -473,7 +473,6 @@ paths:
                     observedTotalMinor: 80000
                     confirmedTotalMinor: 40000
                     unconfirmedTotalMinor: 40000
-                    conflictTotalMinor: 0
                     requiredConfirmations: 1
                     lastObservedBlockHeight: 123
                     issuedAt: "2026-03-08T11:00:00Z"
@@ -669,7 +668,6 @@ components:
         - observedTotalMinor
         - confirmedTotalMinor
         - unconfirmedTotalMinor
-        - conflictTotalMinor
         - requiredConfirmations
         - lastObservedBlockHeight
         - issuedAt
@@ -719,8 +717,8 @@ components:
             - watching
             - partially_paid
             - paid_unconfirmed
+            - paid_unconfirmed_reverted
             - paid_confirmed
-            - double_spend_suspected
             - failed_expired
           example: partially_paid
         observedTotalMinor:
@@ -738,11 +736,6 @@ components:
           format: int64
           minimum: 0
           example: 40000
-        conflictTotalMinor:
-          type: integer
-          format: int64
-          minimum: 0
-          example: 0
         requiredConfirmations:
           type: integer
           minimum: 1

@@ -40,8 +40,6 @@ const (
 	envBitcoinTestnet4EsploraPassword       = "BITCOIN_TESTNET4_ESPLORA_PASSWORD"
 	envBitcoinTestnet4EsploraTimeout        = "BITCOIN_TESTNET4_ESPLORA_TIMEOUT"
 	envBitcoinTestnet4EsploraTimeoutSeconds = "BITCOIN_TESTNET4_ESPLORA_TIMEOUT_SECONDS"
-
-	envPaymentReceiptPaidUnconfirmedExpiryExtension = "PAYMENT_RECEIPT_PAID_UNCONFIRMED_EXPIRY_EXTENSION"
 )
 
 type bitcoinEsploraEnvKeys struct {
@@ -86,16 +84,11 @@ func NewPollerContainer() (*PollerContainer, error) {
 		return nil, err
 	}
 	clock := system.NewClock()
-	receiptLifecyclePolicy, err := loadReceiptTrackingLifecyclePolicyFromEnv()
-	if err != nil {
-		_ = db.Close()
-		return nil, err
-	}
 	runReceiptPollingCycleUseCase := use_cases.NewRunReceiptPollingCycleUseCase(
 		unitOfWork,
 		receiptObserver,
 		clock,
-		receiptLifecyclePolicy,
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	return &PollerContainer{
@@ -168,29 +161,4 @@ func loadBitcoinEsploraConfig(keys bitcoinEsploraEnvKeys) *bitcoin.BitcoinEsplor
 		Password: os.Getenv(keys.password),
 		Timeout:  timeout,
 	}
-}
-
-func loadReceiptTrackingLifecyclePolicyFromEnv() (policies.PaymentReceiptTrackingLifecyclePolicy, error) {
-	paidUnconfirmedExtension, err := parsePositiveDurationEnv(envPaymentReceiptPaidUnconfirmedExpiryExtension)
-	if err != nil {
-		return policies.PaymentReceiptTrackingLifecyclePolicy{}, err
-	}
-
-	return policies.NewPaymentReceiptTrackingLifecyclePolicy(paidUnconfirmedExtension), nil
-}
-
-func parsePositiveDurationEnv(key string) (time.Duration, error) {
-	raw := strings.TrimSpace(os.Getenv(key))
-	if raw == "" {
-		return 0, nil
-	}
-
-	parsed, err := time.ParseDuration(raw)
-	if err != nil {
-		return 0, fmt.Errorf("%s must be a valid duration: %w", key, err)
-	}
-	if parsed <= 0 {
-		return 0, fmt.Errorf("%s must be greater than zero", key)
-	}
-	return parsed, nil
 }
