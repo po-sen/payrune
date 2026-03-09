@@ -107,9 +107,13 @@ func (f *fakePaymentReceiptStatusNotificationOutbox) SaveDeliveryResult(
 }
 
 type fakeBlockchainReceiptObserver struct {
-	outputsByAddress map[string]outport.ObservePaymentAddressOutput
-	errorsByAddress  map[string]error
-	lastInputs       []outport.ObserveChainPaymentAddressInput
+	outputsByAddress               map[string]outport.ObservePaymentAddressOutput
+	errorsByAddress                map[string]error
+	latestBlockHeightsByScope      map[string]int64
+	latestBlockHeightErrorsByScope map[string]error
+	lastInputs                     []outport.ObserveChainPaymentAddressInput
+	lastTipHeightInputs            []outport.ObserveChainPaymentAddressInput
+	fetchLatestBlockHeightCalls    int
 }
 
 type fakeReceiptPollingUnitOfWork struct {
@@ -148,6 +152,27 @@ func (f *fakeBlockchainReceiptObserver) ObserveAddress(
 	return output, nil
 }
 
+func (f *fakeBlockchainReceiptObserver) FetchLatestBlockHeight(
+	_ context.Context,
+	chain value_objects.ChainID,
+	network value_objects.NetworkID,
+) (int64, error) {
+	f.fetchLatestBlockHeightCalls++
+	f.lastTipHeightInputs = append(f.lastTipHeightInputs, outport.ObserveChainPaymentAddressInput{
+		Chain:   chain,
+		Network: network,
+	})
+
+	scopeKey := string(chain) + "/" + string(network)
+	if err := f.latestBlockHeightErrorsByScope[scopeKey]; err != nil {
+		return 0, err
+	}
+	if latestBlockHeight, ok := f.latestBlockHeightsByScope[scopeKey]; ok {
+		return latestBlockHeight, nil
+	}
+	return 1, nil
+}
+
 func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	now := time.Date(2026, 3, 5, 14, 0, 0, 0, time.UTC)
 	tracking, err := entities.NewPaymentReceiptTracking(
@@ -183,6 +208,9 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 			},
 		},
 		errorsByAddress: map[string]error{},
+		latestBlockHeightsByScope: map[string]int64{
+			"bitcoin/testnet4": 1000,
+		},
 	}
 
 	useCase := NewRunReceiptPollingCycleUseCase(
@@ -193,9 +221,9 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:    10,
-		PollInterval: 20 * time.Second,
-		ClaimTTL:     9 * time.Second,
+		BatchSize:           10,
+		ReceiptPollInterval: 20 * time.Second,
+		ClaimTTL:            9 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -233,6 +261,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	}
 	if observer.lastInputs[0].IssuedAt.IsZero() {
 		t.Fatal("expected issued at in observer input")
+	}
+	if observer.lastInputs[0].LatestBlockHeight != 1000 {
+		t.Fatalf("unexpected latest block height in observer input: got %d", observer.lastInputs[0].LatestBlockHeight)
+	}
+	if observer.fetchLatestBlockHeightCalls != 1 {
+		t.Fatalf("unexpected latest block height fetch calls: got %d", observer.fetchLatestBlockHeightCalls)
 	}
 	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
@@ -275,6 +309,9 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 		errorsByAddress: map[string]error{
 			"tb1qreceipt2": errors.New("rpc timeout"),
 		},
+		latestBlockHeightsByScope: map[string]int64{
+			"bitcoin/testnet4": 900,
+		},
 	}
 
 	useCase := NewRunReceiptPollingCycleUseCase(
@@ -285,8 +322,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:    10,
-		PollInterval: 30 * time.Second,
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -315,6 +352,158 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 	}
 	if got := len(notificationOutbox.enqueueInputs); got != 0 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
+	}
+}
+
+func TestRunReceiptPollingCycleUseCaseExecuteSharesLatestBlockHeightByNetwork(t *testing.T) {
+	now := time.Date(2026, 3, 5, 14, 30, 0, 0, time.UTC)
+	trackingA, err := entities.NewPaymentReceiptTracking(
+		401,
+		"bitcoin-testnet4-native-segwit",
+		value_objects.ChainIDBitcoin,
+		value_objects.NetworkID("testnet4"),
+		"tb1qbatch1",
+		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
+		1000,
+		2,
+	)
+	if err != nil {
+		t.Fatalf("setup tracking A: %v", err)
+	}
+	trackingB, err := entities.NewPaymentReceiptTracking(
+		402,
+		"bitcoin-testnet4-native-segwit",
+		value_objects.ChainIDBitcoin,
+		value_objects.NetworkID("testnet4"),
+		"tb1qbatch2",
+		time.Date(2026, 3, 5, 13, 5, 0, 0, time.UTC),
+		1500,
+		2,
+	)
+	if err != nil {
+		t.Fatalf("setup tracking B: %v", err)
+	}
+
+	trackingStore := &fakePaymentReceiptTrackingStore{
+		claimRows: []entities.PaymentReceiptTracking{trackingA, trackingB},
+	}
+	unitOfWork := &fakeReceiptPollingUnitOfWork{
+		trackingStore:      trackingStore,
+		notificationOutbox: &fakePaymentReceiptStatusNotificationOutbox{},
+	}
+	observer := &fakeBlockchainReceiptObserver{
+		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
+			"tb1qbatch1": {
+				ObservedTotalMinor:    1000,
+				ConfirmedTotalMinor:   1000,
+				UnconfirmedTotalMinor: 0,
+				ConflictTotalMinor:    0,
+				LatestBlockHeight:     777,
+			},
+			"tb1qbatch2": {
+				ObservedTotalMinor:    1500,
+				ConfirmedTotalMinor:   1500,
+				UnconfirmedTotalMinor: 0,
+				ConflictTotalMinor:    0,
+				LatestBlockHeight:     777,
+			},
+		},
+		errorsByAddress: map[string]error{},
+		latestBlockHeightsByScope: map[string]int64{
+			"bitcoin/testnet4": 777,
+		},
+	}
+
+	useCase := NewRunReceiptPollingCycleUseCase(
+		unitOfWork,
+		observer,
+		&fakeReceiptPollingClock{now: now},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+	)
+
+	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if output.UpdatedCount != 2 {
+		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
+	}
+	if observer.fetchLatestBlockHeightCalls != 1 {
+		t.Fatalf("unexpected latest block height fetch calls: got %d", observer.fetchLatestBlockHeightCalls)
+	}
+	if got := len(observer.lastInputs); got != 2 {
+		t.Fatalf("unexpected observer input count: got %d", got)
+	}
+	if observer.lastInputs[0].LatestBlockHeight != 777 || observer.lastInputs[1].LatestBlockHeight != 777 {
+		t.Fatalf("expected shared latest block height in observer inputs, got %d and %d", observer.lastInputs[0].LatestBlockHeight, observer.lastInputs[1].LatestBlockHeight)
+	}
+}
+
+func TestRunReceiptPollingCycleUseCaseExecuteLatestBlockHeightError(t *testing.T) {
+	now := time.Date(2026, 3, 5, 14, 40, 0, 0, time.UTC)
+	tracking, err := entities.NewPaymentReceiptTracking(
+		403,
+		"bitcoin-testnet4-native-segwit",
+		value_objects.ChainIDBitcoin,
+		value_objects.NetworkID("testnet4"),
+		"tb1qheightfail",
+		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
+		500,
+		1,
+	)
+	if err != nil {
+		t.Fatalf("setup tracking: %v", err)
+	}
+
+	trackingStore := &fakePaymentReceiptTrackingStore{
+		claimRows: []entities.PaymentReceiptTracking{tracking},
+	}
+	unitOfWork := &fakeReceiptPollingUnitOfWork{
+		trackingStore:      trackingStore,
+		notificationOutbox: &fakePaymentReceiptStatusNotificationOutbox{},
+	}
+	observer := &fakeBlockchainReceiptObserver{
+		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{},
+		errorsByAddress:  map[string]error{},
+		latestBlockHeightErrorsByScope: map[string]error{
+			"bitcoin/testnet4": errors.New("tip height timeout"),
+		},
+	}
+
+	useCase := NewRunReceiptPollingCycleUseCase(
+		unitOfWork,
+		observer,
+		&fakeReceiptPollingClock{now: now},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(0),
+	)
+
+	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if output.UpdatedCount != 0 {
+		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
+	}
+	if output.ProcessingErrorCount != 1 {
+		t.Fatalf("unexpected processing error count: got %d", output.ProcessingErrorCount)
+	}
+	if observer.fetchLatestBlockHeightCalls != 1 {
+		t.Fatalf("unexpected latest block height fetch calls: got %d", observer.fetchLatestBlockHeightCalls)
+	}
+	if got := len(observer.lastInputs); got != 0 {
+		t.Fatalf("expected no observer address calls after tip-height failure, got %d", got)
+	}
+	if got := len(trackingStore.savedPollingErrorReasons); got != 1 {
+		t.Fatalf("unexpected polling error count: got %d", got)
+	}
+	if trackingStore.savedPollingErrorReasons[0] != "tip height timeout" {
+		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingErrorReasons[0])
 	}
 }
 
@@ -365,8 +554,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:    10,
-		PollInterval: 30 * time.Second,
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
 	})
 	if err == nil {
 		t.Fatal("expected enqueue error but got nil")
@@ -418,8 +607,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:    10,
-		PollInterval: 30 * time.Second,
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -503,8 +692,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteExtendsExpiryOnTransitionToPaidUnco
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:    10,
-		PollInterval: 30 * time.Second,
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -581,8 +770,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteUsesConfiguredPaidUnconfirmedExpiry
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:    10,
-		PollInterval: 30 * time.Second,
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -654,8 +843,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExtendWhenStatusUnchanged(t 
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:    10,
-		PollInterval: 30 * time.Second,
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -716,8 +905,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize:    10,
-		PollInterval: 30 * time.Second,
+		BatchSize:           10,
+		ReceiptPollInterval: 30 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)

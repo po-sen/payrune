@@ -14,11 +14,12 @@ services:
       dockerfile: build/poller/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable}
-      POLL_INTERVAL: ${POLL_INTERVAL:-15s}
-      POLL_BATCH_SIZE: ${POLL_BATCH_SIZE:-50}
-      POLL_CLAIM_TTL: ${POLL_CLAIM_TTL:-30s}
       POLL_CHAIN: bitcoin
       POLL_NETWORK: testnet4
+      POLL_TICK_INTERVAL: ${POLL_TICK_INTERVAL:-15s}
+      RECEIPT_POLL_INTERVAL: ${RECEIPT_POLL_INTERVAL:-15s}
+      POLL_BATCH_SIZE: ${POLL_BATCH_SIZE:-50}
+      POLL_CLAIM_TTL: ${POLL_CLAIM_TTL:-30s}
       BITCOIN_TESTNET4_ESPLORA_URL: ${BITCOIN_TESTNET4_ESPLORA_URL:-https://mempool.space/testnet4/api}
       BITCOIN_TESTNET4_ESPLORA_USER: ${BITCOIN_TESTNET4_ESPLORA_USER:-}
       BITCOIN_TESTNET4_ESPLORA_PASSWORD: ${BITCOIN_TESTNET4_ESPLORA_PASSWORD:-}

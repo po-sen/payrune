@@ -96,16 +96,14 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 	if input.RequiredConfirmations <= 0 {
 		return outport.ObservePaymentAddressOutput{}, errors.New("required confirmations must be greater than zero")
 	}
+	if input.LatestBlockHeight <= 0 {
+		return outport.ObservePaymentAddressOutput{}, errors.New("latest block height must be greater than zero")
+	}
 	if input.SinceBlockHeight < 0 {
 		return outport.ObservePaymentAddressOutput{}, errors.New("since block height must be non-negative")
 	}
 
 	client, err := o.selectClient(input.Network)
-	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
-	}
-
-	latestBlockHeight, err := client.fetchLatestBlockHeight(ctx)
 	if err != nil {
 		return outport.ObservePaymentAddressOutput{}, err
 	}
@@ -123,7 +121,7 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 		address,
 		input.IssuedAt.UTC(),
 		int64(input.RequiredConfirmations),
-		latestBlockHeight,
+		input.LatestBlockHeight,
 		chainTransactions,
 		mempoolTransactions,
 	)
@@ -136,8 +134,19 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 		ConfirmedTotalMinor:   confirmedTotalMinor,
 		UnconfirmedTotalMinor: unconfirmedTotalMinor,
 		ConflictTotalMinor:    0,
-		LatestBlockHeight:     latestBlockHeight,
+		LatestBlockHeight:     input.LatestBlockHeight,
 	}, nil
+}
+
+func (o *BitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
+	ctx context.Context,
+	network value_objects.NetworkID,
+) (int64, error) {
+	client, err := o.selectClient(network)
+	if err != nil {
+		return 0, err
+	}
+	return client.fetchLatestBlockHeight(ctx)
 }
 
 func (o *BitcoinEsploraReceiptObserver) selectClient(

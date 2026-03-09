@@ -39,18 +39,9 @@ func (o *MultiChainReceiptObserver) ObserveAddress(
 	ctx context.Context,
 	input outport.ObserveChainPaymentAddressInput,
 ) (outport.ObservePaymentAddressOutput, error) {
-	normalizedChain, ok := value_objects.ParseChainID(string(input.Chain))
-	if !ok {
-		return outport.ObservePaymentAddressOutput{}, errors.New("chain is invalid")
-	}
-	normalizedNetwork, ok := value_objects.ParseNetworkID(string(input.Network))
-	if !ok {
-		return outport.ObservePaymentAddressOutput{}, errors.New("network is invalid")
-	}
-
-	observer, found := o.observers[normalizedChain]
-	if !found {
-		return outport.ObservePaymentAddressOutput{}, fmt.Errorf("receipt observer is not configured for chain: %s", normalizedChain)
+	observer, normalizedNetwork, err := o.resolveObserver(input.Chain, input.Network)
+	if err != nil {
+		return outport.ObservePaymentAddressOutput{}, err
 	}
 
 	return observer.ObserveAddress(ctx, outport.ObservePaymentAddressInput{
@@ -58,6 +49,39 @@ func (o *MultiChainReceiptObserver) ObserveAddress(
 		Address:               input.Address,
 		IssuedAt:              input.IssuedAt,
 		RequiredConfirmations: input.RequiredConfirmations,
+		LatestBlockHeight:     input.LatestBlockHeight,
 		SinceBlockHeight:      input.SinceBlockHeight,
 	})
+}
+
+func (o *MultiChainReceiptObserver) FetchLatestBlockHeight(
+	ctx context.Context,
+	chain value_objects.ChainID,
+	network value_objects.NetworkID,
+) (int64, error) {
+	observer, normalizedNetwork, err := o.resolveObserver(chain, network)
+	if err != nil {
+		return 0, err
+	}
+	return observer.FetchLatestBlockHeight(ctx, normalizedNetwork)
+}
+
+func (o *MultiChainReceiptObserver) resolveObserver(
+	chain value_objects.ChainID,
+	network value_objects.NetworkID,
+) (outport.ChainReceiptObserver, value_objects.NetworkID, error) {
+	normalizedChain, ok := value_objects.ParseChainID(string(chain))
+	if !ok {
+		return nil, "", errors.New("chain is invalid")
+	}
+	normalizedNetwork, ok := value_objects.ParseNetworkID(string(network))
+	if !ok {
+		return nil, "", errors.New("network is invalid")
+	}
+
+	observer, found := o.observers[normalizedChain]
+	if !found {
+		return nil, "", fmt.Errorf("receipt observer is not configured for chain: %s", normalizedChain)
+	}
+	return observer, normalizedNetwork, nil
 }

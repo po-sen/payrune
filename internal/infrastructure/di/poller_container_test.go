@@ -22,7 +22,7 @@ func TestLoadBitcoinMainnetEsploraConfigFromEnvMissingURL(t *testing.T) {
 }
 
 func TestLoadBitcoinMainnetEsploraConfigFromEnv(t *testing.T) {
-	t.Setenv(envBitcoinMainnetEsploraURL, " https://blockstream.info/api ")
+	t.Setenv(envBitcoinMainnetEsploraURL, " https://mempool.space/api ")
 	t.Setenv(envBitcoinMainnetEsploraUser, " user ")
 	t.Setenv(envBitcoinMainnetEsploraPassword, "pass")
 	t.Setenv(envBitcoinMainnetEsploraTimeout, "12s")
@@ -32,7 +32,7 @@ func TestLoadBitcoinMainnetEsploraConfigFromEnv(t *testing.T) {
 	if config == nil {
 		t.Fatal("expected config, got nil")
 	}
-	if config.Endpoint != "https://blockstream.info/api" {
+	if config.Endpoint != "https://mempool.space/api" {
 		t.Fatalf("unexpected endpoint: got %q", config.Endpoint)
 	}
 	if config.Username != "user" {
@@ -63,7 +63,7 @@ func TestLoadBitcoinTestnet4EsploraConfigFromEnvTimeoutSecondsOverride(t *testin
 }
 
 func TestLoadBitcoinEsploraConfigsFromEnvMainnetOnly(t *testing.T) {
-	t.Setenv(envBitcoinMainnetEsploraURL, "https://blockstream.info/api")
+	t.Setenv(envBitcoinMainnetEsploraURL, "https://mempool.space/api")
 	t.Setenv(envBitcoinMainnetEsploraUser, "")
 	t.Setenv(envBitcoinMainnetEsploraPassword, "")
 	t.Setenv(envBitcoinMainnetEsploraTimeout, "")

@@ -12,6 +12,7 @@ type ObservePaymentAddressInput struct {
 	Address               string
 	IssuedAt              time.Time
 	RequiredConfirmations int32
+	LatestBlockHeight     int64
 	SinceBlockHeight      int64
 }
 
@@ -21,6 +22,7 @@ type ObserveChainPaymentAddressInput struct {
 	Address               string
 	IssuedAt              time.Time
 	RequiredConfirmations int32
+	LatestBlockHeight     int64
 	SinceBlockHeight      int64
 }
 
@@ -33,9 +35,11 @@ type ObservePaymentAddressOutput struct {
 }
 
 type ChainReceiptObserver interface {
+	FetchLatestBlockHeight(ctx context.Context, network value_objects.NetworkID) (int64, error)
 	ObserveAddress(ctx context.Context, input ObservePaymentAddressInput) (ObservePaymentAddressOutput, error)
 }
 
 type BlockchainReceiptObserver interface {
+	FetchLatestBlockHeight(ctx context.Context, chain value_objects.ChainID, network value_objects.NetworkID) (int64, error)
 	ObserveAddress(ctx context.Context, input ObserveChainPaymentAddressInput) (ObservePaymentAddressOutput, error)
 }

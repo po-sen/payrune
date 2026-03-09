@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultReceiptPollingInterval = 15 * time.Second
+	defaultReceiptPollInterval    = 15 * time.Second
 	defaultReceiptPollingClaimTTL = 30 * time.Second
 )
 
@@ -23,6 +23,11 @@ type runReceiptPollingCycleUseCase struct {
 	observer        outport.BlockchainReceiptObserver
 	clock           outport.Clock
 	lifecyclePolicy policies.PaymentReceiptTrackingLifecyclePolicy
+}
+
+type receiptPollingScopeKey struct {
+	chain   value_objects.ChainID
+	network value_objects.NetworkID
 }
 
 func NewRunReceiptPollingCycleUseCase(
@@ -57,9 +62,9 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 	}
 
 	now := uc.clock.NowUTC()
-	pollInterval := input.PollInterval
-	if pollInterval <= 0 {
-		pollInterval = defaultReceiptPollingInterval
+	receiptPollInterval := input.ReceiptPollInterval
+	if receiptPollInterval <= 0 {
+		receiptPollInterval = defaultReceiptPollInterval
 	}
 	claimTTL := input.ClaimTTL
 	if claimTTL <= 0 {
@@ -97,6 +102,8 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 	}
 
 	output := dto.RunReceiptPollingCycleOutput{ClaimedCount: len(trackings)}
+	latestBlockHeights := make(map[receiptPollingScopeKey]int64)
+	latestBlockHeightErrs := make(map[receiptPollingScopeKey]error)
 
 	for _, tracking := range trackings {
 		if tracking.IssuedAt.IsZero() {
@@ -109,7 +116,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 				if trackingStore == nil {
 					return errors.New("payment receipt tracking store is not configured")
 				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(pollInterval))
+				return trackingStore.Save(ctx, trackingWithError, now, now.Add(receiptPollInterval))
 			}); err != nil {
 				return output, err
 			}
@@ -134,7 +141,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 					ctx,
 					expiredTracking,
 					now,
-					now.Add(pollInterval),
+					now.Add(receiptPollInterval),
 				); err != nil {
 					return err
 				}
@@ -153,12 +160,37 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			continue
 		}
 
+		latestBlockHeight, tipHeightErr := uc.fetchLatestBlockHeightForTracking(
+			ctx,
+			tracking,
+			latestBlockHeights,
+			latestBlockHeightErrs,
+		)
+		if tipHeightErr != nil {
+			trackingWithError, markErr := tracking.MarkPollingError(tipHeightErr.Error())
+			if markErr != nil {
+				return output, markErr
+			}
+			if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+				trackingStore := txScope.PaymentReceiptTracking
+				if trackingStore == nil {
+					return errors.New("payment receipt tracking store is not configured")
+				}
+				return trackingStore.Save(ctx, trackingWithError, now, now.Add(receiptPollInterval))
+			}); err != nil {
+				return output, err
+			}
+			output.ProcessingErrorCount++
+			continue
+		}
+
 		observation, observeErr := uc.observer.ObserveAddress(ctx, outport.ObserveChainPaymentAddressInput{
 			Chain:                 tracking.Chain,
 			Network:               tracking.Network,
 			Address:               tracking.Address,
 			IssuedAt:              tracking.IssuedAt,
 			RequiredConfirmations: tracking.RequiredConfirmations,
+			LatestBlockHeight:     latestBlockHeight,
 			SinceBlockHeight:      tracking.LastObservedBlockHeight,
 		})
 		if observeErr != nil {
@@ -171,7 +203,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 				if trackingStore == nil {
 					return errors.New("payment receipt tracking store is not configured")
 				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(pollInterval))
+				return trackingStore.Save(ctx, trackingWithError, now, now.Add(receiptPollInterval))
 			}); err != nil {
 				return output, err
 			}
@@ -196,7 +228,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 				if trackingStore == nil {
 					return errors.New("payment receipt tracking store is not configured")
 				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(pollInterval))
+				return trackingStore.Save(ctx, trackingWithError, now, now.Add(receiptPollInterval))
 			}); err != nil {
 				return output, err
 			}
@@ -208,7 +240,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			return output, err
 		}
 
-		nextPollAt := now.Add(pollInterval)
+		nextPollAt := now.Add(receiptPollInterval)
 
 		if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 			trackingStore := txScope.PaymentReceiptTracking
@@ -233,6 +265,34 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 	}
 
 	return output, nil
+}
+
+func (uc *runReceiptPollingCycleUseCase) fetchLatestBlockHeightForTracking(
+	ctx context.Context,
+	tracking entities.PaymentReceiptTracking,
+	cache map[receiptPollingScopeKey]int64,
+	errCache map[receiptPollingScopeKey]error,
+) (int64, error) {
+	scopeKey := receiptPollingScopeKey{
+		chain:   tracking.Chain,
+		network: tracking.Network,
+	}
+
+	if latestBlockHeight, found := cache[scopeKey]; found {
+		return latestBlockHeight, nil
+	}
+	if err, found := errCache[scopeKey]; found {
+		return 0, err
+	}
+
+	latestBlockHeight, err := uc.observer.FetchLatestBlockHeight(ctx, tracking.Chain, tracking.Network)
+	if err != nil {
+		errCache[scopeKey] = err
+		return 0, err
+	}
+
+	cache[scopeKey] = latestBlockHeight
+	return latestBlockHeight, nil
 }
 
 func resolveReceiptPollingScope(rawChain string, rawNetwork string) (string, string, error) {

@@ -16,9 +16,6 @@ func TestBitcoinEsploraReceiptObserverObserveAddressIssueTimeScoped(t *testing.T
 	issuedAt := time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/blocks/tip/height":
-			_, _ = w.Write([]byte("100"))
-			return
 		case "/address/tb1qexample/txs/chain":
 			_ = json.NewEncoder(w).Encode([]map[string]any{
 				{
@@ -96,6 +93,7 @@ func TestBitcoinEsploraReceiptObserverObserveAddressIssueTimeScoped(t *testing.T
 		Address:               "tb1qexample",
 		IssuedAt:              issuedAt,
 		RequiredConfirmations: 2,
+		LatestBlockHeight:     100,
 	})
 	if err != nil {
 		t.Fatalf("observe address error: %v", err)
@@ -129,6 +127,7 @@ func TestBitcoinEsploraReceiptObserverMissingNetworkEndpoint(t *testing.T) {
 		Address:               "tb1qexample",
 		IssuedAt:              time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		RequiredConfirmations: 1,
+		LatestBlockHeight:     100,
 	})
 	if err == nil {
 		t.Fatal("expected network endpoint error but got nil")
@@ -150,12 +149,7 @@ func TestBitcoinEsploraReceiptObserverEndpointError(t *testing.T) {
 		t.Fatalf("unexpected constructor error: %v", err)
 	}
 
-	_, err = observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               value_objects.NetworkID("mainnet"),
-		Address:               "bc1qexample",
-		IssuedAt:              time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
-		RequiredConfirmations: 1,
-	})
+	_, err = observer.FetchLatestBlockHeight(context.Background(), value_objects.NetworkID("mainnet"))
 	if err == nil {
 		t.Fatal("expected endpoint error but got nil")
 	}
@@ -164,12 +158,6 @@ func TestBitcoinEsploraReceiptObserverEndpointError(t *testing.T) {
 func TestBitcoinEsploraReceiptObserverValidation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/blocks/tip/height":
-			_, _ = w.Write([]byte("100"))
-		case "/address/bc1qexample/txs/chain":
-			_ = json.NewEncoder(w).Encode([]map[string]any{})
-		case "/address/bc1qexample/txs/mempool":
-			_ = json.NewEncoder(w).Encode([]map[string]any{})
 		default:
 			t.Fatalf("unexpected request path: %s", r.URL.Path)
 		}
@@ -192,6 +180,33 @@ func TestBitcoinEsploraReceiptObserverValidation(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected missing issued at error")
+	}
+}
+
+func TestBitcoinEsploraReceiptObserverFetchLatestBlockHeight(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/blocks/tip/height" {
+			t.Fatalf("unexpected request path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte("321"))
+	}))
+	defer server.Close()
+
+	observer, err := NewBitcoinEsploraReceiptObserver(
+		map[value_objects.NetworkID]*BitcoinEsploraObserverConfig{
+			value_objects.NetworkID(value_objects.BitcoinNetworkMainnet): {Endpoint: server.URL},
+		},
+	)
+	if err != nil {
+		t.Fatalf("unexpected constructor error: %v", err)
+	}
+
+	latestBlockHeight, err := observer.FetchLatestBlockHeight(context.Background(), value_objects.NetworkID("mainnet"))
+	if err != nil {
+		t.Fatalf("FetchLatestBlockHeight returned error: %v", err)
+	}
+	if latestBlockHeight != 321 {
+		t.Fatalf("unexpected latest block height: got %d", latestBlockHeight)
 	}
 }
 

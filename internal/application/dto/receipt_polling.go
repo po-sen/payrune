@@ -3,11 +3,11 @@ package dto
 import "time"
 
 type RunReceiptPollingCycleInput struct {
-	BatchSize    int
-	PollInterval time.Duration
-	ClaimTTL     time.Duration
-	Chain        string
-	Network      string
+	BatchSize           int
+	ReceiptPollInterval time.Duration
+	ClaimTTL            time.Duration
+	Chain               string
+	Network             string
 }
 
 type RunReceiptPollingCycleOutput struct {

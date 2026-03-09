@@ -10,22 +10,23 @@ import (
 )
 
 const (
-	defaultPollerInterval  = 15 * time.Second
-	defaultPollerClaimTTL  = 30 * time.Second
-	defaultPollerBatchSize = 50
+	defaultPollerTickInterval = 15 * time.Second
+	defaultPollerClaimTTL     = 30 * time.Second
+	defaultPollerBatchSize    = 50
 )
 
 type PollerConfig struct {
-	Interval  time.Duration
-	BatchSize int
-	ClaimTTL  time.Duration
-	Chain     string
-	Network   string
+	TickInterval        time.Duration
+	ReceiptPollInterval time.Duration
+	BatchSize           int
+	ClaimTTL            time.Duration
+	Chain               string
+	Network             string
 }
 
 func RunPoller(ctx context.Context, config PollerConfig) error {
-	if config.Interval <= 0 {
-		config.Interval = defaultPollerInterval
+	if config.TickInterval <= 0 {
+		config.TickInterval = defaultPollerTickInterval
 	}
 	if config.BatchSize <= 0 {
 		config.BatchSize = defaultPollerBatchSize
@@ -43,11 +44,11 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 
 	runCycle := func() {
 		output, err := container.RunReceiptPollingCycleUseCase.Execute(ctx, dto.RunReceiptPollingCycleInput{
-			BatchSize:    config.BatchSize,
-			PollInterval: config.Interval,
-			ClaimTTL:     config.ClaimTTL,
-			Chain:        config.Chain,
-			Network:      config.Network,
+			BatchSize:           config.BatchSize,
+			ReceiptPollInterval: config.ReceiptPollInterval,
+			ClaimTTL:            config.ClaimTTL,
+			Chain:               config.Chain,
+			Network:             config.Network,
 		})
 		if err != nil {
 			log.Printf("poll cycle failed: err=%v", err)
@@ -65,7 +66,7 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 
 	runCycle()
 
-	ticker := time.NewTicker(config.Interval)
+	ticker := time.NewTicker(config.TickInterval)
 	defer ticker.Stop()
 
 	for {
