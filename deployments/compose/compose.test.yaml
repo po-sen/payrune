@@ -1,13 +1,59 @@
 services:
+  app:
+    environment:
+      BITCOIN_MAINNET_LEGACY_XPUB: ""
+      BITCOIN_MAINNET_SEGWIT_XPUB: ""
+      BITCOIN_MAINNET_NATIVE_SEGWIT_XPUB: ""
+      BITCOIN_MAINNET_TAPROOT_XPUB: ""
+      BITCOIN_TESTNET4_LEGACY_XPUB: ${BITCOIN_TESTNET4_LEGACY_XPUB:?BITCOIN_TESTNET4_LEGACY_XPUB is required}
+      BITCOIN_TESTNET4_SEGWIT_XPUB: ${BITCOIN_TESTNET4_SEGWIT_XPUB:?BITCOIN_TESTNET4_SEGWIT_XPUB is required}
+      BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB: ${BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB:?BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB is required}
+      BITCOIN_TESTNET4_TAPROOT_XPUB: ${BITCOIN_TESTNET4_TAPROOT_XPUB:?BITCOIN_TESTNET4_TAPROOT_XPUB is required}
+      BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS: ${BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS:-2}
+      BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER: ${BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER:-24h}
+  poller-mainnet:
+    profiles:
+      - mainnet
+  poller-testnet4:
+    build:
+      context: ../..
+      dockerfile: build/poller/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable}
+      POLL_CHAIN: bitcoin
+      POLL_NETWORK: testnet4
+      POLL_TICK_INTERVAL: ${POLL_TICK_INTERVAL:-5s}
+      POLL_RESCHEDULE_INTERVAL: ${POLL_RESCHEDULE_INTERVAL:-10m}
+      POLL_BATCH_SIZE: ${POLL_BATCH_SIZE:-2}
+      POLL_CLAIM_TTL: ${POLL_CLAIM_TTL:-30s}
+      BITCOIN_TESTNET4_ESPLORA_URL: ${BITCOIN_TESTNET4_ESPLORA_URL:-https://mempool.space/testnet4/api}
+      BITCOIN_TESTNET4_ESPLORA_USER: ${BITCOIN_TESTNET4_ESPLORA_USER:-}
+      BITCOIN_TESTNET4_ESPLORA_PASSWORD: ${BITCOIN_TESTNET4_ESPLORA_PASSWORD:-}
+      BITCOIN_TESTNET4_ESPLORA_TIMEOUT: ${BITCOIN_TESTNET4_ESPLORA_TIMEOUT:-10s}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
   receipt-webhook-dispatcher:
     depends_on:
       receipt-webhook-mock:
         condition: service_started
-
   receipt-webhook-mock:
     build:
       context: ../..
       dockerfile: build/fake-webhook-receiver/Dockerfile
     environment:
-      FAKE_WEBHOOK_RECEIVER_SECRET: ${PAYMENT_RECEIPT_WEBHOOK_SECRET}
+      FAKE_WEBHOOK_RECEIVER_SECRET: ${PAYMENT_RECEIPT_WEBHOOK_SECRET:?PAYMENT_RECEIPT_WEBHOOK_SECRET is required}
+    restart: unless-stopped
+  swagger:
+    image: swaggerapi/swagger-ui:latest
+    ports:
+      - "8081:8080"
+    environment:
+      SWAGGER_JSON_URL: /specs/openapi.yaml
+      TRY_IT_OUT_ENABLED: "true"
+    volumes:
+      - ../swagger:/usr/share/nginx/html/specs:ro
+    depends_on:
+      - app
     restart: unless-stopped
