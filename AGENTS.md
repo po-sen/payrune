@@ -6,10 +6,10 @@
    - Create/update `specs/YYYY-MM-DD-slug/` first.
    - Keep spec files as source of truth.
 2. Build Go services with:
-   - `go-project-layout` rules for directory structure.
-   - `clean-architecture-hexagonal-components` rules for layer boundaries and dependency direction.
+   - Go project layout rules for directory structure.
+   - Clean Architecture + Hexagonal rules for layer boundaries and dependency direction.
 3. When commit is requested:
-   - Use `conventional-commit` rules strictly.
+   - Use Conventional Commits rules strictly.
 4. Any repository helper automation must live under `scripts/`.
 
 ## Project Conventions
@@ -24,14 +24,14 @@
 
 ## Repo-Specific Agent Guidance
 
-This section is written for the coding agent. Use it as the direct architecture and workflow
-contract for this repository.
+This section is the direct architecture and workflow contract for this repository.
 
 ### Precedence
 
-- Use this section to narrow and interpret the generic skills below for this repository.
+- Use this section as the repository-specific source of truth for workflow and architecture rules.
 - Unless a statement here is explicitly wrong, preserve its meaning when rewriting or extending it.
-- When a generic skill and this section differ, follow this section for repo-local decisions.
+- When higher-level generic guidance and this section differ, follow this section for repo-local
+  decisions.
 
 ### Spec scaffolding in this repo
 
@@ -144,23 +144,11 @@ Stop and reconsider if any of these are true:
 - Config becomes harder to read because of prefixes, indirection, or hidden defaults.
 - The user says the design feels too abstract or too hard to understand.
 
-## Embedded Skills (Frozen Snapshot)
+## Embedded Reference Workflows
 
-The following skill definitions are copied into this project so future work does not depend on an external skill registry.
+The following sections are embedded here so the repository's working rules stay self-contained.
 
-### skill: spec-driven-development
-
----
-
-name: spec-driven-development
-description: >-
-Convert rough ideas into Spec-Driven Development artifacts: problem statement, requirements,
-design, task plan, and test plan. Use when the user asks for SDD/specs, to clarify requirements,
-or to turn a rough idea into an implementable plan before coding.
-
----
-
-# spec-driven-development
+# Spec-Driven Development
 
 ## Purpose
 
@@ -168,7 +156,8 @@ or to turn a rough idea into an implementable plan before coding.
 
 ## When to Use
 
-- Follow the trigger guidance in the frontmatter description.
+- Use for feature work, scope clarification, or when turning a rough idea into an implementable
+  plan before coding.
 
 ## File IO rule
 
@@ -391,9 +380,6 @@ canonical lint implementation is `scripts/spec-lint.sh`.
 
 ```bash
 # From repo root:
-SPEC_DIR="specs/YYYY-MM-DD-slug" bash skills/spec-driven-development/scripts/spec-lint.sh
-
-# Or from the skill directory:
 SPEC_DIR="specs/YYYY-MM-DD-slug" bash scripts/spec-lint.sh
 ```
 
@@ -455,22 +441,9 @@ SPEC_DIR="specs/YYYY-MM-DD-slug" bash scripts/spec-lint.sh
 - Treat the spec as the source of truth; update the spec before changing code.
 - Keep templates minimal. Adapt to existing repo conventions (ADR/RFC/docs) but preserve the section
   structure.
-- Example spec package (Full mode): `examples/specs/2026-02-06-lint-pass-example/`.
 - Avoid inventing integrations or requirements. Ask or mark as assumptions.
 - Prefer concise, testable statements over narrative prose.
 - Use `DONE` only after implementation and validation are complete; otherwise keep `READY`.
-
-### skill: go-project-layout
-
----
-
-name: go-project-layout
-description: |
-Enforce Go project directory structure using golang-standards/project-layout with pragmatic
-defaults and official Go module/package guidance. Use when creating or refactoring Go repos so
-code placement, visibility, and boundaries stay consistent.
-
----
 
 # Go Project Layout
 
@@ -481,7 +454,8 @@ code placement, visibility, and boundaries stay consistent.
 
 ## When to Use
 
-- Follow the trigger guidance in the frontmatter description.
+- Use when creating or refactoring Go code so directory layout, package visibility, and boundaries
+  stay consistent.
 
 ## Inputs
 
@@ -494,7 +468,8 @@ code placement, visibility, and boundaries stay consistent.
 
 - New or updated directory tree that matches the project type.
 - Files moved/created in the correct directories with imports fixed.
-- Updated Go entry points and package boundaries (`internal` vs `pkg`) with no cycles.
+- Updated Go entry points and package boundaries (`internal` by default; `pkg` only by explicit
+  exception) with no cycles.
 - Validation evidence from `go list ./...` and the chosen test workflow (`go test -short ./...`,
   plus full/e2e runs when required), or a clear reason if skipped.
 
@@ -506,6 +481,8 @@ code placement, visibility, and boundaries stay consistent.
   optional `pkg/<name>` only for intentional, stable public APIs.
 - Mixed apps plus library: keep app logic in `internal/`; expose only intentional public APIs in
   `pkg/`.
+- Repo default: stay with `cmd/<app>/main.go` plus `internal/...`; do not introduce `pkg/` unless
+  the repo already adopts it or the user explicitly asks.
 
 ## Steps
 
@@ -536,8 +513,11 @@ code placement, visibility, and boundaries stay consistent.
    - Decision rule:
      - Single-binary service: prefer `internal/<domain>` to keep structure shallow.
      - Multi-binary or mixed apps: prefer `internal/<app>/<domain>` to avoid collisions.
-6. Use `pkg/` only for genuinely reusable public packages:
+6. In this repo, do not introduce `pkg/` unless the repo already adopts it or the user explicitly
+   asks:
    - If a package is not meant for outside consumers, keep it in `internal/`.
+   - If `pkg/` is explicitly introduced, keep it narrowly scoped to genuinely reusable public
+     packages.
    - Avoid mirroring everything under both `internal/` and `pkg/`.
    - For any `pkg/` package, require clear ownership, semantic version tags, and compatibility
      commitments.
@@ -580,6 +560,8 @@ code placement, visibility, and boundaries stay consistent.
 
 - `golang-standards/project-layout` is a widely used reference, not an official Go standard; treat
   it as a toolbox, not a mandatory checklist.
+- Repo override: default to `cmd/` plus `internal/` in this repository. Treat `pkg/` as an explicit
+  exception, not part of the baseline layout.
 - Common baseline for applications:
 
 ```text
@@ -645,7 +627,8 @@ code placement, visibility, and boundaries stay consistent.
 - Directory intent from project-layout:
   - `cmd/`: executable programs.
   - `internal/`: private code enforced by the Go compiler.
-  - `pkg/`: public/reusable packages (optional, convention only; not compiler-enforced).
+  - `pkg/`: public/reusable packages (optional convention; avoid in this repo unless explicitly
+    requested).
   - `api/`: API contracts only (OpenAPI/proto), not runtime server implementations.
   - `configs/`, `scripts/`, `build/`, `deployments/`, `test/`: operational/supporting artifacts.
 - Anti-patterns:
@@ -659,37 +642,25 @@ code placement, visibility, and boundaries stay consistent.
   2. Preserve minimal, clear boundaries (`cmd` vs `internal` vs optional `pkg`).
   3. Add optional folders only for real, present needs.
 
-### skill: clean-architecture-hexagonal-components
-
----
-
-name: clean-architecture-hexagonal-components
-description: |
-Apply strict Clean Architecture + Hexagonal (Ports & Adapters) with optional component (bounded
-context) packaging. Use when creating or modifying features that must enforce
-domain/application/adapter boundaries, inward dependencies, and (when enabled) cross-component
-isolation.
-
----
-
-# Clean Architecture Hexagonal (Components Optional)
+# Clean Architecture Hexagonal
 
 ## Purpose
 
 Enforce a Clean Architecture + Hexagonal (Ports & Adapters) structure with strict dependency and
-layering rules, using component (bounded context) packaging when appropriate. Components may also be
-named `modules/` or similar; treat them equivalently as bounded contexts.
+layering rules within this repo's `internal/` layout. If bounded contexts are needed, model them as
+subdirectories under `internal/` rather than introducing top-level `shared_kernel/`,
+`components/`, or `modules/`.
 
 ## When to Use
 
 Use when building or refactoring features that must follow strict Clean Architecture + Hexagonal
-boundaries. Components (bounded contexts) are optional for small projects.
+boundaries. Extra feature-level separation is optional for small projects.
 
 ## Inputs
 
 - Feature request or change description.
 - Existing architecture cues and folder structure (if any).
-- Target component (bounded context) name if components are used; otherwise the module name.
+- Target feature area or bounded context name if relevant.
 - Inbound interface(s) (HTTP, CLI, MQ, etc.).
 - IO needs (persistence, external services, messaging).
 - Existing code conventions and DI/composition patterns.
@@ -697,38 +668,38 @@ boundaries. Components (bounded contexts) are optional for small projects.
 ## Outputs
 
 - Coherent patch that creates/updates files, moves files if needed, and fixes imports.
-- Component-structured directories when components are enabled; otherwise a single-module layout.
+- Directories and packages aligned to this repo's `internal/domain`, `internal/application`,
+  `internal/adapters`, `internal/infrastructure`, and `cmd/` layout.
 - Thin inbound controllers/handlers and pure domain logic.
 - Tests aligned to domain, use case, and adapter layers.
-- No forbidden imports across layers or components.
+- No forbidden imports across layers or feature areas.
 
 ## Steps
 
-1. Scan the repo for existing architecture cues (e.g., a `components/` or `modules/` directory,
-   `bounded_contexts/`, `domain/`); summarize what you found.
-2. Default to the existing structure. If none exists, default to a single-module layout unless there
-   are clear signs of multiple bounded contexts (e.g., distinct feature folders or multiple
-   domains).
-3. If components are used, identify the target component (bounded context). If unspecified, infer it
-   from domain language; ask a question only if strictly necessary to avoid incorrect placement.
-4. Ensure the directory structure exists for `shared_kernel/` and `bootstrap/`, plus
-   `components/<component>/` (or equivalent such as `modules/<module>/`) when bounded contexts are
-   enabled. Place these at the project source root (repo root or optional `src/`).
-5. Define or extend a single inbound port per use case in `application/ports/in`, using
+1. Scan the repo for existing architecture cues (e.g., `internal/domain`, `internal/application`,
+   `internal/adapters`, `internal/infrastructure`, `internal/bootstrap`, `cmd/`); summarize what
+   you found.
+2. Default to the existing `internal/`-based structure. If a feature area needs extra separation,
+   express it inside `internal/` rather than introducing new top-level architecture folders.
+3. If the change belongs to a specific feature area or bounded context, place it under the relevant
+   `internal/...` path. Ask a question only if strictly necessary to avoid incorrect placement.
+4. Ensure the directory structure exists for `internal/domain`, `internal/application`,
+   `internal/adapters`, `internal/infrastructure/di`, and `cmd/<app>/main.go` or
+   `internal/bootstrap` when those repo-standard wiring points are present.
+5. Define or extend a single inbound port per use case in `internal/application/ports/in`, using
    command-style input and explicit output DTOs.
-6. Implement the use case in `application/use_cases`, orchestrating domain behavior and interacting
-   with external systems only via outbound ports (no direct drivers/framework calls).
-7. Define outbound ports in `application/ports/out` for any IO needs; shape them by core needs, not
-   external APIs.
+6. Implement the use case in `internal/application/use_cases`, orchestrating domain behavior and
+   interacting with external systems only via outbound ports (no direct drivers/framework calls).
+7. Define outbound ports in `internal/application/ports/out` for any IO needs; shape them by core
+   needs, not external APIs.
 8. For query-heavy read use cases, define a read-side outbound port (`*ReadModel` / `*QueryService`
    / `*Finder`) returning DTOs/views, separate from aggregate repositories.
-9. Implement outbound adapters in `adapters/outbound/*`, mapping through ACLs for external systems
-   and using infrastructure drivers as needed.
-10. Implement inbound adapters in `adapters/inbound/*`: validate input, map to command/DTO, call the
-    inbound port or command bus, map errors.
-11. Wire dependencies only in composition roots (`components/<name>/infrastructure/di` when
-    components are used, otherwise the module-level DI area) and in the bootstrap entry point (e.g.,
-    `bootstrap/main.*`).
+9. Implement outbound adapters in `internal/adapters/outbound/*`, mapping through ACLs for external
+   systems and using infrastructure drivers as needed.
+10. Implement inbound adapters in `internal/adapters/inbound/*`: validate input, map to command/DTO,
+    call the inbound port or command bus, map errors.
+11. Wire dependencies only in `internal/infrastructure/di`, `internal/bootstrap`, and
+    `cmd/<app>/main.go` (or the existing repo-standard wiring area).
 12. Add tests according to the Testing taxonomy below: unit (domain + use case with mocked outbound
     ports), integration + contract (adapters), and functional tests for critical user flows.
 13. Verify dependency boundaries by checking imports; fix any violations before finalizing.
@@ -741,21 +712,23 @@ Use these definitions when planning and implementing Step 12.
 
 - Unit tests
   - Definition: Verify a single domain rule or use-case orchestration path in isolation.
-  - Typical scope: `domain/**` entities, value objects, policies, domain services; application use
-    cases with mocked/fake outbound ports.
+  - Typical scope: `internal/domain/**` entities, value objects, policies, domain services;
+    `internal/application/**` use cases with mocked/fake outbound ports.
   - Real DB: Not allowed.
-  - Placement: Near the layer under test (for example `domain/**` and `application/**` test files).
-  - Allowed dependencies: Same-layer code, `shared_kernel/` primitives, and test doubles only. No
-    adapter, infrastructure, or bootstrap dependencies.
+  - Placement: Near the layer under test (for example `internal/domain/**` and
+    `internal/application/**` test files).
+  - Allowed dependencies: Same-layer code, any dependency-free internal shared primitives already
+    present in the repo, and test doubles only. No adapter, infrastructure, or bootstrap
+    dependencies.
 - Integration tests
   - Definition: Verify collaboration across architectural boundaries (for example application port
     to adapter to driver/real dependency).
-  - Typical scope: `adapters/outbound/**` implementations against real dependencies and
+  - Typical scope: `internal/adapters/outbound/**` implementations against real dependencies and
     adapter-level contract tests at inbound/outbound boundaries.
   - Real DB: Not required for contract tests; allowed and preferred for persistence-adapter
     integration (use ephemeral/local test DB or containerized DB).
-  - Placement: Adapter/infrastructure test locations (for example `adapters/**` or
-    `infrastructure/**` test files).
+  - Placement: Adapter/infrastructure test locations (for example `internal/adapters/**` or
+    `internal/infrastructure/**` test files).
   - Allowed dependencies: Application port contracts/DTOs, adapter code, infrastructure drivers, and
     test fixtures. Do not move business rules into these tests.
   - Contract vs integration: Contract tests may use in-memory harnesses or stubs without real
@@ -773,97 +746,54 @@ Use these definitions when planning and implementing Step 12.
     domain internals or private adapter details.
   - Boundary with integration: Prefer fully wired application bootstrap/composition root and
     external-client-style assertions (or an equivalent black-box setup).
-- Testing code note: Testing code may reference cross-layer public interfaces/components when
-  required for verification; this does not permit breaking production dependency direction or import
-  boundaries.
+- Testing code note: Testing code may reference cross-layer public interfaces when required for
+  verification; this does not permit breaking production dependency direction or import boundaries.
 
 ## Notes
 
-Default structure (components optional for small projects; adjust layout to fit your language's
-conventions):
+Repo-default structure:
 
 ```text
-shared_kernel/
+internal/
   domain/
-    events/
+    entities/
     value_objects/
-    specifications/
-  application/
+    services/
+    policies/
     events/
-    messaging/
-components/ (optional)
-  <component_name>/
-    domain/
-      entities/
-      value_objects/
-      services/
-      policies/
-      events/
-    application/
-      ports/
-        in/
-        out/
-      use_cases/
-      dto/
-      mappers/
-    adapters/
-      inbound/
-        http/
-          controllers/
-          middleware/
-        cli/
-        mq/
-      outbound/
-        persistence/
-        external/
-        messaging/
-    infrastructure/
-      drivers/
-      di/
-bootstrap/
-  main.*
+  application/
+    ports/
+      in/
+      out/
+    use_cases/
+    dto/
+    mappers/
+  adapters/
+    inbound/
+      http/
+        controllers/
+        middleware/
+      cli/
+      mq/
+    outbound/
+      persistence/
+      external/
+      messaging/
+  infrastructure/
+    drivers/
+    di/
+  bootstrap/        # optional, only if already present
+cmd/
+  <app>/main.go
 ```
 
-Single-module structure (when components are not used; adjust layout to fit your language's
-conventions):
+If a feature area needs extra separation, express it within this structure (for example
+`internal/<feature>/...` or repo-standard subpackages) rather than introducing top-level
+`shared_kernel/`, `components/`, or `modules/`.
 
-```text
-domain/
-  entities/
-  value_objects/
-  services/
-  policies/
-  events/
-application/
-  ports/
-    in/
-    out/
-  use_cases/
-  dto/
-  mappers/
-adapters/
-  inbound/
-    http/
-      controllers/
-      middleware/
-    cli/
-    mq/
-  outbound/
-    persistence/
-    external/
-    messaging/
-infrastructure/
-  drivers/
-  di/
-bootstrap/
-  main.*
-```
-
-Note: The above directory structure is illustrative. Adjust the top-level placement to fit your
-language's standard project layout. For example, some projects keep source code in `src/` or
-`src/main` (common in Java/.NET), while others place the folders at the repository root (common in
-Go, Python, etc.). Follow the standard conventions of your language, as long as the separation of
-architectural layers (domain, application, adapters, etc.) remains intact.
+Follow this repo's Go layout. Do not introduce `src/`, `shared_kernel/`, `components/`,
+`modules/`, or top-level `bootstrap/` unless the repo already adopts them or the user explicitly
+asks.
 
 ### SOLID review gate (required before finalize)
 
@@ -906,30 +836,34 @@ Non-negotiable rules (treat violations as errors):
 The following are strict architecture boundaries. Treat violations as errors, regardless of language
 or tooling.
 
-- Domain must not import `application/`.
-- Domain must not import `adapters/`, `infrastructure/`, or `bootstrap/`.
-- Domain and application may import `shared_kernel/` (but `shared_kernel/` must be dependency-free
-  with respect to feature modules; no imports from `components/` or `modules/`).
-- Domain events live in `domain/events` and describe in-model state changes. Cross-component
-  communication uses integration events in `shared_kernel/domain/events` (or equivalent path if
-  already present, or explicit ports), never direct imports. Do not place feature-specific DTOs in
-  shared_kernel.
-- Application may import `domain/`, `shared_kernel/`, and other `application/**` modules.
-  Application must not import `adapters/`, `infrastructure/`, or `bootstrap/`.
+- Domain must not import `internal/application/`.
+- Domain must not import `internal/adapters/`, `internal/infrastructure/`, `internal/bootstrap/`,
+  or `cmd/`.
+- Domain and application may import small dependency-free internal shared packages only when they do
+  not create feature-level coupling. Do not introduce `shared_kernel/`, `components/`, or
+  `modules/` for this repo by default.
+- Domain events live under `internal/domain/events` (or repo-standard domain event packages) and
+  describe in-model state changes. Cross-feature communication should use explicit ports, events
+  already present in the repo, or dedicated adapters. Do not introduce a new `shared_kernel/` just
+  to move DTOs around.
+- Application may import `internal/domain` and other `internal/application/**` packages.
+  Application must not import `internal/adapters/`, `internal/infrastructure/`,
+  `internal/bootstrap/`, or `cmd/`.
 - Inbound adapters must not execute domain business logic or mutate aggregates. They may reference
   domain types (value objects, error codes) for parsing and error mapping, but must call the use
   case (inbound port or bus) to perform any business action. Perform transport validation/parsing in
   inbound adapters before calling the use case. Business validation/invariants are enforced in
   domain/application.
-- Adapters may import `application/ports/**`, application DTOs, and domain types as needed for
-  mapping, but must not move business logic into adapters.
-- Transport-specific schemas/validators live in `adapters/inbound/<transport>/middleware` (or
-  equivalent), not in `application/` or `domain/`.
-- Vendor/SDK DTOs must not appear in application/domain. Map them in outbound adapters/ACL to
-  application DTOs or domain types.
+- Adapters may import `internal/application/ports/**`, application DTOs, and domain types as needed
+  for mapping, but must not move business logic into adapters.
+- Transport-specific schemas/validators live in `internal/adapters/inbound/<transport>/middleware`
+  (or equivalent), not in `internal/application/` or `internal/domain/`.
+- Vendor/SDK DTOs must not appear in `internal/application` or `internal/domain`. Map them in
+  outbound adapters/ACL to application DTOs or domain types.
 - Outbound adapters implement application outbound ports; may use infrastructure drivers.
-- Components/modules (bounded contexts) must not import each other's domain/application directly.
-  Use shared_kernel events, outbound ACLs, or explicit query ports.
+- Feature areas must not bypass ports by importing each other's internals indiscriminately. Use
+  explicit ports, shared abstractions already present in the repo, or dedicated ACLs when
+  cross-feature coordination is required.
 - Ports live inside application core; adapters live outside.
 - One use case equals one inbound port/handler.
 - Outbound ports represent required capabilities (repositories, gateways, publishers) and are shaped
@@ -940,22 +874,22 @@ or tooling.
   logic does not fit naturally on an entity/value object.
 - Domain services contain domain logic that does not naturally belong to a single entity/value
   object. They have no IO and no repository dependencies.
-- Pure domain rules (policies/strategies) live in `domain/policies`.
+- Pure domain rules (policies/strategies) live in `internal/domain/policies`.
 - Repository ports are only for aggregate persistence (get/save by aggregate identity). For queries,
   use `*ReadModel` / `*QueryService` / `*Finder` returning DTOs/views.
 - Repository ports must accept/return aggregates (or aggregate IDs). They must not return view
   models/DTOs.
 - Read-side ports must return DTOs/views and must not return aggregates.
 - Transport payloads (HTTP/MQ/CLI) must be mapped in inbound adapters to application DTOs/commands.
-  Do not leak transport DTOs into application/domain.
+  Do not leak transport DTOs into `internal/application` or `internal/domain`.
 - Outbound adapters must not call inbound ports/use cases. All orchestration happens in application
   use cases.
 - Errors are structured (type + code + message + optional metadata). Inbound adapters map these
   errors to transport-specific responses.
 - Only composition roots may bind ports to adapter implementations. Do not instantiate drivers/SDK
   clients inside domain/application.
-- Command bus interface (if used) lives in `application/ports/in`. In-memory bus may live in
-  application; framework-driven bus wiring stays in infrastructure.
+- Command bus interface (if used) lives in `internal/application/ports/in`. In-memory bus may live
+  in application; framework-driven bus wiring stays in infrastructure.
 
 Output requirements:
 
@@ -972,20 +906,7 @@ Naming guidance:
 - Query read side: `<Noun>ReadModel` / `<Noun>QueryService` / `<Noun>Finder`.
 - External vendors: `<Vendor><Capability>Client` with ACL mappers in outbound adapters.
 
-### skill: conventional-commit
-
----
-
-name: conventional-commit
-description: |
-Generate a Conventional Commits message from the current working tree and commit by default.
-Stage all changes, infer type/scope from the diff, produce a compliant header with optional
-body/footer, and run git commit. Use draft-only mode only when the user explicitly asks for a
-message without committing.
-
----
-
-# Conventional Commit
+# Conventional Commits
 
 ## Purpose
 
@@ -995,7 +916,7 @@ message without committing.
 
 ## When to Use
 
-- Follow the trigger guidance in the frontmatter description; do not add new criteria here.
+- Use when drafting a commit message or creating a commit from the current working tree.
 
 ## Inputs
 
@@ -1140,4 +1061,4 @@ the body when the hash is available.
 - Do not invent details; ask for missing essentials only when inference is unclear.
 - Prefer consistency in type/scope naming across the repo.
 - Default to staging all changes and committing without extra confirmation.
-- Reference `references/conventional-commits.md` for the v1.0.0 spec.
+- Follow the Conventional Commits v1.0.0 spec.
