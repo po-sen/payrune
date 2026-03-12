@@ -10,5 +10,5 @@ LEGACY_WASM_MODULE_PATH="$OUTPUT_DIR/payrune_api_worker_wasm.mjs"
 mkdir -p "$OUTPUT_DIR"
 rm -f "$LEGACY_WASM_MODULE_PATH"
 
-(cd "$ROOT_DIR" && GOCACHE=/tmp/go-build GOOS=js GOARCH=wasm go build -trimpath -o "$WASM_PATH" ./cmd/payrune-api-worker)
+(cd "$ROOT_DIR" && GOCACHE=/tmp/go-build GOOS=js GOARCH=wasm go build -trimpath -o "$WASM_PATH" ./cmd/api-worker)
 cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" "$WASM_EXEC_PATH"

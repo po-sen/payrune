@@ -63,11 +63,11 @@ links:
 
 5. T-005 - Wire deploy and teardown flows
 
-   - Scope: Keep only deploy/delete entrypoints, with optional PostgreSQL/xpub secret prompts, pre-deploy migration when a PostgreSQL connection string is provided, and Go-Wasm artifact build.
+   - Scope: Expose a unified `make cf-up` / `make cf-down` flow that stacks the Cloudflare scripts, with repo-local `.env.cloudflare` loading, fail-fast required env checks, optional xpub secret sync, and Go-Wasm artifact build.
    - Linked requirements: FR-005
    - Validation:
-     - [ ] `make -n cf-api-deploy`
-     - [ ] `make -n cf-api-delete`
+     - [ ] `make -n cf-up`
+     - [ ] `make -n cf-down`
 
 6. T-006 - Remove obsolete wrong-direction code and verify clean scope
 

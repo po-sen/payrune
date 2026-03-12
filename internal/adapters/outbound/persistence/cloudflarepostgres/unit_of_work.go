@@ -34,9 +34,10 @@ func (u *UnitOfWork) WithinTransaction(
 
 	txExecutor := newTxExecutor(u.bridgeID, txID, u.bridge)
 	txScope := outport.TxScope{
-		PaymentAddressAllocation:  NewPaymentAddressAllocationStore(txExecutor),
-		PaymentAddressIdempotency: NewPaymentAddressIdempotencyStore(txExecutor),
-		PaymentReceiptTracking:    NewPaymentReceiptTrackingStore(txExecutor),
+		PaymentAddressAllocation:               NewPaymentAddressAllocationStore(txExecutor),
+		PaymentAddressIdempotency:              NewPaymentAddressIdempotencyStore(txExecutor),
+		PaymentReceiptTracking:                 NewPaymentReceiptTrackingStore(txExecutor),
+		PaymentReceiptStatusNotificationOutbox: NewPaymentReceiptStatusNotificationOutboxStore(txExecutor),
 	}
 
 	if err := fn(txScope); err != nil {

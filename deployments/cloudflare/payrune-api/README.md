@@ -4,8 +4,9 @@ This directory is the Cloudflare deployment shell for the standalone Payrune API
 
 The actual API behavior lives in Go:
 
-- `cmd/payrune-api-worker/`
+- `cmd/api-worker/`
 - `internal/adapters/inbound/cloudflareworker/`
+- `internal/infrastructure/di/`
 - `internal/adapters/outbound/persistence/cloudflarepostgres/`
 - existing Go use cases under `internal/application/use_cases/`
 
@@ -35,29 +36,44 @@ Future `/v1/...` API work should usually happen in Go, not in this directory.
 - `BITCOIN_TESTNET4_SEGWIT_XPUB`
 - `BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB`
 - `BITCOIN_TESTNET4_TAPROOT_XPUB`
-- `BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS`
-- `BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS`
-- `BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER`
-- `BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER`
+
+### Non-secret Worker defaults
+
+These now live in `wrangler.toml`:
+
+- `BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS = "2"`
+- `BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS = "2"`
+- `BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER = "24h"`
+- `BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER = "24h"`
 
 ### Deploy
 
 ```bash
-make cf-api-deploy
+make cf-up
 ```
+
+Repo root `.env.cloudflare` is auto-loaded before deploy and migrate flows.
+Shell env still wins over values from `.env.cloudflare`.
 
 The deploy flow will:
 
-- explicitly tell you whether PostgreSQL migration will run or be skipped
-- optionally prompt for `POSTGRES_CONNECTION_STRING`
-- optionally prompt for xpub / confirmations / expiry values
-- run migrations when a PostgreSQL connection string is provided
+- explicitly tell you whether `POSTGRES_CONNECTION_STRING` Worker secret sync will run or be skipped
 - build the Go/Wasm worker binary
 - sync provided secrets to Wrangler
 - deploy the Worker
 
+### Migration
+
+```bash
+make cf-migrate
+```
+
+Run this separately before deploy when the target PostgreSQL schema needs to be updated.
+
+`make cf-migrate` also auto-loads repo root `.env.cloudflare`.
+
 ### Teardown
 
 ```bash
-make cf-api-delete
+make cf-down
 ```

@@ -75,12 +75,17 @@ The repo MUST provide simple deploy and delete flows for the Worker.
 
 Acceptance criteria:
 
-- `make cf-api-deploy` deploys the Worker.
-- `make cf-api-delete` deletes the Worker.
-- Deploy can prompt for PostgreSQL and optional xpub secrets, and each prompt can be skipped when the secret was already set earlier.
-- If a PostgreSQL connection string is provided during deploy, the deploy flow runs migrations before deployment.
-- Deploy clearly announces whether PostgreSQL migration will run or be skipped before it starts the build/test/deploy steps.
-- In an interactive terminal, deploy prompts and migration-plan messages use terminal colors so the operator can distinguish prompts, warnings, and successful decisions quickly.
+- `make cf-up` runs the shared Cloudflare migration and deploys the API Worker as part of the unified Cloudflare rollout flow.
+- `make cf-down` deletes the API Worker as part of the unified Cloudflare teardown flow.
+- `make cf-migrate` runs the shared Cloudflare PostgreSQL migration independently.
+- Cloudflare deploy/migrate scripts auto-load repo-local `.env.cloudflare` when present.
+- The repo provides `.env.cloudflare.example` as the local Cloudflare env template.
+- `POSTGRES_CONNECTION_STRING` is required for `make cf-up` and `make cf-migrate`; missing it must fail fast instead of prompting.
+- Optional xpub envs may be left blank and skipped during Worker secret sync.
+- Non-sensitive Bitcoin confirmation and receipt-expiry defaults live in `wrangler.toml`, not in deploy-time secret sync.
+- Cloudflare deployment docs and ignore rules reference only repo-root `.env.cloudflare`, not deployment-local `.env.local` files.
+- Deploy clearly announces that `POSTGRES_CONNECTION_STRING` Worker secret sync will run before it starts the build/test/deploy steps.
+- In an interactive terminal, deploy status messages use terminal colors so the operator can distinguish steps, warnings, and success quickly.
 - Deploy builds the Go-Wasm artifact before publishing the Worker.
 
 ### FR-006 Worker-side PostgreSQL adapter

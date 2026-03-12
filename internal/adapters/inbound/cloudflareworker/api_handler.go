@@ -8,6 +8,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+
+	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
+	inport "payrune/internal/application/ports/in"
 )
 
 type Request struct {
@@ -24,16 +27,31 @@ type Response struct {
 	Body    string            `json:"body"`
 }
 
-type Adapter struct {
-	handler http.Handler
+type APIDependencies struct {
+	CheckHealthUseCase             inport.CheckHealthUseCase
+	ListAddressPoliciesUseCase     inport.ListAddressPoliciesUseCase
+	GenerateAddressUseCase         inport.GenerateAddressUseCase
+	AllocatePaymentAddressUseCase  inport.AllocatePaymentAddressUseCase
+	GetPaymentAddressStatusUseCase inport.GetPaymentAddressStatusUseCase
 }
 
-func NewAdapter(handler http.Handler) *Adapter {
-	return &Adapter{handler: handler}
+func NewAPIHandler(deps APIDependencies) http.Handler {
+	healthController := httpcontroller.NewHealthController(deps.CheckHealthUseCase)
+	chainAddressController := httpcontroller.NewChainAddressController(
+		deps.ListAddressPoliciesUseCase,
+		deps.GenerateAddressUseCase,
+		deps.AllocatePaymentAddressUseCase,
+		deps.GetPaymentAddressStatusUseCase,
+	)
+
+	mux := http.NewServeMux()
+	healthController.RegisterRoutes(mux)
+	chainAddressController.RegisterRoutes(mux)
+	return mux
 }
 
-func (a *Adapter) Handle(ctx context.Context, request Request) (Response, error) {
-	if a == nil || a.handler == nil {
+func HandleRequest(ctx context.Context, handler http.Handler, request Request) (Response, error) {
+	if handler == nil {
 		return Response{}, errors.New("cloudflare worker handler is not configured")
 	}
 
@@ -65,7 +83,7 @@ func (a *Adapter) Handle(ctx context.Context, request Request) (Response, error)
 	}
 
 	recorder := httptest.NewRecorder()
-	a.handler.ServeHTTP(recorder, httpRequest)
+	handler.ServeHTTP(recorder, httpRequest)
 
 	result := recorder.Result()
 	defer func() {

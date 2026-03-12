@@ -48,22 +48,28 @@ limit.
 
 ### Go application runtime
 
-`cmd/payrune-api-worker/` owns:
+`cmd/api-worker/` owns:
 
-- Go-Wasm entrypoint
-- Worker-specific composition root
-- env-to-Go wiring for Cloudflare runtime
+- Go-Wasm entrypoint only
 
 `internal/adapters/inbound/cloudflareworker/` owns:
 
 - Worker request/response envelope mapping
 - translation from Worker requests into Go HTTP handler invocation
+- API handler assembly from already-built use cases
+- API-side Worker HTTP bridge without a separate adapter type
 
 `internal/adapters/outbound/persistence/cloudflarepostgres/` owns:
 
 - Worker-compatible PostgreSQL adapter
 - transaction bridge
 - API-facing persistence stores and finder implementations needed by Go use cases
+
+`internal/infrastructure/di/` owns:
+
+- Cloudflare Worker runtime wiring
+- env-to-Go parsing for Cloudflare runtime
+- construction of concrete use cases and runtime dependencies
 
 This keeps future API work in Go and out of `deployments/`.
 
@@ -74,10 +80,11 @@ This keeps future API work in Go and out of `deployments/`.
 1. Worker `fetch()` receives the request.
 2. JS shell snapshots string env values and registers a request-scoped PostgreSQL bridge context.
 3. JS shell forwards a request envelope into Go/Wasm.
-4. Go/Wasm builds the Worker HTTP handler and dispatches through existing Go controllers and use cases.
-5. When a use case needs persistence, the Cloudflare Postgres adapter calls the JS PostgreSQL bridge.
-6. JS bridge executes SQL via `pg`, returns rows/results/errors, and Go continues the use case flow.
-7. Go/Wasm returns a response envelope to JS, and JS creates the final Worker `Response`.
+4. Cloudflare DI wiring builds concrete use cases and passes them to the inbound API handler assembly.
+5. Worker request bridge dispatches through existing Go controllers and use cases.
+6. When a use case needs persistence, the Cloudflare Postgres adapter calls the JS PostgreSQL bridge.
+7. JS bridge executes SQL via `pg`, returns rows/results/errors, and Go continues the use case flow.
+8. Go/Wasm returns a response envelope to JS, and JS creates the final Worker `Response`.
 
 ### PostgreSQL access
 
@@ -85,6 +92,15 @@ This keeps future API work in Go and out of `deployments/`.
 - PostgreSQL access uses `pg` with Worker Node.js compatibility enabled.
 - The JS bridge maintains pooled connections by connection string and request-scoped transaction contexts.
 - The Go adapter owns the outbound port implementations used by the existing Go use cases.
+
+### Deployment/runtime config
+
+- Non-sensitive Bitcoin API defaults live in `wrangler.toml`:
+  - `BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS = 2`
+  - `BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS = 2`
+  - `BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER = 24h`
+  - `BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER = 24h`
+- Deploy-time secret sync is reserved for sensitive values such as PostgreSQL connection strings and xpub secrets.
 
 ## API behavior
 

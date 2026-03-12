@@ -3,3 +3,9 @@ main = "src/index.mjs"
 compatibility_date = "2026-03-10"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+
+[vars]
+BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS = "2"
+BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS = "2"
+BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER = "24h"
+BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER = "24h"

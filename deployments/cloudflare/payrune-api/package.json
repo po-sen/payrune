@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:wasm": "bash ../../../scripts/build-cf-payrune-api-wasm.sh",
+    "build:wasm": "bash ../../../scripts/build-cf-api-worker-wasm.sh",
     "check": "npm run build:wasm && node --check src/index.mjs && node --check src/go-wasm-runtime.mjs && node --check src/postgres-bridge.mjs",
     "test": "npm run build:wasm && node --test test/*.test.mjs"
   },

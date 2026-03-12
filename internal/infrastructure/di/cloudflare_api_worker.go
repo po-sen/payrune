@@ -1,6 +1,4 @@
-//go:build js && wasm
-
-package main
+package di
 
 import (
 	"fmt"
@@ -9,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
+	inboundadapter "payrune/internal/adapters/inbound/cloudflareworker"
 	"payrune/internal/adapters/outbound/bitcoin"
 	"payrune/internal/adapters/outbound/blockchain"
 	cloudflarepostgres "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
@@ -21,32 +19,31 @@ import (
 )
 
 const (
-	envBitcoinMainnetLegacyXPub             = "BITCOIN_MAINNET_LEGACY_XPUB"
-	envBitcoinMainnetSegwitXPub             = "BITCOIN_MAINNET_SEGWIT_XPUB"
-	envBitcoinMainnetNativeSegwitXPub       = "BITCOIN_MAINNET_NATIVE_SEGWIT_XPUB"
-	envBitcoinMainnetTaprootXPub            = "BITCOIN_MAINNET_TAPROOT_XPUB"
-	envBitcoinTestnet4LegacyXPub            = "BITCOIN_TESTNET4_LEGACY_XPUB"
-	envBitcoinTestnet4SegwitXPub            = "BITCOIN_TESTNET4_SEGWIT_XPUB"
-	envBitcoinTestnet4NativeSegwitXPub      = "BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB"
-	envBitcoinTestnet4TaprootXPub           = "BITCOIN_TESTNET4_TAPROOT_XPUB"
-	envBitcoinMainnetRequiredConfirmations  = "BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS"
-	envBitcoinTestnet4RequiredConfirmations = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
-	envBitcoinMainnetReceiptExpiresAfter    = "BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER"
-	envBitcoinTestnet4ReceiptExpiresAfter   = "BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER"
-	defaultBitcoinRequiredConfirmations     = int32(2)
-	defaultBitcoinReceiptExpiresAfter       = 24 * time.Hour
+	envBitcoinMainnetLegacyXPub               = "BITCOIN_MAINNET_LEGACY_XPUB"
+	envBitcoinMainnetSegwitXPub               = "BITCOIN_MAINNET_SEGWIT_XPUB"
+	envBitcoinMainnetNativeSegwitXPub         = "BITCOIN_MAINNET_NATIVE_SEGWIT_XPUB"
+	envBitcoinMainnetTaprootXPub              = "BITCOIN_MAINNET_TAPROOT_XPUB"
+	envBitcoinTestnet4LegacyXPub              = "BITCOIN_TESTNET4_LEGACY_XPUB"
+	envBitcoinTestnet4SegwitXPub              = "BITCOIN_TESTNET4_SEGWIT_XPUB"
+	envBitcoinTestnet4NativeSegwitXPub        = "BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB"
+	envBitcoinTestnet4TaprootXPub             = "BITCOIN_TESTNET4_TAPROOT_XPUB"
+	cfEnvBitcoinMainnetRequiredConfirmations  = "BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS"
+	cfEnvBitcoinTestnet4RequiredConfirmations = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
+	cfEnvBitcoinMainnetReceiptExpiresAfter    = "BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER"
+	cfEnvBitcoinTestnet4ReceiptExpiresAfter   = "BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER"
+	cfDefaultBitcoinRequiredConfirmations     = int32(2)
+	cfDefaultBitcoinReceiptExpiresAfter       = 24 * time.Hour
 )
 
-func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, error) {
+func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http.Handler, error) {
 	clock := system.NewClock()
 	healthUseCase := use_cases.NewCheckHealthUseCase(clock)
-	healthController := httpcontroller.NewHealthController(healthUseCase)
 
-	requiredConfirmationsByNetwork, err := loadBitcoinRequiredConfirmations(env)
+	requiredConfirmationsByNetwork, err := loadCloudflareBitcoinRequiredConfirmations(env)
 	if err != nil {
 		return nil, err
 	}
-	receiptExpiresAfterByNetwork, err := loadBitcoinReceiptExpiresAfter(env)
+	receiptExpiresAfterByNetwork, err := loadCloudflareBitcoinReceiptExpiresAfter(env)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +69,7 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 			Scheme:               string(value_objects.BitcoinAddressSchemeLegacy),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
-			AccountPublicKey:     envValue(env, envBitcoinMainnetLegacyXPub),
+			AccountPublicKey:     envMapValue(env, envBitcoinMainnetLegacyXPub),
 			DerivationPathPrefix: "m/44'/0'/0'",
 		},
 		{
@@ -82,7 +79,7 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 			Scheme:               string(value_objects.BitcoinAddressSchemeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
-			AccountPublicKey:     envValue(env, envBitcoinMainnetSegwitXPub),
+			AccountPublicKey:     envMapValue(env, envBitcoinMainnetSegwitXPub),
 			DerivationPathPrefix: "m/49'/0'/0'",
 		},
 		{
@@ -92,7 +89,7 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 			Scheme:               string(value_objects.BitcoinAddressSchemeNativeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
-			AccountPublicKey:     envValue(env, envBitcoinMainnetNativeSegwitXPub),
+			AccountPublicKey:     envMapValue(env, envBitcoinMainnetNativeSegwitXPub),
 			DerivationPathPrefix: "m/84'/0'/0'",
 		},
 		{
@@ -102,7 +99,7 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 			Scheme:               string(value_objects.BitcoinAddressSchemeTaproot),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
-			AccountPublicKey:     envValue(env, envBitcoinMainnetTaprootXPub),
+			AccountPublicKey:     envMapValue(env, envBitcoinMainnetTaprootXPub),
 			DerivationPathPrefix: "m/86'/0'/0'",
 		},
 		{
@@ -112,7 +109,7 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 			Scheme:               string(value_objects.BitcoinAddressSchemeLegacy),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
-			AccountPublicKey:     envValue(env, envBitcoinTestnet4LegacyXPub),
+			AccountPublicKey:     envMapValue(env, envBitcoinTestnet4LegacyXPub),
 			DerivationPathPrefix: "m/44'/1'/0'",
 		},
 		{
@@ -122,7 +119,7 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 			Scheme:               string(value_objects.BitcoinAddressSchemeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
-			AccountPublicKey:     envValue(env, envBitcoinTestnet4SegwitXPub),
+			AccountPublicKey:     envMapValue(env, envBitcoinTestnet4SegwitXPub),
 			DerivationPathPrefix: "m/49'/1'/0'",
 		},
 		{
@@ -132,7 +129,7 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 			Scheme:               string(value_objects.BitcoinAddressSchemeNativeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
-			AccountPublicKey:     envValue(env, envBitcoinTestnet4NativeSegwitXPub),
+			AccountPublicKey:     envMapValue(env, envBitcoinTestnet4NativeSegwitXPub),
 			DerivationPathPrefix: "m/84'/1'/0'",
 		},
 		{
@@ -142,7 +139,7 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 			Scheme:               string(value_objects.BitcoinAddressSchemeTaproot),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
-			AccountPublicKey:     envValue(env, envBitcoinTestnet4TaprootXPub),
+			AccountPublicKey:     envMapValue(env, envBitcoinTestnet4TaprootXPub),
 			DerivationPathPrefix: "m/86'/1'/0'",
 		},
 	})
@@ -168,29 +165,21 @@ func buildHTTPHandler(env map[string]string, bridgeID string) (http.Handler, err
 		addressPolicyReader,
 	)
 
-	chainAddressController := httpcontroller.NewChainAddressController(
-		listAddressPoliciesUseCase,
-		generateAddressUseCase,
-		allocatePaymentAddressUseCase,
-		getPaymentAddressStatusUseCase,
-	)
-
-	mux := http.NewServeMux()
-	healthController.RegisterRoutes(mux)
-	chainAddressController.RegisterRoutes(mux)
-	return mux, nil
+	return inboundadapter.NewAPIHandler(inboundadapter.APIDependencies{
+		CheckHealthUseCase:             healthUseCase,
+		ListAddressPoliciesUseCase:     listAddressPoliciesUseCase,
+		GenerateAddressUseCase:         generateAddressUseCase,
+		AllocatePaymentAddressUseCase:  allocatePaymentAddressUseCase,
+		GetPaymentAddressStatusUseCase: getPaymentAddressStatusUseCase,
+	}), nil
 }
 
-func envValue(env map[string]string, key string) string {
-	return strings.TrimSpace(env[key])
-}
-
-func loadBitcoinRequiredConfirmations(env map[string]string) (map[value_objects.NetworkID]int32, error) {
-	mainnetConfirmations, err := parsePositiveInt32EnvWithDefault(env, envBitcoinMainnetRequiredConfirmations, defaultBitcoinRequiredConfirmations)
+func loadCloudflareBitcoinRequiredConfirmations(env map[string]string) (map[value_objects.NetworkID]int32, error) {
+	mainnetConfirmations, err := parsePositiveInt32MapWithDefault(env, cfEnvBitcoinMainnetRequiredConfirmations, cfDefaultBitcoinRequiredConfirmations)
 	if err != nil {
 		return nil, err
 	}
-	testnet4Confirmations, err := parsePositiveInt32EnvWithDefault(env, envBitcoinTestnet4RequiredConfirmations, defaultBitcoinRequiredConfirmations)
+	testnet4Confirmations, err := parsePositiveInt32MapWithDefault(env, cfEnvBitcoinTestnet4RequiredConfirmations, cfDefaultBitcoinRequiredConfirmations)
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +190,12 @@ func loadBitcoinRequiredConfirmations(env map[string]string) (map[value_objects.
 	}, nil
 }
 
-func loadBitcoinReceiptExpiresAfter(env map[string]string) (map[value_objects.NetworkID]time.Duration, error) {
-	mainnetExpiresAfter, err := parseDurationEnvWithDefault(env, envBitcoinMainnetReceiptExpiresAfter, defaultBitcoinReceiptExpiresAfter)
+func loadCloudflareBitcoinReceiptExpiresAfter(env map[string]string) (map[value_objects.NetworkID]time.Duration, error) {
+	mainnetExpiresAfter, err := parseDurationMapWithDefault(env, cfEnvBitcoinMainnetReceiptExpiresAfter, cfDefaultBitcoinReceiptExpiresAfter)
 	if err != nil {
 		return nil, err
 	}
-	testnet4ExpiresAfter, err := parseDurationEnvWithDefault(env, envBitcoinTestnet4ReceiptExpiresAfter, defaultBitcoinReceiptExpiresAfter)
+	testnet4ExpiresAfter, err := parseDurationMapWithDefault(env, cfEnvBitcoinTestnet4ReceiptExpiresAfter, cfDefaultBitcoinReceiptExpiresAfter)
 	if err != nil {
 		return nil, err
 	}
@@ -217,8 +206,8 @@ func loadBitcoinReceiptExpiresAfter(env map[string]string) (map[value_objects.Ne
 	}, nil
 }
 
-func parsePositiveInt32EnvWithDefault(env map[string]string, key string, fallback int32) (int32, error) {
-	rawValue := strings.TrimSpace(env[key])
+func parsePositiveInt32MapWithDefault(env map[string]string, key string, fallback int32) (int32, error) {
+	rawValue := envMapValue(env, key)
 	if rawValue == "" {
 		return fallback, nil
 	}
@@ -234,7 +223,11 @@ func parsePositiveInt32EnvWithDefault(env map[string]string, key string, fallbac
 	return int32(parsedValue), nil
 }
 
-func parseDurationEnvWithDefault(env map[string]string, key string, fallback time.Duration) (time.Duration, error) {
+func envMapValue(env map[string]string, key string) string {
+	return strings.TrimSpace(env[key])
+}
+
+func parseDurationMapWithDefault(env map[string]string, key string, fallback time.Duration) (time.Duration, error) {
 	rawValue := strings.TrimSpace(env[key])
 	if rawValue == "" {
 		return fallback, nil

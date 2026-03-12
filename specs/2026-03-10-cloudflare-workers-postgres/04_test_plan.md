@@ -72,12 +72,12 @@ links:
 
 - Linked requirements: FR-005
 - Method:
-  - Run `make -n cf-api-deploy` and `make -n cf-api-delete`.
+  - Run `make -n cf-up` and `make -n cf-down`.
   - Manually review deploy output for both cases:
-    - PostgreSQL connection string provided
-    - PostgreSQL connection string skipped
+    - `POSTGRES_CONNECTION_STRING` provided via `.env.cloudflare`
+    - `POSTGRES_CONNECTION_STRING` missing
 - Expected result:
-  - Only the two expected Worker flows remain, deploy can accept PostgreSQL/xpub secret prompts, deploy explicitly states whether migration will run or be skipped, and interactive prompts/messages are colorized.
+  - `cf-up` stacks migration plus API/poller deploy scripts in the expected order, `cf-down` stacks teardown scripts in the expected order, `.env.cloudflare` is auto-loaded, missing `POSTGRES_CONNECTION_STRING` fails fast, optional xpub/config envs can stay blank, and deploy status output remains colorized.
 
 ### TC-007 Shell thinness
 

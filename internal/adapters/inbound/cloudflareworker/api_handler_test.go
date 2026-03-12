@@ -7,20 +7,19 @@ import (
 	"testing"
 )
 
-func TestAdapterHandle(t *testing.T) {
+func TestHandleRequest(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	adapter := NewAdapter(mux)
-	response, err := adapter.Handle(context.Background(), Request{
+	response, err := HandleRequest(context.Background(), mux, Request{
 		Method: http.MethodGet,
 		Path:   "/health",
 	})
 	if err != nil {
-		t.Fatalf("Handle returned error: %v", err)
+		t.Fatalf("HandleRequest returned error: %v", err)
 	}
 	if response.Status != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Status)

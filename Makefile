@@ -6,8 +6,9 @@ COMPOSE := docker compose \
 .PHONY: \
 	up \
 	down \
-	cf-api-deploy \
-	cf-api-delete
+	cf-migrate \
+	cf-up \
+	cf-down
 
 up:
 	$(COMPOSE) up -d --build
@@ -15,8 +16,16 @@ up:
 down:
 	$(COMPOSE) down
 
-cf-api-deploy:
-	./scripts/cf-payrune-api-deploy.sh
+cf-migrate:
+	./scripts/cf-cloudflare-migrate.sh
 
-cf-api-delete:
-	./scripts/cf-payrune-api-delete.sh
+cf-up:
+	./scripts/cf-cloudflare-migrate.sh
+	./scripts/cf-api-worker-deploy.sh
+	./scripts/cf-poller-worker-deploy.sh mainnet
+	./scripts/cf-poller-worker-deploy.sh testnet4
+
+cf-down:
+	./scripts/cf-api-worker-delete.sh
+	./scripts/cf-poller-worker-delete.sh mainnet
+	./scripts/cf-poller-worker-delete.sh testnet4

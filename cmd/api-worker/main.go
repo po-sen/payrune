@@ -8,6 +8,7 @@ import (
 	"syscall/js"
 
 	inboundadapter "payrune/internal/adapters/inbound/cloudflareworker"
+	"payrune/internal/infrastructure/di"
 )
 
 type requestEnvelope struct {
@@ -72,11 +73,10 @@ func handleRequestJSON(payload string) (string, error) {
 }
 
 func handleRequest(ctx context.Context, envelope requestEnvelope) (responsePayload, error) {
-	handler, err := buildHTTPHandler(envelope.Env, envelope.BridgeID)
+	handler, err := di.BuildCloudflareAPIHTTPHandler(envelope.Env, envelope.BridgeID)
 	if err != nil {
 		return inboundadapter.Response{}, err
 	}
 
-	adapter := inboundadapter.NewAdapter(handler)
-	return adapter.Handle(ctx, envelope.Request)
+	return inboundadapter.HandleRequest(ctx, handler, envelope.Request)
 }
