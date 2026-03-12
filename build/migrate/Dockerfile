@@ -8,14 +8,14 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o
 
 FROM alpine:3.21
 
-RUN addgroup -S app && adduser -S -G app app
+RUN addgroup -S api && adduser -S -G api api
 
-WORKDIR /app
+WORKDIR /api
 
-COPY --from=builder /out/migrate /app/migrate
-COPY deployments/postgresql/migrations /app/migrations
+COPY --from=builder /out/migrate /api/migrate
+COPY deployments/postgresql/migrations /api/migrations
 
-USER app
+USER api
 
-ENTRYPOINT ["/app/migrate"]
+ENTRYPOINT ["/api/migrate"]
 CMD ["up"]

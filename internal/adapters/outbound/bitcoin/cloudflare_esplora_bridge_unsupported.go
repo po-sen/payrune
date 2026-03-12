@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type unsupportedCloudflareEsploraBridge struct{}
@@ -18,7 +18,7 @@ func NewCloudflareEsploraBridge() CloudflareEsploraBridge {
 func (b *unsupportedCloudflareEsploraBridge) FetchLatestBlockHeight(
 	context.Context,
 	string,
-	value_objects.NetworkID,
+	valueobjects.NetworkID,
 ) (int64, error) {
 	return 0, errors.New("cloudflare bitcoin esplora bridge is only available in js/wasm")
 }
@@ -26,7 +26,7 @@ func (b *unsupportedCloudflareEsploraBridge) FetchLatestBlockHeight(
 func (b *unsupportedCloudflareEsploraBridge) FetchAddressChainTransactions(
 	context.Context,
 	string,
-	value_objects.NetworkID,
+	valueobjects.NetworkID,
 	string,
 ) ([]esploraTransaction, error) {
 	return nil, errors.New("cloudflare bitcoin esplora bridge is only available in js/wasm")
@@ -35,7 +35,7 @@ func (b *unsupportedCloudflareEsploraBridge) FetchAddressChainTransactions(
 func (b *unsupportedCloudflareEsploraBridge) FetchAddressMempoolTransactions(
 	context.Context,
 	string,
-	value_objects.NetworkID,
+	valueobjects.NetworkID,
 	string,
 ) ([]esploraTransaction, error) {
 	return nil, errors.New("cloudflare bitcoin esplora bridge is only available in js/wasm")

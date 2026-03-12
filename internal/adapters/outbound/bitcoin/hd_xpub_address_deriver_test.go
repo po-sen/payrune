@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
@@ -18,8 +18,8 @@ func TestHDXPubAddressDeriverDeriveDeterministicLegacy(t *testing.T) {
 	deriver := newTestDeriver()
 
 	first, err := deriver.DeriveAddress(
-		value_objects.BitcoinNetworkMainnet,
-		value_objects.BitcoinAddressSchemeLegacy,
+		valueobjects.BitcoinNetworkMainnet,
+		valueobjects.BitcoinAddressSchemeLegacy,
 		xpub,
 		7,
 	)
@@ -27,8 +27,8 @@ func TestHDXPubAddressDeriverDeriveDeterministicLegacy(t *testing.T) {
 		t.Fatalf("DeriveAddress returned error: %v", err)
 	}
 	second, err := deriver.DeriveAddress(
-		value_objects.BitcoinNetworkMainnet,
-		value_objects.BitcoinAddressSchemeLegacy,
+		valueobjects.BitcoinNetworkMainnet,
+		valueobjects.BitcoinAddressSchemeLegacy,
 		xpub,
 		7,
 	)
@@ -47,8 +47,8 @@ func TestHDXPubAddressDeriverAccountXPubUsesExternalChainBranch(t *testing.T) {
 	index := uint32(9)
 
 	got, err := deriver.DeriveAddress(
-		value_objects.BitcoinNetworkMainnet,
-		value_objects.BitcoinAddressSchemeNativeSegwit,
+		valueobjects.BitcoinNetworkMainnet,
+		valueobjects.BitcoinAddressSchemeNativeSegwit,
 		xpub,
 		index,
 	)
@@ -75,8 +75,8 @@ func TestHDXPubAddressDeriverChangeXPubUsesDirectIndex(t *testing.T) {
 	index := uint32(9)
 
 	got, err := deriver.DeriveAddress(
-		value_objects.BitcoinNetworkMainnet,
-		value_objects.BitcoinAddressSchemeNativeSegwit,
+		valueobjects.BitcoinNetworkMainnet,
+		valueobjects.BitcoinAddressSchemeNativeSegwit,
 		xpub,
 		index,
 	)
@@ -126,15 +126,15 @@ func TestHDXPubAddressDeriverDerivationPathChangeLevelXPub(t *testing.T) {
 func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 	tests := []struct {
 		name       string
-		network    value_objects.BitcoinNetwork
-		scheme     value_objects.BitcoinAddressScheme
+		network    valueobjects.BitcoinNetwork
+		scheme     valueobjects.BitcoinAddressScheme
 		params     *chaincfg.Params
 		assertType func(t *testing.T, address btcutil.Address)
 	}{
 		{
 			name:    "mainnet legacy p2pkh",
-			network: value_objects.BitcoinNetworkMainnet,
-			scheme:  value_objects.BitcoinAddressSchemeLegacy,
+			network: valueobjects.BitcoinNetworkMainnet,
+			scheme:  valueobjects.BitcoinAddressSchemeLegacy,
 			params:  &chaincfg.MainNetParams,
 			assertType: func(t *testing.T, address btcutil.Address) {
 				t.Helper()
@@ -145,8 +145,8 @@ func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 		},
 		{
 			name:    "mainnet segwit nested p2sh-p2wpkh",
-			network: value_objects.BitcoinNetworkMainnet,
-			scheme:  value_objects.BitcoinAddressSchemeSegwit,
+			network: valueobjects.BitcoinNetworkMainnet,
+			scheme:  valueobjects.BitcoinAddressSchemeSegwit,
 			params:  &chaincfg.MainNetParams,
 			assertType: func(t *testing.T, address btcutil.Address) {
 				t.Helper()
@@ -157,8 +157,8 @@ func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 		},
 		{
 			name:    "mainnet native segwit p2wpkh",
-			network: value_objects.BitcoinNetworkMainnet,
-			scheme:  value_objects.BitcoinAddressSchemeNativeSegwit,
+			network: valueobjects.BitcoinNetworkMainnet,
+			scheme:  valueobjects.BitcoinAddressSchemeNativeSegwit,
 			params:  &chaincfg.MainNetParams,
 			assertType: func(t *testing.T, address btcutil.Address) {
 				t.Helper()
@@ -169,8 +169,8 @@ func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 		},
 		{
 			name:    "mainnet taproot p2tr",
-			network: value_objects.BitcoinNetworkMainnet,
-			scheme:  value_objects.BitcoinAddressSchemeTaproot,
+			network: valueobjects.BitcoinNetworkMainnet,
+			scheme:  valueobjects.BitcoinAddressSchemeTaproot,
 			params:  &chaincfg.MainNetParams,
 			assertType: func(t *testing.T, address btcutil.Address) {
 				t.Helper()
@@ -181,8 +181,8 @@ func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 		},
 		{
 			name:    "testnet4 legacy p2pkh",
-			network: value_objects.BitcoinNetworkTestnet4,
-			scheme:  value_objects.BitcoinAddressSchemeLegacy,
+			network: valueobjects.BitcoinNetworkTestnet4,
+			scheme:  valueobjects.BitcoinAddressSchemeLegacy,
 			params:  &chaincfg.TestNet4Params,
 			assertType: func(t *testing.T, address btcutil.Address) {
 				t.Helper()
@@ -193,8 +193,8 @@ func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 		},
 		{
 			name:    "testnet4 segwit nested p2sh-p2wpkh",
-			network: value_objects.BitcoinNetworkTestnet4,
-			scheme:  value_objects.BitcoinAddressSchemeSegwit,
+			network: valueobjects.BitcoinNetworkTestnet4,
+			scheme:  valueobjects.BitcoinAddressSchemeSegwit,
 			params:  &chaincfg.TestNet4Params,
 			assertType: func(t *testing.T, address btcutil.Address) {
 				t.Helper()
@@ -205,8 +205,8 @@ func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 		},
 		{
 			name:    "testnet4 native segwit p2wpkh",
-			network: value_objects.BitcoinNetworkTestnet4,
-			scheme:  value_objects.BitcoinAddressSchemeNativeSegwit,
+			network: valueobjects.BitcoinNetworkTestnet4,
+			scheme:  valueobjects.BitcoinAddressSchemeNativeSegwit,
 			params:  &chaincfg.TestNet4Params,
 			assertType: func(t *testing.T, address btcutil.Address) {
 				t.Helper()
@@ -217,8 +217,8 @@ func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 		},
 		{
 			name:    "testnet4 taproot p2tr",
-			network: value_objects.BitcoinNetworkTestnet4,
-			scheme:  value_objects.BitcoinAddressSchemeTaproot,
+			network: valueobjects.BitcoinNetworkTestnet4,
+			scheme:  valueobjects.BitcoinAddressSchemeTaproot,
 			params:  &chaincfg.TestNet4Params,
 			assertType: func(t *testing.T, address btcutil.Address) {
 				t.Helper()
@@ -256,8 +256,8 @@ func TestHDXPubAddressDeriverInvalidXPub(t *testing.T) {
 	deriver := newTestDeriver()
 
 	_, err := deriver.DeriveAddress(
-		value_objects.BitcoinNetworkMainnet,
-		value_objects.BitcoinAddressSchemeLegacy,
+		valueobjects.BitcoinNetworkMainnet,
+		valueobjects.BitcoinAddressSchemeLegacy,
 		"not-an-xpub",
 		0,
 	)
@@ -274,8 +274,8 @@ func TestHDXPubAddressDeriverUnsupportedNetwork(t *testing.T) {
 	xpub := newTestXPub(t, &chaincfg.MainNetParams)
 
 	_, err := deriver.DeriveAddress(
-		value_objects.BitcoinNetwork("regtest"),
-		value_objects.BitcoinAddressSchemeLegacy,
+		valueobjects.BitcoinNetwork("regtest"),
+		valueobjects.BitcoinAddressSchemeLegacy,
 		xpub,
 		0,
 	)
@@ -292,8 +292,8 @@ func TestHDXPubAddressDeriverUnsupportedScheme(t *testing.T) {
 	xpub := newTestXPub(t, &chaincfg.MainNetParams)
 
 	_, err := deriver.DeriveAddress(
-		value_objects.BitcoinNetworkMainnet,
-		value_objects.BitcoinAddressScheme("weird"),
+		valueobjects.BitcoinNetworkMainnet,
+		valueobjects.BitcoinAddressScheme("weird"),
 		xpub,
 		0,
 	)
@@ -310,8 +310,8 @@ func TestHDXPubAddressDeriverMissingEncoderConfiguration(t *testing.T) {
 	xpub := newTestXPub(t, &chaincfg.MainNetParams)
 
 	_, err := deriver.DeriveAddress(
-		value_objects.BitcoinNetworkMainnet,
-		value_objects.BitcoinAddressSchemeLegacy,
+		valueobjects.BitcoinNetworkMainnet,
+		valueobjects.BitcoinAddressSchemeLegacy,
 		xpub,
 		0,
 	)

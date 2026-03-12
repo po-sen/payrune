@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentAddressStatusFinder struct {
@@ -118,18 +118,18 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
 	}
 
-	chain, ok := value_objects.ParseSupportedChain(rawChain)
+	chain, ok := valueobjects.ParseSupportedChain(rawChain)
 	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf("persisted payment address chain is invalid: %s", rawChain)
 	}
-	network, ok := value_objects.ParseNetworkID(rawNetwork)
+	network, ok := valueobjects.ParseNetworkID(rawNetwork)
 	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf("persisted payment address network is invalid: %s", rawNetwork)
 	}
 	if !receiptStatusRaw.Valid {
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
 	}
-	status, ok := value_objects.ParsePaymentReceiptStatus(receiptStatusRaw.String)
+	status, ok := valueobjects.ParsePaymentReceiptStatus(receiptStatusRaw.String)
 	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf("persisted payment receipt status is invalid: %s", receiptStatusRaw.String)
 	}

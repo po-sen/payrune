@@ -686,11 +686,11 @@ boundaries. Extra feature-level separation is optional for small projects.
 4. Ensure the directory structure exists for `internal/domain`, `internal/application`,
    `internal/adapters`, `internal/infrastructure/di`, and `cmd/<app>/main.go` or
    `internal/bootstrap` when those repo-standard wiring points are present.
-5. Define or extend a single inbound port per use case in `internal/application/ports/in`, using
+5. Define or extend a single inbound port per use case in `internal/application/ports/inbound`, using
    command-style input and explicit output DTOs.
-6. Implement the use case in `internal/application/use_cases`, orchestrating domain behavior and
+6. Implement the use case in `internal/application/usecases`, orchestrating domain behavior and
    interacting with external systems only via outbound ports (no direct drivers/framework calls).
-7. Define outbound ports in `internal/application/ports/out` for any IO needs; shape them by core
+7. Define outbound ports in `internal/application/ports/outbound` for any IO needs; shape them by core
    needs, not external APIs.
 8. For query-heavy read use cases, define a read-side outbound port (`*ReadModel` / `*QueryService`
    / `*Finder`) returning DTOs/views, separate from aggregate repositories.
@@ -757,15 +757,15 @@ Repo-default structure:
 internal/
   domain/
     entities/
-    value_objects/
+    valueobjects/
     services/
     policies/
     events/
   application/
     ports/
-      in/
-      out/
-    use_cases/
+      inbound/
+      outbound/
+    usecases/
     dto/
     mappers/
   adapters/
@@ -888,7 +888,7 @@ or tooling.
   errors to transport-specific responses.
 - Only composition roots may bind ports to adapter implementations. Do not instantiate drivers/SDK
   clients inside domain/application.
-- Command bus interface (if used) lives in `internal/application/ports/in`. In-memory bus may live
+- Command bus interface (if used) lives in `internal/application/ports/inbound`. In-memory bus may live
   in application; framework-driven bus wiring stays in infrastructure.
 
 Output requirements:

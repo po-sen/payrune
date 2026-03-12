@@ -10,20 +10,20 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func newAllocationStoreTestPolicy() entities.AddressIssuancePolicy {
 	return entities.AddressIssuancePolicy{
 		AddressPolicy: entities.AddressPolicy{
 			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           value_objects.SupportedChainBitcoin,
-			Network:         value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:          string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
-		DerivationConfig: value_objects.AddressDerivationConfig{
+		DerivationConfig: valueobjects.AddressDerivationConfig{
 			AccountPublicKey:         "xpub-main",
 			PublicKeyFingerprintAlgo: "sha256-trunc64-hex-v1",
 			PublicKeyFingerprint:     "fingerprint-main",
@@ -65,9 +65,9 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 	issuedAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
 	allocation := entities.PaymentAddressAllocation{
 		PaymentAddressID: 44,
-		Chain:            value_objects.SupportedChainBitcoin,
-		Network:          value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-		Scheme:           string(value_objects.BitcoinAddressSchemeNativeSegwit),
+		Chain:            valueobjects.SupportedChainBitcoin,
+		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Scheme:           string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		Address:          " bc1qallocated ",
 		DerivationPath:   " m/84'/0'/0'/0/11 ",
 	}
@@ -185,7 +185,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 	if allocation.Address != "bc1qlookup" {
 		t.Fatalf("unexpected address: got %q", allocation.Address)
 	}
-	if allocation.Status != value_objects.PaymentAddressAllocationStatusIssued {
+	if allocation.Status != valueobjects.PaymentAddressAllocationStatusIssued {
 		t.Fatalf("unexpected status: got %q", allocation.Status)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -334,7 +334,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationSuccess(t *testing.
 	if allocation.CustomerReference != "order-1" {
 		t.Fatalf("unexpected customer reference: got %q", allocation.CustomerReference)
 	}
-	if allocation.Status != value_objects.PaymentAddressAllocationStatusReserved {
+	if allocation.Status != valueobjects.PaymentAddressAllocationStatusReserved {
 		t.Fatalf("unexpected status: got %q", allocation.Status)
 	}
 }
@@ -394,7 +394,7 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 	if allocation.CustomerReference != "order-2" {
 		t.Fatalf("unexpected customer reference: got %q", allocation.CustomerReference)
 	}
-	if allocation.Status != value_objects.PaymentAddressAllocationStatusReserved {
+	if allocation.Status != valueobjects.PaymentAddressAllocationStatusReserved {
 		t.Fatalf("unexpected status: got %q", allocation.Status)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

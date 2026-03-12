@@ -4,16 +4,16 @@ WORKDIR /src
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/fake-webhook-receiver ./cmd/fake_webhook_receiver
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/fake-webhook-receiver ./cmd/fake-webhook-receiver
 
 FROM alpine:3.21
 
-RUN addgroup -S app && adduser -S -G app app
+RUN addgroup -S api && adduser -S -G api api
 
-WORKDIR /app
+WORKDIR /api
 
-COPY --from=builder /out/fake-webhook-receiver /app/fake-webhook-receiver
+COPY --from=builder /out/fake-webhook-receiver /api/fake-webhook-receiver
 
-USER app
+USER api
 
-ENTRYPOINT ["/app/fake-webhook-receiver"]
+ENTRYPOINT ["/api/fake-webhook-receiver"]

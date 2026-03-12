@@ -3,7 +3,7 @@ package entities
 import (
 	"errors"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 var (
@@ -15,7 +15,7 @@ var (
 
 type AddressIssuancePolicy struct {
 	AddressPolicy    AddressPolicy
-	DerivationConfig value_objects.AddressDerivationConfig
+	DerivationConfig valueobjects.AddressDerivationConfig
 }
 
 func (p AddressIssuancePolicy) Normalize() AddressIssuancePolicy {
@@ -30,7 +30,7 @@ func (p AddressIssuancePolicy) IsEnabled() bool {
 }
 
 func (p AddressIssuancePolicy) ValidateForAllocationIssuance(
-	requestedChain value_objects.SupportedChain,
+	requestedChain valueobjects.SupportedChain,
 	expectedAmountMinor int64,
 ) (AddressIssuancePolicy, error) {
 	normalized := p.Normalize()

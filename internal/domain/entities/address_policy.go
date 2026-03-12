@@ -3,13 +3,13 @@ package entities
 import (
 	"strings"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type AddressPolicy struct {
 	AddressPolicyID string
-	Chain           value_objects.SupportedChain
-	Network         value_objects.NetworkID
+	Chain           valueobjects.SupportedChain
+	Network         valueobjects.NetworkID
 	Scheme          string
 	MinorUnit       string
 	Decimals        uint8
@@ -23,10 +23,10 @@ func (p AddressPolicy) IsEnabled() bool {
 func (p AddressPolicy) Normalize() AddressPolicy {
 	p.AddressPolicyID = strings.TrimSpace(p.AddressPolicyID)
 	p.MinorUnit = strings.TrimSpace(p.MinorUnit)
-	if normalizedNetwork, ok := value_objects.ParseNetworkID(string(p.Network)); ok {
+	if normalizedNetwork, ok := valueobjects.ParseNetworkID(string(p.Network)); ok {
 		p.Network = normalizedNetwork
 	} else {
-		p.Network = value_objects.NetworkID(strings.ToLower(strings.TrimSpace(string(p.Network))))
+		p.Network = valueobjects.NetworkID(strings.ToLower(strings.TrimSpace(string(p.Network))))
 	}
 	p.Scheme = strings.TrimSpace(p.Scheme)
 	return p

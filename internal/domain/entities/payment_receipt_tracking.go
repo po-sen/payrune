@@ -6,20 +6,20 @@ import (
 	"time"
 
 	"payrune/internal/domain/events"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentReceiptTracking struct {
 	TrackingID              int64
 	PaymentAddressID        int64
 	AddressPolicyID         string
-	Chain                   value_objects.ChainID
-	Network                 value_objects.NetworkID
+	Chain                   valueobjects.ChainID
+	Network                 valueobjects.NetworkID
 	Address                 string
 	IssuedAt                time.Time
 	ExpectedAmountMinor     int64
 	RequiredConfirmations   int32
-	Status                  value_objects.PaymentReceiptStatus
+	Status                  valueobjects.PaymentReceiptStatus
 	ObservedTotalMinor      int64
 	ConfirmedTotalMinor     int64
 	UnconfirmedTotalMinor   int64
@@ -34,8 +34,8 @@ type PaymentReceiptTracking struct {
 func NewPaymentReceiptTracking(
 	paymentAddressID int64,
 	addressPolicyID string,
-	chain value_objects.ChainID,
-	network value_objects.NetworkID,
+	chain valueobjects.ChainID,
+	network valueobjects.NetworkID,
 	address string,
 	issuedAt time.Time,
 	expectedAmountMinor int64,
@@ -43,8 +43,8 @@ func NewPaymentReceiptTracking(
 ) (PaymentReceiptTracking, error) {
 	normalizedPolicyID := strings.TrimSpace(addressPolicyID)
 	normalizedAddress := strings.TrimSpace(address)
-	normalizedChain, chainOK := value_objects.ParseChainID(string(chain))
-	normalizedNetwork, networkOK := value_objects.ParseNetworkID(string(network))
+	normalizedChain, chainOK := valueobjects.ParseChainID(string(chain))
+	normalizedNetwork, networkOK := valueobjects.ParseNetworkID(string(network))
 
 	if paymentAddressID <= 0 {
 		return PaymentReceiptTracking{}, errors.New("payment address id must be greater than zero")
@@ -80,12 +80,12 @@ func NewPaymentReceiptTracking(
 		IssuedAt:              issuedAt.UTC(),
 		ExpectedAmountMinor:   expectedAmountMinor,
 		RequiredConfirmations: requiredConfirmations,
-		Status:                value_objects.PaymentReceiptStatusWatching,
+		Status:                valueobjects.PaymentReceiptStatusWatching,
 	}, nil
 }
 
 func (t PaymentReceiptTracking) ApplyObservation(
-	observation value_objects.PaymentReceiptObservation,
+	observation valueobjects.PaymentReceiptObservation,
 	observedAt time.Time,
 ) (PaymentReceiptTracking, error) {
 	if err := observation.Validate(); err != nil {
@@ -148,13 +148,13 @@ func (t PaymentReceiptTracking) MarkExpired(reason string) (PaymentReceiptTracki
 	}
 
 	updated := t
-	updated.Status = value_objects.PaymentReceiptStatusFailedExpired
+	updated.Status = valueobjects.PaymentReceiptStatusFailedExpired
 	updated.LastError = normalizedReason
 	return updated, nil
 }
 
 func (t PaymentReceiptTracking) StatusChangedEvent(
-	previousStatus value_objects.PaymentReceiptStatus,
+	previousStatus valueobjects.PaymentReceiptStatus,
 	changedAt time.Time,
 ) (events.PaymentReceiptStatusChanged, bool, error) {
 	if previousStatus == t.Status {
@@ -176,30 +176,30 @@ func (t PaymentReceiptTracking) StatusChangedEvent(
 	return event, true, nil
 }
 
-func PollablePaymentReceiptStatuses() []value_objects.PaymentReceiptStatus {
-	return []value_objects.PaymentReceiptStatus{
-		value_objects.PaymentReceiptStatusWatching,
-		value_objects.PaymentReceiptStatusPartiallyPaid,
-		value_objects.PaymentReceiptStatusPaidUnconfirmed,
-		value_objects.PaymentReceiptStatusPaidUnconfirmedReverted,
+func PollablePaymentReceiptStatuses() []valueobjects.PaymentReceiptStatus {
+	return []valueobjects.PaymentReceiptStatus{
+		valueobjects.PaymentReceiptStatusWatching,
+		valueobjects.PaymentReceiptStatusPartiallyPaid,
+		valueobjects.PaymentReceiptStatusPaidUnconfirmed,
+		valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted,
 	}
 }
 
 func decidePaymentReceiptStatus(
 	tracking PaymentReceiptTracking,
-	observation value_objects.PaymentReceiptObservation,
-) value_objects.PaymentReceiptStatus {
+	observation valueobjects.PaymentReceiptObservation,
+) valueobjects.PaymentReceiptStatus {
 	if observation.ConfirmedTotalMinor >= tracking.ExpectedAmountMinor {
-		return value_objects.PaymentReceiptStatusPaidConfirmed
+		return valueobjects.PaymentReceiptStatusPaidConfirmed
 	}
 	if observation.ObservedTotalMinor >= tracking.ExpectedAmountMinor {
-		return value_objects.PaymentReceiptStatusPaidUnconfirmed
+		return valueobjects.PaymentReceiptStatusPaidUnconfirmed
 	}
 	if tracking.PaidAt != nil {
-		return value_objects.PaymentReceiptStatusPaidUnconfirmedReverted
+		return valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted
 	}
 	if observation.ObservedTotalMinor == 0 {
-		return value_objects.PaymentReceiptStatusWatching
+		return valueobjects.PaymentReceiptStatusWatching
 	}
-	return value_objects.PaymentReceiptStatusPartiallyPaid
+	return valueobjects.PaymentReceiptStatusPartiallyPaid
 }

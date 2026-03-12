@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func TestNewPaymentAddressAllocation(t *testing.T) {
@@ -21,7 +21,7 @@ func TestNewPaymentAddressAllocation(t *testing.T) {
 	if allocation.CustomerReference != "order-1" {
 		t.Fatalf("unexpected customer reference: got %q", allocation.CustomerReference)
 	}
-	if allocation.Status != value_objects.PaymentAddressAllocationStatusReserved {
+	if allocation.Status != valueobjects.PaymentAddressAllocationStatusReserved {
 		t.Fatalf("unexpected status: got %q", allocation.Status)
 	}
 }
@@ -35,11 +35,11 @@ func TestPaymentAddressAllocationMarkIssued(t *testing.T) {
 	issuancePolicy := AddressIssuancePolicy{
 		AddressPolicy: AddressPolicy{
 			AddressPolicyID: "policy-a",
-			Chain:           value_objects.SupportedChainBitcoin,
-			Network:         value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:          string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
-		DerivationConfig: value_objects.AddressDerivationConfig{
+		DerivationConfig: valueobjects.AddressDerivationConfig{
 			DerivationPathPrefix: "m/84'/0'/0'",
 		},
 	}
@@ -54,7 +54,7 @@ func TestPaymentAddressAllocationMarkIssued(t *testing.T) {
 	if issued.Address != "bc1qexample" {
 		t.Fatalf("unexpected address: got %q", issued.Address)
 	}
-	if issued.Status != value_objects.PaymentAddressAllocationStatusIssued {
+	if issued.Status != valueobjects.PaymentAddressAllocationStatusIssued {
 		t.Fatalf("unexpected status: got %q", issued.Status)
 	}
 }
@@ -69,7 +69,7 @@ func TestPaymentAddressAllocationMarkIssuedRejectPolicyMismatch(t *testing.T) {
 		AddressPolicy: AddressPolicy{
 			AddressPolicyID: "policy-b",
 		},
-		DerivationConfig: value_objects.AddressDerivationConfig{
+		DerivationConfig: valueobjects.AddressDerivationConfig{
 			DerivationPathPrefix: "m/84'/0'/0'",
 		},
 	}
@@ -89,7 +89,7 @@ func TestPaymentAddressAllocationMarkDerivationFailed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if failed.Status != value_objects.PaymentAddressAllocationStatusDerivationFailed {
+	if failed.Status != valueobjects.PaymentAddressAllocationStatusDerivationFailed {
 		t.Fatalf("unexpected status: got %q", failed.Status)
 	}
 	if failed.FailureReason != "derive failed" {
@@ -106,11 +106,11 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 	issuancePolicy := AddressIssuancePolicy{
 		AddressPolicy: AddressPolicy{
 			AddressPolicyID: "policy-a",
-			Chain:           value_objects.SupportedChainBitcoin,
-			Network:         value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:          string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
-		DerivationConfig: value_objects.AddressDerivationConfig{
+		DerivationConfig: valueobjects.AddressDerivationConfig{
 			DerivationPathPrefix: "m/84'/1'/0'",
 		},
 	}
@@ -129,7 +129,7 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 	if tracking.PaymentAddressID != issued.PaymentAddressID {
 		t.Fatalf("unexpected payment address id: got %d", tracking.PaymentAddressID)
 	}
-	if tracking.Status != value_objects.PaymentReceiptStatusWatching {
+	if tracking.Status != valueobjects.PaymentReceiptStatusWatching {
 		t.Fatalf("unexpected tracking status: got %q", tracking.Status)
 	}
 	if tracking.ExpiresAt == nil || !tracking.ExpiresAt.Equal(expiresAt) {

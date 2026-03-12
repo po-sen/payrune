@@ -4,16 +4,16 @@ WORKDIR /src
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/webhook-dispatcher ./cmd/webhook_dispatcher
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/webhook-dispatcher ./cmd/webhook-dispatcher
 
 FROM alpine:3.21
 
-RUN addgroup -S app && adduser -S -G app app
+RUN addgroup -S api && adduser -S -G api api
 
-WORKDIR /app
+WORKDIR /api
 
-COPY --from=builder /out/webhook-dispatcher /app/webhook-dispatcher
+COPY --from=builder /out/webhook-dispatcher /api/webhook-dispatcher
 
-USER app
+USER api
 
-ENTRYPOINT ["/app/webhook-dispatcher"]
+ENTRYPOINT ["/api/webhook-dispatcher"]

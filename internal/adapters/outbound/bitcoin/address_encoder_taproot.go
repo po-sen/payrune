@@ -1,7 +1,7 @@
 package bitcoin
 
 import (
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -16,8 +16,8 @@ func NewTaprootAddressEncoder() AddressEncoder {
 	return taprootAddressEncoder{}
 }
 
-func (taprootAddressEncoder) Scheme() value_objects.BitcoinAddressScheme {
-	return value_objects.BitcoinAddressSchemeTaproot
+func (taprootAddressEncoder) Scheme() valueobjects.BitcoinAddressScheme {
+	return valueobjects.BitcoinAddressSchemeTaproot
 }
 
 func (taprootAddressEncoder) Encode(

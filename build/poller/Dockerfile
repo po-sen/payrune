@@ -8,12 +8,12 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o
 
 FROM alpine:3.21
 
-RUN addgroup -S app && adduser -S -G app app
+RUN addgroup -S api && adduser -S -G api api
 
-WORKDIR /app
+WORKDIR /api
 
-COPY --from=builder /out/poller /app/poller
+COPY --from=builder /out/poller /api/poller
 
-USER app
+USER api
 
-ENTRYPOINT ["/app/poller"]
+ENTRYPOINT ["/api/poller"]

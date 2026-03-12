@@ -8,8 +8,8 @@ import (
 
 	"github.com/lib/pq"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 const paymentAddressIdempotencyPrimaryKey = "pk_payment_address_idempotency_keys"
@@ -68,7 +68,7 @@ func (r *PaymentAddressIdempotencyStore) FindByKey(
 		return outport.PaymentAddressIdempotencyRecord{}, false, err
 	}
 
-	chain, ok := value_objects.ParseSupportedChain(rawChain)
+	chain, ok := valueobjects.ParseSupportedChain(rawChain)
 	if !ok {
 		return outport.PaymentAddressIdempotencyRecord{}, false, errors.New("persisted idempotency chain is invalid")
 	}

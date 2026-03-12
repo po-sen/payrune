@@ -15,8 +15,8 @@ import (
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	"payrune/internal/adapters/outbound/system"
 	webhookadapter "payrune/internal/adapters/outbound/webhook"
-	inport "payrune/internal/application/ports/in"
-	"payrune/internal/application/use_cases"
+	inport "payrune/internal/application/ports/inbound"
+	"payrune/internal/application/usecases"
 )
 
 type ReceiptWebhookDispatcherContainer struct {
@@ -62,7 +62,7 @@ func NewReceiptWebhookDispatcherContainer() (*ReceiptWebhookDispatcherContainer,
 
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	clock := system.NewClock()
-	useCase := use_cases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, notifier, clock)
+	useCase := usecases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, notifier, clock)
 
 	return &ReceiptWebhookDispatcherContainer{
 		RunReceiptWebhookDispatchCycleUseCase: useCase,

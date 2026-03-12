@@ -3,7 +3,7 @@ package bitcoin
 import (
 	"testing"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -11,8 +11,8 @@ import (
 
 func TestSegwitAddressEncoderScheme(t *testing.T) {
 	encoder := NewSegwitAddressEncoder()
-	if got := encoder.Scheme(); got != value_objects.BitcoinAddressSchemeSegwit {
-		t.Fatalf("unexpected scheme: got %q, want %q", got, value_objects.BitcoinAddressSchemeSegwit)
+	if got := encoder.Scheme(); got != valueobjects.BitcoinAddressSchemeSegwit {
+		t.Fatalf("unexpected scheme: got %q, want %q", got, valueobjects.BitcoinAddressSchemeSegwit)
 	}
 }
 
@@ -37,15 +37,15 @@ func TestSegwitAddressEncoderProvidedVectors(t *testing.T) {
 	vectors := []providedAddressVector{
 		{
 			name:     "mainnet segwit",
-			network:  value_objects.BitcoinNetworkMainnet,
-			scheme:   value_objects.BitcoinAddressSchemeSegwit,
+			network:  valueobjects.BitcoinNetworkMainnet,
+			scheme:   valueobjects.BitcoinAddressSchemeSegwit,
 			xpub:     "xpub6BkVzEZTvWGpWSRwjPrfv1UqVQP7s3WUiWE3KU4rkbqtFZrfq3Y9wYPTxbFgAHvToM4kTqETFMzwmxph1CHASZBBjrBKusCRTbjd99i9bdZ",
 			expected: "33jyNcCrj627sLyFxLegQWJtHPHHgDF689",
 		},
 		{
 			name:     "testnet4 segwit",
-			network:  value_objects.BitcoinNetworkTestnet4,
-			scheme:   value_objects.BitcoinAddressSchemeSegwit,
+			network:  valueobjects.BitcoinNetworkTestnet4,
+			scheme:   valueobjects.BitcoinAddressSchemeSegwit,
 			xpub:     "tpubDCiGGQjmzt8kJU2yX3xQmiL39zKXJKzWDMC3cpoh6Q6VVF1asGd1Je99G72GFLq8t9oMiYPVbmdxwPgKsLspM7kFua2a4NqLQSwAirU2pB2",
 			expected: "2N4pZRZ1z84PmKNPuezymytRBFeWfWjHQEN",
 		},

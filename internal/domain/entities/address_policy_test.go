@@ -3,14 +3,14 @@ package entities
 import (
 	"testing"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func TestAddressPolicyNormalize(t *testing.T) {
 	policy := AddressPolicy{
 		AddressPolicyID: " bitcoin-mainnet-native-segwit ",
-		Chain:           value_objects.SupportedChainBitcoin,
-		Network:         value_objects.NetworkID(" MAINNET "),
+		Chain:           valueobjects.SupportedChainBitcoin,
+		Network:         valueobjects.NetworkID(" MAINNET "),
 		Scheme:          " native-segwit ",
 		MinorUnit:       " satoshi ",
 		Decimals:        8,
@@ -22,7 +22,7 @@ func TestAddressPolicyNormalize(t *testing.T) {
 	if normalized.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
 		t.Fatalf("unexpected address policy id: got %q", normalized.AddressPolicyID)
 	}
-	if normalized.Network != value_objects.NetworkID(value_objects.BitcoinNetworkMainnet) {
+	if normalized.Network != valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet) {
 		t.Fatalf("unexpected network: got %q", normalized.Network)
 	}
 	if normalized.Scheme != "native-segwit" {

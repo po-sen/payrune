@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentReceiptTrackingStore struct {
@@ -299,15 +299,15 @@ func scanPaymentReceiptTracking(scanner interface {
 		return entities.PaymentReceiptTracking{}, err
 	}
 
-	chain, ok := value_objects.ParseChainID(chainRaw)
+	chain, ok := valueobjects.ParseChainID(chainRaw)
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("invalid chain in receipt tracking: %s", chainRaw)
 	}
-	network, ok := value_objects.ParseNetworkID(networkRaw)
+	network, ok := valueobjects.ParseNetworkID(networkRaw)
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("invalid network in receipt tracking: %s", networkRaw)
 	}
-	status, ok := value_objects.ParsePaymentReceiptStatus(receiptStatusRaw)
+	status, ok := valueobjects.ParsePaymentReceiptStatus(receiptStatusRaw)
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("unsupported receipt status: %s", receiptStatusRaw)
 	}

@@ -4,13 +4,13 @@ import (
 	"errors"
 	"time"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentReceiptStatusChanged struct {
 	PaymentAddressID      int64
-	PreviousStatus        value_objects.PaymentReceiptStatus
-	CurrentStatus         value_objects.PaymentReceiptStatus
+	PreviousStatus        valueobjects.PaymentReceiptStatus
+	CurrentStatus         valueobjects.PaymentReceiptStatus
 	ObservedTotalMinor    int64
 	ConfirmedTotalMinor   int64
 	UnconfirmedTotalMinor int64
@@ -19,8 +19,8 @@ type PaymentReceiptStatusChanged struct {
 
 func NewPaymentReceiptStatusChanged(
 	paymentAddressID int64,
-	previousStatus value_objects.PaymentReceiptStatus,
-	currentStatus value_objects.PaymentReceiptStatus,
+	previousStatus valueobjects.PaymentReceiptStatus,
+	currentStatus valueobjects.PaymentReceiptStatus,
 	observedTotalMinor int64,
 	confirmedTotalMinor int64,
 	unconfirmedTotalMinor int64,

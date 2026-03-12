@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
@@ -17,17 +17,17 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
 		entities.AddressIssuancePolicy{
 			AddressPolicy: entities.AddressPolicy{
 				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           value_objects.SupportedChainBitcoin,
-				Network:         value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+				Chain:           valueobjects.SupportedChainBitcoin,
+				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
-			DerivationConfig: value_objects.AddressDerivationConfig{
+			DerivationConfig: valueobjects.AddressDerivationConfig{
 				AccountPublicKey:         "xpub-main",
 				PublicKeyFingerprintAlgo: "hash160",
 				PublicKeyFingerprint:     "fingerprint-main",
 				DerivationPathPrefix:     "m/84'/0'/0'",
 			},
 		},
-		value_objects.SupportedChainBitcoin,
+		valueobjects.SupportedChainBitcoin,
 		1200,
 		" order-001 ",
 		issuedAt,
@@ -57,11 +57,11 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
 
 func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testing.T) {
 	policy := NewPaymentAddressAllocationIssuancePolicy(
-		map[value_objects.NetworkID]int32{
-			value_objects.NetworkID(value_objects.BitcoinNetworkMainnet): 6,
+		map[valueobjects.NetworkID]int32{
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet): 6,
 		},
-		map[value_objects.NetworkID]time.Duration{
-			value_objects.NetworkID(value_objects.BitcoinNetworkMainnet): 48 * time.Hour,
+		map[valueobjects.NetworkID]time.Duration{
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet): 48 * time.Hour,
 		},
 	)
 	issuedAt := time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC)
@@ -70,17 +70,17 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testi
 		entities.AddressIssuancePolicy{
 			AddressPolicy: entities.AddressPolicy{
 				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           value_objects.SupportedChainBitcoin,
-				Network:         value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+				Chain:           valueobjects.SupportedChainBitcoin,
+				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
-			DerivationConfig: value_objects.AddressDerivationConfig{
+			DerivationConfig: valueobjects.AddressDerivationConfig{
 				AccountPublicKey:         "xpub-main",
 				PublicKeyFingerprintAlgo: "hash160",
 				PublicKeyFingerprint:     "fingerprint-main",
 				DerivationPathPrefix:     "m/84'/0'/0'",
 			},
 		},
-		value_objects.SupportedChainBitcoin,
+		valueobjects.SupportedChainBitcoin,
 		1200,
 		"order-001",
 		issuedAt,
@@ -104,15 +104,15 @@ func TestPaymentAddressAllocationIssuancePolicyPlanRejectsInvalidPolicy(t *testi
 		entities.AddressIssuancePolicy{
 			AddressPolicy: entities.AddressPolicy{
 				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           value_objects.SupportedChainBitcoin,
-				Network:         value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+				Chain:           valueobjects.SupportedChainBitcoin,
+				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
-			DerivationConfig: value_objects.AddressDerivationConfig{
+			DerivationConfig: valueobjects.AddressDerivationConfig{
 				AccountPublicKey:     "xpub-main",
 				DerivationPathPrefix: "m/84'/0'/0'",
 			},
 		},
-		value_objects.SupportedChainBitcoin,
+		valueobjects.SupportedChainBitcoin,
 		1200,
 		"order-001",
 		time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC),

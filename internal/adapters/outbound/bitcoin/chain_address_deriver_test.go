@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type fakeBitcoinAddressDeriver struct {
@@ -14,15 +14,15 @@ type fakeBitcoinAddressDeriver struct {
 	err         error
 	path        string
 	pathErr     error
-	lastNetwork value_objects.BitcoinNetwork
-	lastScheme  value_objects.BitcoinAddressScheme
+	lastNetwork valueobjects.BitcoinNetwork
+	lastScheme  valueobjects.BitcoinAddressScheme
 	lastXPub    string
 	lastIndex   uint32
 }
 
 func (f *fakeBitcoinAddressDeriver) DeriveAddress(
-	network value_objects.BitcoinNetwork,
-	scheme value_objects.BitcoinAddressScheme,
+	network valueobjects.BitcoinNetwork,
+	scheme valueobjects.BitcoinAddressScheme,
 	xpub string,
 	index uint32,
 ) (string, error) {
@@ -49,13 +49,13 @@ func (f *fakeBitcoinAddressDeriver) DerivationPath(_ string, _ uint32) (string, 
 func TestChainAddressDeriverSupportsBitcoinOnly(t *testing.T) {
 	deriver := NewChainAddressDeriver(&fakeBitcoinAddressDeriver{})
 
-	if deriver.Chain() != value_objects.SupportedChainBitcoin {
+	if deriver.Chain() != valueobjects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain: got %q", deriver.Chain())
 	}
-	if !deriver.SupportsChain(value_objects.SupportedChainBitcoin) {
+	if !deriver.SupportsChain(valueobjects.SupportedChainBitcoin) {
 		t.Fatal("expected bitcoin to be supported")
 	}
-	if deriver.SupportsChain(value_objects.SupportedChain("eth")) {
+	if deriver.SupportsChain(valueobjects.SupportedChain("eth")) {
 		t.Fatal("expected eth not to be supported")
 	}
 }
@@ -65,9 +65,9 @@ func TestChainAddressDeriverDeriveAddress(t *testing.T) {
 	generator := NewChainAddressDeriver(deriver)
 
 	output, err := generator.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:            value_objects.SupportedChainBitcoin,
-		Network:          value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-		Scheme:           string(value_objects.BitcoinAddressSchemeNativeSegwit),
+		Chain:            valueobjects.SupportedChainBitcoin,
+		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Scheme:           string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		AccountPublicKey: "xpub-main",
 		Index:            12,
 	})
@@ -80,10 +80,10 @@ func TestChainAddressDeriverDeriveAddress(t *testing.T) {
 	if output.RelativeDerivationPath != "0/12" {
 		t.Fatalf("unexpected derivation path: got %q", output.RelativeDerivationPath)
 	}
-	if deriver.lastNetwork != value_objects.BitcoinNetworkMainnet {
+	if deriver.lastNetwork != valueobjects.BitcoinNetworkMainnet {
 		t.Fatalf("unexpected network: got %q", deriver.lastNetwork)
 	}
-	if deriver.lastScheme != value_objects.BitcoinAddressSchemeNativeSegwit {
+	if deriver.lastScheme != valueobjects.BitcoinAddressSchemeNativeSegwit {
 		t.Fatalf("unexpected scheme: got %q", deriver.lastScheme)
 	}
 	if deriver.lastXPub != "xpub-main" {
@@ -98,7 +98,7 @@ func TestChainAddressDeriverRejectUnsupportedChain(t *testing.T) {
 	deriver := NewChainAddressDeriver(&fakeBitcoinAddressDeriver{})
 
 	_, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:            value_objects.SupportedChain("eth"),
+		Chain:            valueobjects.SupportedChain("eth"),
 		Network:          "mainnet",
 		Scheme:           "legacy",
 		AccountPublicKey: "xpub-main",
@@ -114,9 +114,9 @@ func TestChainAddressDeriverReturnsDeriverError(t *testing.T) {
 	deriver := NewChainAddressDeriver(&fakeBitcoinAddressDeriver{err: expectedErr})
 
 	_, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:            value_objects.SupportedChainBitcoin,
-		Network:          value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-		Scheme:           string(value_objects.BitcoinAddressSchemeTaproot),
+		Chain:            valueobjects.SupportedChainBitcoin,
+		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+		Scheme:           string(valueobjects.BitcoinAddressSchemeTaproot),
 		AccountPublicKey: "tpub-testnet4",
 		Index:            2,
 	})
@@ -129,9 +129,9 @@ func TestChainAddressDeriverRejectsInvalidNetwork(t *testing.T) {
 	deriver := NewChainAddressDeriver(&fakeBitcoinAddressDeriver{})
 
 	_, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:            value_objects.SupportedChainBitcoin,
+		Chain:            valueobjects.SupportedChainBitcoin,
 		Network:          "sepolia",
-		Scheme:           string(value_objects.BitcoinAddressSchemeLegacy),
+		Scheme:           string(valueobjects.BitcoinAddressSchemeLegacy),
 		AccountPublicKey: "xpub-main",
 		Index:            1,
 	})
@@ -144,8 +144,8 @@ func TestChainAddressDeriverRejectsInvalidScheme(t *testing.T) {
 	deriver := NewChainAddressDeriver(&fakeBitcoinAddressDeriver{})
 
 	_, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:            value_objects.SupportedChainBitcoin,
-		Network:          value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+		Chain:            valueobjects.SupportedChainBitcoin,
+		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 		Scheme:           "eip55",
 		AccountPublicKey: "xpub-main",
 		Index:            1,

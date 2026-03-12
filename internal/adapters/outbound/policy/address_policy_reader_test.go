@@ -4,23 +4,23 @@ import (
 	"context"
 	"testing"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func TestAddressPolicyReaderComputesPublicKeyFingerprint(t *testing.T) {
 	reader := NewAddressPolicyReader([]AddressPolicyConfig{
 		{
 			AddressPolicyID:  "policy-a",
-			Chain:            value_objects.SupportedChainBitcoin,
-			Network:          value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:           string(value_objects.BitcoinAddressSchemeLegacy),
+			Chain:            valueobjects.SupportedChainBitcoin,
+			Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:           string(valueobjects.BitcoinAddressSchemeLegacy),
 			AccountPublicKey: "xpub-a",
 		},
 		{
 			AddressPolicyID:  "policy-b",
-			Chain:            value_objects.SupportedChainBitcoin,
-			Network:          value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:           string(value_objects.BitcoinAddressSchemeLegacy),
+			Chain:            valueobjects.SupportedChainBitcoin,
+			Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:           string(valueobjects.BitcoinAddressSchemeLegacy),
 			AccountPublicKey: "xpub-b",
 		},
 	})
@@ -62,17 +62,17 @@ func TestAddressPolicyReaderUsesConfiguredDerivationPathPrefix(t *testing.T) {
 	reader := NewAddressPolicyReader([]AddressPolicyConfig{
 		{
 			AddressPolicyID:      "native-mainnet",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			AccountPublicKey:     "xpub-a",
 			DerivationPathPrefix: "m/84'/0'/0'",
 		},
 		{
 			AddressPolicyID:      "taproot-testnet4",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeTaproot),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeTaproot),
 			AccountPublicKey:     "xpub-b",
 			DerivationPathPrefix: "m/86'/1'/0'",
 		},

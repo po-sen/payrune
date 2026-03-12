@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
-	inport "payrune/internal/application/ports/in"
+	inport "payrune/internal/application/ports/inbound"
 )
 
 type Request struct {

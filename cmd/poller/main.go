@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"payrune/internal/bootstrap"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func main() {
@@ -109,7 +109,7 @@ func parseChainEnv(key string) (string, error) {
 		return "", nil
 	}
 
-	chain, ok := value_objects.ParseChainID(raw)
+	chain, ok := valueobjects.ParseChainID(raw)
 	if !ok {
 		return "", fmt.Errorf("%s is invalid", key)
 	}
@@ -122,7 +122,7 @@ func parseNetworkEnv(key string) (string, error) {
 		return "", nil
 	}
 
-	network, ok := value_objects.ParseNetworkID(raw)
+	network, ok := valueobjects.ParseNetworkID(raw)
 	if !ok {
 		return "", fmt.Errorf("%s is invalid", key)
 	}

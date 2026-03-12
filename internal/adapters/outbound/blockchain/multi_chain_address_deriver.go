@@ -7,17 +7,17 @@ import (
 	"reflect"
 	"strings"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type chainSpecificAddressDeriver interface {
-	Chain() value_objects.SupportedChain
+	Chain() valueobjects.SupportedChain
 	DeriveAddress(ctx context.Context, input outport.DeriveChainAddressInput) (outport.DeriveChainAddressOutput, error)
 }
 
 type MultiChainAddressDeriver struct {
-	derivers map[value_objects.SupportedChain]chainSpecificAddressDeriver
+	derivers map[valueobjects.SupportedChain]chainSpecificAddressDeriver
 }
 
 var _ outport.ChainAddressDeriver = (*MultiChainAddressDeriver)(nil)
@@ -29,7 +29,7 @@ func NewMultiChainAddressDeriver(
 		return nil, errors.New("at least one chain address deriver is required")
 	}
 
-	normalized := make(map[value_objects.SupportedChain]chainSpecificAddressDeriver, len(derivers))
+	normalized := make(map[valueobjects.SupportedChain]chainSpecificAddressDeriver, len(derivers))
 	for _, deriver := range derivers {
 		if isNilChainSpecificAddressDeriver(deriver) {
 			return nil, errors.New("chain address deriver is required")
@@ -49,7 +49,7 @@ func NewMultiChainAddressDeriver(
 	return &MultiChainAddressDeriver{derivers: normalized}, nil
 }
 
-func (d *MultiChainAddressDeriver) SupportsChain(chain value_objects.SupportedChain) bool {
+func (d *MultiChainAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
 	normalizedChain, ok := normalizeSupportedChain(chain)
 	if !ok {
 		return false
@@ -67,7 +67,7 @@ func (d *MultiChainAddressDeriver) DeriveAddress(
 	if !ok {
 		return outport.DeriveChainAddressOutput{}, errors.New("chain is invalid")
 	}
-	normalizedNetwork, ok := value_objects.ParseNetworkID(string(input.Network))
+	normalizedNetwork, ok := valueobjects.ParseNetworkID(string(input.Network))
 	if !ok {
 		return outport.DeriveChainAddressOutput{}, errors.New("network is invalid")
 	}
@@ -89,12 +89,12 @@ func (d *MultiChainAddressDeriver) DeriveAddress(
 	})
 }
 
-func normalizeSupportedChain(chain value_objects.SupportedChain) (value_objects.SupportedChain, bool) {
-	normalizedChainID, ok := value_objects.ParseChainID(string(chain))
+func normalizeSupportedChain(chain valueobjects.SupportedChain) (valueobjects.SupportedChain, bool) {
+	normalizedChainID, ok := valueobjects.ParseChainID(string(chain))
 	if !ok {
 		return "", false
 	}
-	return value_objects.SupportedChain(normalizedChainID), true
+	return valueobjects.SupportedChain(normalizedChainID), true
 }
 
 func isNilChainSpecificAddressDeriver(deriver chainSpecificAddressDeriver) bool {

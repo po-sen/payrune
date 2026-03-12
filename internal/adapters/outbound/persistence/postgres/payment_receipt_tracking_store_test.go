@@ -11,9 +11,9 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type stubScanner struct {
@@ -197,14 +197,14 @@ func newTrackingStoreTestEntity() entities.PaymentReceiptTracking {
 	return entities.PaymentReceiptTracking{
 		PaymentAddressID:        501,
 		AddressPolicyID:         "bitcoin-mainnet-native-segwit",
-		Chain:                   value_objects.ChainIDBitcoin,
-		Network:                 value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+		Chain:                   valueobjects.ChainIDBitcoin,
+		Network:                 valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 		Address:                 "bc1qtracking",
 		IssuedAt:                issuedAt,
 		ExpiresAt:               &expiresAt,
 		ExpectedAmountMinor:     100000,
 		RequiredConfirmations:   2,
-		Status:                  value_objects.PaymentReceiptStatusWatching,
+		Status:                  valueobjects.PaymentReceiptStatusWatching,
 		ObservedTotalMinor:      1000,
 		ConfirmedTotalMinor:     500,
 		UnconfirmedTotalMinor:   500,
@@ -289,7 +289,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 	_, err := store.ClaimDue(context.Background(), outport.ClaimPaymentReceiptTrackingsInput{
 		Limit:      1,
 		ClaimUntil: now,
-		Statuses:   []value_objects.PaymentReceiptStatus{value_objects.PaymentReceiptStatusWatching},
+		Statuses:   []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
 	})
 	if err == nil || err.Error() != "claim now is required" {
 		t.Fatalf("unexpected missing-now error: %v", err)
@@ -298,7 +298,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 	_, err = store.ClaimDue(context.Background(), outport.ClaimPaymentReceiptTrackingsInput{
 		Now:      now,
 		Limit:    1,
-		Statuses: []value_objects.PaymentReceiptStatus{value_objects.PaymentReceiptStatusWatching},
+		Statuses: []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
 	})
 	if err == nil || err.Error() != "claim until is required" {
 		t.Fatalf("unexpected missing-claim-until error: %v", err)
@@ -307,7 +307,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 	_, err = store.ClaimDue(context.Background(), outport.ClaimPaymentReceiptTrackingsInput{
 		Now:        now,
 		ClaimUntil: now,
-		Statuses:   []value_objects.PaymentReceiptStatus{value_objects.PaymentReceiptStatusWatching},
+		Statuses:   []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
 	})
 	if err == nil || err.Error() != "claim limit must be greater than zero" {
 		t.Fatalf("unexpected missing-limit error: %v", err)
@@ -326,7 +326,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 		Now:        now,
 		ClaimUntil: now,
 		Limit:      1,
-		Statuses:   []value_objects.PaymentReceiptStatus{""},
+		Statuses:   []valueobjects.PaymentReceiptStatus{""},
 	})
 	if err == nil || err.Error() != "claim status is required" {
 		t.Fatalf("unexpected blank-status error: %v", err)
@@ -405,9 +405,9 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 		Now:        now,
 		ClaimUntil: claimUntil,
 		Limit:      2,
-		Statuses: []value_objects.PaymentReceiptStatus{
-			value_objects.PaymentReceiptStatusWatching,
-			value_objects.PaymentReceiptStatusPaidUnconfirmed,
+		Statuses: []valueobjects.PaymentReceiptStatus{
+			valueobjects.PaymentReceiptStatusWatching,
+			valueobjects.PaymentReceiptStatusPaidUnconfirmed,
 		},
 		Chain:   " BitCoin ",
 		Network: " MainNet ",
@@ -421,7 +421,7 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 	if trackings[0].PaymentAddressID != 501 {
 		t.Fatalf("unexpected payment address id: got %d", trackings[0].PaymentAddressID)
 	}
-	if trackings[0].Status != value_objects.PaymentReceiptStatusPaidUnconfirmed {
+	if trackings[0].Status != valueobjects.PaymentReceiptStatusPaidUnconfirmed {
 		t.Fatalf("unexpected status: got %q", trackings[0].Status)
 	}
 }
@@ -474,8 +474,8 @@ func TestPaymentReceiptTrackingStoreClaimDueSkipsExpiredUntilNextPollAt(t *testi
 		Now:        now,
 		ClaimUntil: claimUntil,
 		Limit:      1,
-		Statuses: []value_objects.PaymentReceiptStatus{
-			value_objects.PaymentReceiptStatusWatching,
+		Statuses: []valueobjects.PaymentReceiptStatus{
+			valueobjects.PaymentReceiptStatusWatching,
 		},
 	})
 	if err != nil {
@@ -511,7 +511,7 @@ func TestPaymentReceiptTrackingStoreSaveSuccess(t *testing.T) {
 	tracking := newTrackingStoreTestEntity()
 	paidAt := tracking.IssuedAt.Add(5 * time.Minute)
 	tracking.PaidAt = &paidAt
-	tracking.Status = value_objects.PaymentReceiptStatusPaidUnconfirmed
+	tracking.Status = valueobjects.PaymentReceiptStatusPaidUnconfirmed
 	polledAt := time.Date(2026, 3, 7, 14, 0, 0, 0, time.UTC)
 	nextPollAt := polledAt.Add(15 * time.Second)
 

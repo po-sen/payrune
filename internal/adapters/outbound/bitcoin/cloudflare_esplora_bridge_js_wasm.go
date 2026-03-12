@@ -9,7 +9,7 @@ import (
 	"math"
 	"syscall/js"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 const (
@@ -27,7 +27,7 @@ func NewCloudflareEsploraBridge() CloudflareEsploraBridge {
 func (b *jsCloudflareEsploraBridge) FetchLatestBlockHeight(
 	ctx context.Context,
 	bridgeID string,
-	network value_objects.NetworkID,
+	network valueobjects.NetworkID,
 ) (int64, error) {
 	value, err := awaitBitcoinPromise(
 		ctx,
@@ -47,7 +47,7 @@ func (b *jsCloudflareEsploraBridge) FetchLatestBlockHeight(
 func (b *jsCloudflareEsploraBridge) FetchAddressChainTransactions(
 	ctx context.Context,
 	bridgeID string,
-	network value_objects.NetworkID,
+	network valueobjects.NetworkID,
 	address string,
 ) ([]esploraTransaction, error) {
 	return fetchBitcoinTransactions(
@@ -59,7 +59,7 @@ func (b *jsCloudflareEsploraBridge) FetchAddressChainTransactions(
 func (b *jsCloudflareEsploraBridge) FetchAddressMempoolTransactions(
 	ctx context.Context,
 	bridgeID string,
-	network value_objects.NetworkID,
+	network valueobjects.NetworkID,
 	address string,
 ) ([]esploraTransaction, error) {
 	return fetchBitcoinTransactions(

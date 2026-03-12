@@ -10,13 +10,13 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 func newFindPaymentAddressStatusInput(paymentAddressID int64) outport.FindPaymentAddressStatusInput {
 	return outport.FindPaymentAddressStatusInput{
-		Chain:            value_objects.SupportedChainBitcoin,
+		Chain:            valueobjects.SupportedChainBitcoin,
 		PaymentAddressID: paymentAddressID,
 	}
 }
@@ -107,7 +107,7 @@ func TestPaymentAddressStatusFinderFindByIDSuccess(t *testing.T) {
 	if record.PaymentAddressID != 101 {
 		t.Fatalf("unexpected payment address id: got %d", record.PaymentAddressID)
 	}
-	if record.PaymentStatus != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+	if record.PaymentStatus != valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted {
 		t.Fatalf("unexpected payment status: got %q", record.PaymentStatus)
 	}
 	if record.FirstObservedAt == nil || !record.FirstObservedAt.Equal(firstObservedAt) {

@@ -1,5 +1,5 @@
 services:
-  app:
+  api:
     environment:
       BITCOIN_MAINNET_LEGACY_XPUB: ""
       BITCOIN_MAINNET_SEGWIT_XPUB: ""
@@ -55,5 +55,5 @@ services:
     volumes:
       - ../swagger:/usr/share/nginx/html/specs:ro
     depends_on:
-      - app
+      - api
     restart: unless-stopped

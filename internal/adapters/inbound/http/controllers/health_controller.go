@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	inport "payrune/internal/application/ports/in"
+	inport "payrune/internal/application/ports/inbound"
 )
 
 type HealthController struct {

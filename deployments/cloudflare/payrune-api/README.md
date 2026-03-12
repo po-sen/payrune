@@ -8,7 +8,7 @@ The actual API behavior lives in Go:
 - `internal/adapters/inbound/cloudflareworker/`
 - `internal/infrastructure/di/`
 - `internal/adapters/outbound/persistence/cloudflarepostgres/`
-- existing Go use cases under `internal/application/use_cases/`
+- existing Go use cases under `internal/application/usecases/`
 
 `deployments/cloudflare/payrune-api/` only owns:
 

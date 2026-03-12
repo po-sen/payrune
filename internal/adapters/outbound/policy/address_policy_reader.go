@@ -6,17 +6,17 @@ import (
 	"encoding/hex"
 	"strings"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 const accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1 = "sha256-trunc64-hex-v1"
 
 type AddressPolicyConfig struct {
 	AddressPolicyID          string
-	Chain                    value_objects.SupportedChain
-	Network                  value_objects.NetworkID
+	Chain                    valueobjects.SupportedChain
+	Network                  valueobjects.NetworkID
 	Scheme                   string
 	MinorUnit                string
 	Decimals                 uint8
@@ -47,7 +47,7 @@ func NewAddressPolicyReader(configs []AddressPolicyConfig) outport.AddressPolicy
 				MinorUnit:       strings.TrimSpace(cfg.MinorUnit),
 				Decimals:        cfg.Decimals,
 			},
-			DerivationConfig: value_objects.AddressDerivationConfig{
+			DerivationConfig: valueobjects.AddressDerivationConfig{
 				AccountPublicKey:         strings.TrimSpace(cfg.AccountPublicKey),
 				PublicKeyFingerprintAlgo: strings.TrimSpace(cfg.PublicKeyFingerprintAlgo),
 				PublicKeyFingerprint:     strings.TrimSpace(cfg.PublicKeyFingerprint),
@@ -85,7 +85,7 @@ func NewAddressPolicyReader(configs []AddressPolicyConfig) outport.AddressPolicy
 
 func (r *addressPolicyReader) ListByChain(
 	_ context.Context,
-	chain value_objects.SupportedChain,
+	chain valueobjects.SupportedChain,
 ) ([]entities.AddressPolicy, error) {
 	policies := make([]entities.AddressPolicy, 0)
 	for _, policy := range r.ordered {

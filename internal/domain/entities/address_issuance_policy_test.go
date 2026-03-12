@@ -4,20 +4,20 @@ import (
 	"errors"
 	"testing"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func newTestAddressIssuancePolicy() AddressIssuancePolicy {
 	return AddressIssuancePolicy{
 		AddressPolicy: AddressPolicy{
 			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           value_objects.SupportedChainBitcoin,
-			Network:         value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:          string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			MinorUnit:       "satoshi",
 			Decimals:        8,
 		},
-		DerivationConfig: value_objects.AddressDerivationConfig{
+		DerivationConfig: valueobjects.AddressDerivationConfig{
 			AccountPublicKey:         " xpub-main ",
 			PublicKeyFingerprintAlgo: " hash160 ",
 			PublicKeyFingerprint:     " fingerprint-main ",
@@ -51,7 +51,7 @@ func TestAddressIssuancePolicyNormalize(t *testing.T) {
 func TestAddressIssuancePolicyValidateForAllocationIssuance(t *testing.T) {
 	policy := newTestAddressIssuancePolicy()
 
-	validated, err := policy.ValidateForAllocationIssuance(value_objects.SupportedChainBitcoin, 1000)
+	validated, err := policy.ValidateForAllocationIssuance(valueobjects.SupportedChainBitcoin, 1000)
 	if err != nil {
 		t.Fatalf("ValidateForAllocationIssuance returned error: %v", err)
 	}
@@ -66,14 +66,14 @@ func TestAddressIssuancePolicyValidateForAllocationIssuanceRejectsInvalidInput(t
 	tests := []struct {
 		name    string
 		policy  AddressIssuancePolicy
-		chain   value_objects.SupportedChain
+		chain   valueobjects.SupportedChain
 		amount  int64
 		wantErr error
 	}{
 		{
 			name:    "chain mismatch",
 			policy:  base,
-			chain:   value_objects.SupportedChain("eth"),
+			chain:   valueobjects.SupportedChain("eth"),
 			amount:  1000,
 			wantErr: ErrAddressPolicyChainMismatch,
 		},
@@ -82,17 +82,17 @@ func TestAddressIssuancePolicyValidateForAllocationIssuanceRejectsInvalidInput(t
 			policy: AddressIssuancePolicy{
 				AddressPolicy: AddressPolicy{
 					AddressPolicyID: "bitcoin-mainnet-native-segwit",
-					Chain:           value_objects.SupportedChainBitcoin,
+					Chain:           valueobjects.SupportedChainBitcoin,
 				},
 			},
-			chain:   value_objects.SupportedChainBitcoin,
+			chain:   valueobjects.SupportedChainBitcoin,
 			amount:  1000,
 			wantErr: ErrAddressPolicyNotEnabled,
 		},
 		{
 			name:    "invalid amount",
 			policy:  base,
-			chain:   value_objects.SupportedChainBitcoin,
+			chain:   valueobjects.SupportedChainBitcoin,
 			amount:  0,
 			wantErr: ErrExpectedAmountMinorInvalid,
 		},
@@ -101,14 +101,14 @@ func TestAddressIssuancePolicyValidateForAllocationIssuanceRejectsInvalidInput(t
 			policy: AddressIssuancePolicy{
 				AddressPolicy: AddressPolicy{
 					AddressPolicyID: "bitcoin-mainnet-native-segwit",
-					Chain:           value_objects.SupportedChainBitcoin,
+					Chain:           valueobjects.SupportedChainBitcoin,
 				},
-				DerivationConfig: value_objects.AddressDerivationConfig{
+				DerivationConfig: valueobjects.AddressDerivationConfig{
 					AccountPublicKey:     "xpub-main",
 					DerivationPathPrefix: "m/84'/0'/0'",
 				},
 			},
-			chain:   value_objects.SupportedChainBitcoin,
+			chain:   valueobjects.SupportedChainBitcoin,
 			amount:  1000,
 			wantErr: ErrAddressPolicyFingerprintNotConfigured,
 		},

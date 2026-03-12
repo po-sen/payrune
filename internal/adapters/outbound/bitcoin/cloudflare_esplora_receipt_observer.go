@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type CloudflareBitcoinEsploraReceiptObserver struct {
@@ -84,7 +84,7 @@ func (o *CloudflareBitcoinEsploraReceiptObserver) ObserveAddress(
 
 func (o *CloudflareBitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 	ctx context.Context,
-	network value_objects.NetworkID,
+	network valueobjects.NetworkID,
 ) (int64, error) {
 	if _, err := o.validateNetwork(network); err != nil {
 		return 0, err
@@ -96,13 +96,13 @@ func (o *CloudflareBitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 }
 
 func (o *CloudflareBitcoinEsploraReceiptObserver) validateNetwork(
-	network value_objects.NetworkID,
-) (value_objects.BitcoinNetwork, error) {
+	network valueobjects.NetworkID,
+) (valueobjects.BitcoinNetwork, error) {
 	if strings.TrimSpace(o.bridgeID) == "" {
 		return "", errors.New("cloudflare bitcoin esplora bridge id is required")
 	}
 
-	bitcoinNetwork, ok := value_objects.ParseBitcoinNetwork(string(network))
+	bitcoinNetwork, ok := valueobjects.ParseBitcoinNetwork(string(network))
 	if !ok {
 		return "", fmt.Errorf("bitcoin network is not supported: %s", network)
 	}

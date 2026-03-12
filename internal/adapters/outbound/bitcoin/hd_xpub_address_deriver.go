@@ -3,7 +3,7 @@ package bitcoin
 import (
 	"fmt"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
@@ -12,16 +12,16 @@ import (
 )
 
 type AddressEncoder interface {
-	Scheme() value_objects.BitcoinAddressScheme
+	Scheme() valueobjects.BitcoinAddressScheme
 	Encode(publicKey *btcec.PublicKey, params *chaincfg.Params) (btcutil.Address, error)
 }
 
 type HDXPubAddressDeriver struct {
-	encoders map[value_objects.BitcoinAddressScheme]AddressEncoder
+	encoders map[valueobjects.BitcoinAddressScheme]AddressEncoder
 }
 
 func NewHDXPubAddressDeriver(encoders ...AddressEncoder) *HDXPubAddressDeriver {
-	registry := make(map[value_objects.BitcoinAddressScheme]AddressEncoder, len(encoders))
+	registry := make(map[valueobjects.BitcoinAddressScheme]AddressEncoder, len(encoders))
 	for _, encoder := range encoders {
 		registry[encoder.Scheme()] = encoder
 	}
@@ -32,8 +32,8 @@ func NewHDXPubAddressDeriver(encoders ...AddressEncoder) *HDXPubAddressDeriver {
 }
 
 func (d *HDXPubAddressDeriver) DeriveAddress(
-	network value_objects.BitcoinNetwork,
-	scheme value_objects.BitcoinAddressScheme,
+	network valueobjects.BitcoinNetwork,
+	scheme valueobjects.BitcoinAddressScheme,
 	xpub string,
 	index uint32,
 ) (string, error) {
@@ -110,11 +110,11 @@ func deriveAddressExtendedKey(
 	return childKey, nil
 }
 
-func networkParams(network value_objects.BitcoinNetwork) (*chaincfg.Params, error) {
+func networkParams(network valueobjects.BitcoinNetwork) (*chaincfg.Params, error) {
 	switch network {
-	case value_objects.BitcoinNetworkMainnet:
+	case valueobjects.BitcoinNetworkMainnet:
 		return &chaincfg.MainNetParams, nil
-	case value_objects.BitcoinNetworkTestnet4:
+	case valueobjects.BitcoinNetworkTestnet4:
 		return &chaincfg.TestNet4Params, nil
 	default:
 		return nil, fmt.Errorf("unsupported bitcoin network: %s", network)

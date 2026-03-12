@@ -5,19 +5,19 @@ import (
 	"errors"
 	"testing"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type fakeChainSpecificAddressDeriver struct {
-	chain     value_objects.SupportedChain
+	chain     valueobjects.SupportedChain
 	output    outport.DeriveChainAddressOutput
 	err       error
 	lastInput outport.DeriveChainAddressInput
 	calls     int
 }
 
-func (f *fakeChainSpecificAddressDeriver) Chain() value_objects.SupportedChain {
+func (f *fakeChainSpecificAddressDeriver) Chain() valueobjects.SupportedChain {
 	return f.chain
 }
 
@@ -45,15 +45,15 @@ func TestNewMultiChainAddressDeriverValidation(t *testing.T) {
 	}
 
 	_, err = NewMultiChainAddressDeriver(&fakeChainSpecificAddressDeriver{
-		chain: value_objects.SupportedChain("eth/mainnet"),
+		chain: valueobjects.SupportedChain("eth/mainnet"),
 	})
 	if err == nil {
 		t.Fatal("expected error for invalid chain key")
 	}
 
 	_, err = NewMultiChainAddressDeriver(
-		&fakeChainSpecificAddressDeriver{chain: value_objects.SupportedChainBitcoin},
-		&fakeChainSpecificAddressDeriver{chain: value_objects.SupportedChain("bitcoin")},
+		&fakeChainSpecificAddressDeriver{chain: valueobjects.SupportedChainBitcoin},
+		&fakeChainSpecificAddressDeriver{chain: valueobjects.SupportedChain("bitcoin")},
 	)
 	if err == nil {
 		t.Fatal("expected error for duplicate chain")
@@ -62,26 +62,26 @@ func TestNewMultiChainAddressDeriverValidation(t *testing.T) {
 
 func TestMultiChainAddressDeriverSupportsChain(t *testing.T) {
 	deriver, err := NewMultiChainAddressDeriver(&fakeChainSpecificAddressDeriver{
-		chain: value_objects.SupportedChainBitcoin,
+		chain: valueobjects.SupportedChainBitcoin,
 	})
 	if err != nil {
 		t.Fatalf("setup deriver: %v", err)
 	}
 
-	if !deriver.SupportsChain(value_objects.SupportedChain("BitCoin")) {
+	if !deriver.SupportsChain(valueobjects.SupportedChain("BitCoin")) {
 		t.Fatal("expected bitcoin support")
 	}
-	if deriver.SupportsChain(value_objects.SupportedChain("eth")) {
+	if deriver.SupportsChain(valueobjects.SupportedChain("eth")) {
 		t.Fatal("expected ethereum unsupported")
 	}
-	if deriver.SupportsChain(value_objects.SupportedChain("eth/mainnet")) {
+	if deriver.SupportsChain(valueobjects.SupportedChain("eth/mainnet")) {
 		t.Fatal("expected invalid chain unsupported")
 	}
 }
 
 func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	bitcoin := &fakeChainSpecificAddressDeriver{
-		chain: value_objects.SupportedChainBitcoin,
+		chain: valueobjects.SupportedChainBitcoin,
 		output: outport.DeriveChainAddressOutput{
 			Address:                "bc1qgenerated",
 			RelativeDerivationPath: "0/12",
@@ -93,8 +93,8 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	}
 
 	output, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:            value_objects.SupportedChain(" BitCoin "),
-		Network:          value_objects.NetworkID(" MainNet "),
+		Chain:            valueobjects.SupportedChain(" BitCoin "),
+		Network:          valueobjects.NetworkID(" MainNet "),
 		Scheme:           " nativeSegwit ",
 		AccountPublicKey: " xpub-main ",
 		Index:            12,
@@ -108,10 +108,10 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	if bitcoin.calls != 1 {
 		t.Fatalf("unexpected deriver calls: got %d", bitcoin.calls)
 	}
-	if bitcoin.lastInput.Chain != value_objects.SupportedChainBitcoin {
+	if bitcoin.lastInput.Chain != valueobjects.SupportedChainBitcoin {
 		t.Fatalf("unexpected normalized chain: got %q", bitcoin.lastInput.Chain)
 	}
-	if bitcoin.lastInput.Network != value_objects.NetworkID("mainnet") {
+	if bitcoin.lastInput.Network != valueobjects.NetworkID("mainnet") {
 		t.Fatalf("unexpected normalized network: got %q", bitcoin.lastInput.Network)
 	}
 	if bitcoin.lastInput.Scheme != "nativeSegwit" {
@@ -124,31 +124,31 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 
 func TestMultiChainAddressDeriverDeriveAddressValidation(t *testing.T) {
 	deriver, err := NewMultiChainAddressDeriver(&fakeChainSpecificAddressDeriver{
-		chain: value_objects.SupportedChainBitcoin,
+		chain: valueobjects.SupportedChainBitcoin,
 	})
 	if err != nil {
 		t.Fatalf("setup deriver: %v", err)
 	}
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:   value_objects.SupportedChain("eth/mainnet"),
-		Network: value_objects.NetworkID("mainnet"),
+		Chain:   valueobjects.SupportedChain("eth/mainnet"),
+		Network: valueobjects.NetworkID("mainnet"),
 	})
 	if err == nil {
 		t.Fatal("expected invalid chain error")
 	}
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:   value_objects.SupportedChainBitcoin,
-		Network: value_objects.NetworkID("main/net"),
+		Chain:   valueobjects.SupportedChainBitcoin,
+		Network: valueobjects.NetworkID("main/net"),
 	})
 	if err == nil {
 		t.Fatal("expected invalid network error")
 	}
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:   value_objects.SupportedChain("eth"),
-		Network: value_objects.NetworkID("mainnet"),
+		Chain:   valueobjects.SupportedChain("eth"),
+		Network: valueobjects.NetworkID("mainnet"),
 	})
 	if err == nil {
 		t.Fatal("expected missing deriver error")
@@ -158,7 +158,7 @@ func TestMultiChainAddressDeriverDeriveAddressValidation(t *testing.T) {
 func TestMultiChainAddressDeriverPassesThroughErrors(t *testing.T) {
 	expectedErr := errors.New("boom")
 	deriver, err := NewMultiChainAddressDeriver(&fakeChainSpecificAddressDeriver{
-		chain: value_objects.SupportedChainBitcoin,
+		chain: valueobjects.SupportedChainBitcoin,
 		err:   expectedErr,
 	})
 	if err != nil {
@@ -166,8 +166,8 @@ func TestMultiChainAddressDeriverPassesThroughErrors(t *testing.T) {
 	}
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:   value_objects.SupportedChainBitcoin,
-		Network: value_objects.NetworkID("mainnet"),
+		Chain:   valueobjects.SupportedChainBitcoin,
+		Network: valueobjects.NetworkID("mainnet"),
 	})
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected downstream error, got %v", err)

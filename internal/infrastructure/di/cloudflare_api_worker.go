@@ -13,9 +13,9 @@ import (
 	cloudflarepostgres "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
 	policyadapter "payrune/internal/adapters/outbound/policy"
 	"payrune/internal/adapters/outbound/system"
-	"payrune/internal/application/use_cases"
+	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 const (
@@ -37,7 +37,7 @@ const (
 
 func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http.Handler, error) {
 	clock := system.NewClock()
-	healthUseCase := use_cases.NewCheckHealthUseCase(clock)
+	healthUseCase := usecases.NewCheckHealthUseCase(clock)
 
 	requiredConfirmationsByNetwork, err := loadCloudflareBitcoinRequiredConfirmations(env)
 	if err != nil {
@@ -64,9 +64,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	addressPolicyReader := policyadapter.NewAddressPolicyReader([]policyadapter.AddressPolicyConfig{
 		{
 			AddressPolicyID:      "bitcoin-mainnet-legacy",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeLegacy),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeLegacy),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     envMapValue(env, envBitcoinMainnetLegacyXPub),
@@ -74,9 +74,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		},
 		{
 			AddressPolicyID:      "bitcoin-mainnet-segwit",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     envMapValue(env, envBitcoinMainnetSegwitXPub),
@@ -84,9 +84,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		},
 		{
 			AddressPolicyID:      "bitcoin-mainnet-native-segwit",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     envMapValue(env, envBitcoinMainnetNativeSegwitXPub),
@@ -94,9 +94,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		},
 		{
 			AddressPolicyID:      "bitcoin-mainnet-taproot",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeTaproot),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeTaproot),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     envMapValue(env, envBitcoinMainnetTaprootXPub),
@@ -104,9 +104,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		},
 		{
 			AddressPolicyID:      "bitcoin-testnet4-legacy",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeLegacy),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeLegacy),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     envMapValue(env, envBitcoinTestnet4LegacyXPub),
@@ -114,9 +114,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		},
 		{
 			AddressPolicyID:      "bitcoin-testnet4-segwit",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     envMapValue(env, envBitcoinTestnet4SegwitXPub),
@@ -124,9 +124,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		},
 		{
 			AddressPolicyID:      "bitcoin-testnet4-native-segwit",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     envMapValue(env, envBitcoinTestnet4NativeSegwitXPub),
@@ -134,9 +134,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		},
 		{
 			AddressPolicyID:      "bitcoin-testnet4-taproot",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeTaproot),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeTaproot),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     envMapValue(env, envBitcoinTestnet4TaprootXPub),
@@ -144,8 +144,8 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		},
 	})
 
-	listAddressPoliciesUseCase := use_cases.NewListAddressPoliciesUseCase(addressPolicyReader)
-	generateAddressUseCase := use_cases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
+	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
+	generateAddressUseCase := usecases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
 	bridge := cloudflarepostgres.NewJSBridge()
 	dbExecutor := cloudflarepostgres.NewExecutor(bridgeID, bridge)
 	unitOfWork := cloudflarepostgres.NewUnitOfWork(bridgeID, bridge)
@@ -153,14 +153,14 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		requiredConfirmationsByNetwork,
 		receiptExpiresAfterByNetwork,
 	)
-	allocatePaymentAddressUseCase := use_cases.NewAllocatePaymentAddressUseCase(
+	allocatePaymentAddressUseCase := usecases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
 		chainAddressDeriver,
 		addressPolicyReader,
 		allocationIssuancePolicy,
 		clock,
 	)
-	getPaymentAddressStatusUseCase := use_cases.NewGetPaymentAddressStatusUseCase(
+	getPaymentAddressStatusUseCase := usecases.NewGetPaymentAddressStatusUseCase(
 		cloudflarepostgres.NewPaymentAddressStatusFinder(dbExecutor),
 		addressPolicyReader,
 	)
@@ -174,7 +174,7 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	}), nil
 }
 
-func loadCloudflareBitcoinRequiredConfirmations(env map[string]string) (map[value_objects.NetworkID]int32, error) {
+func loadCloudflareBitcoinRequiredConfirmations(env map[string]string) (map[valueobjects.NetworkID]int32, error) {
 	mainnetConfirmations, err := parsePositiveInt32MapWithDefault(env, cfEnvBitcoinMainnetRequiredConfirmations, cfDefaultBitcoinRequiredConfirmations)
 	if err != nil {
 		return nil, err
@@ -184,13 +184,13 @@ func loadCloudflareBitcoinRequiredConfirmations(env map[string]string) (map[valu
 		return nil, err
 	}
 
-	return map[value_objects.NetworkID]int32{
-		value_objects.NetworkID(value_objects.BitcoinNetworkMainnet):  mainnetConfirmations,
-		value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4): testnet4Confirmations,
+	return map[valueobjects.NetworkID]int32{
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet):  mainnetConfirmations,
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): testnet4Confirmations,
 	}, nil
 }
 
-func loadCloudflareBitcoinReceiptExpiresAfter(env map[string]string) (map[value_objects.NetworkID]time.Duration, error) {
+func loadCloudflareBitcoinReceiptExpiresAfter(env map[string]string) (map[valueobjects.NetworkID]time.Duration, error) {
 	mainnetExpiresAfter, err := parseDurationMapWithDefault(env, cfEnvBitcoinMainnetReceiptExpiresAfter, cfDefaultBitcoinReceiptExpiresAfter)
 	if err != nil {
 		return nil, err
@@ -200,9 +200,9 @@ func loadCloudflareBitcoinReceiptExpiresAfter(env map[string]string) (map[value_
 		return nil, err
 	}
 
-	return map[value_objects.NetworkID]time.Duration{
-		value_objects.NetworkID(value_objects.BitcoinNetworkMainnet):  mainnetExpiresAfter,
-		value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4): testnet4ExpiresAfter,
+	return map[valueobjects.NetworkID]time.Duration{
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet):  mainnetExpiresAfter,
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): testnet4ExpiresAfter,
 	}, nil
 }
 

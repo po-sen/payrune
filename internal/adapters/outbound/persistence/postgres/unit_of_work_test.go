@@ -7,7 +7,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 )
 
 func TestUnitOfWorkWithinTransactionValidation(t *testing.T) {

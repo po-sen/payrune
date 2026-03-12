@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 )
 
 func TestNewPaymentReceiptStatusWebhookNotifierValidation(t *testing.T) {

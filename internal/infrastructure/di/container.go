@@ -18,9 +18,9 @@ import (
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	policyadapter "payrune/internal/adapters/outbound/policy"
 	"payrune/internal/adapters/outbound/system"
-	"payrune/internal/application/use_cases"
+	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 const (
@@ -57,7 +57,7 @@ func NewContainer() (*Container, error) {
 	}
 
 	clock := system.NewClock()
-	healthUseCase := use_cases.NewCheckHealthUseCase(clock)
+	healthUseCase := usecases.NewCheckHealthUseCase(clock)
 	healthController := httpcontroller.NewHealthController(healthUseCase)
 	requiredConfirmationsByNetwork, err := loadBitcoinRequiredConfirmationsFromEnv()
 	if err != nil {
@@ -86,9 +86,9 @@ func NewContainer() (*Container, error) {
 	addressPolicyReader := policyadapter.NewAddressPolicyReader([]policyadapter.AddressPolicyConfig{
 		{
 			AddressPolicyID:      "bitcoin-mainnet-legacy",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeLegacy),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeLegacy),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_MAINNET_LEGACY_XPUB"),
@@ -96,9 +96,9 @@ func NewContainer() (*Container, error) {
 		},
 		{
 			AddressPolicyID:      "bitcoin-mainnet-segwit",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_MAINNET_SEGWIT_XPUB"),
@@ -106,9 +106,9 @@ func NewContainer() (*Container, error) {
 		},
 		{
 			AddressPolicyID:      "bitcoin-mainnet-native-segwit",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_MAINNET_NATIVE_SEGWIT_XPUB"),
@@ -116,9 +116,9 @@ func NewContainer() (*Container, error) {
 		},
 		{
 			AddressPolicyID:      "bitcoin-mainnet-taproot",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
-			Scheme:               string(value_objects.BitcoinAddressSchemeTaproot),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeTaproot),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_MAINNET_TAPROOT_XPUB"),
@@ -126,9 +126,9 @@ func NewContainer() (*Container, error) {
 		},
 		{
 			AddressPolicyID:      "bitcoin-testnet4-legacy",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeLegacy),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeLegacy),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_TESTNET4_LEGACY_XPUB"),
@@ -136,9 +136,9 @@ func NewContainer() (*Container, error) {
 		},
 		{
 			AddressPolicyID:      "bitcoin-testnet4-segwit",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_TESTNET4_SEGWIT_XPUB"),
@@ -146,9 +146,9 @@ func NewContainer() (*Container, error) {
 		},
 		{
 			AddressPolicyID:      "bitcoin-testnet4-native-segwit",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeNativeSegwit),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB"),
@@ -156,30 +156,30 @@ func NewContainer() (*Container, error) {
 		},
 		{
 			AddressPolicyID:      "bitcoin-testnet4-taproot",
-			Chain:                value_objects.SupportedChainBitcoin,
-			Network:              value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
-			Scheme:               string(value_objects.BitcoinAddressSchemeTaproot),
+			Chain:                valueobjects.SupportedChainBitcoin,
+			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:               string(valueobjects.BitcoinAddressSchemeTaproot),
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_TESTNET4_TAPROOT_XPUB"),
 			DerivationPathPrefix: "m/86'/1'/0'",
 		},
 	})
-	listAddressPoliciesUseCase := use_cases.NewListAddressPoliciesUseCase(addressPolicyReader)
-	generateAddressUseCase := use_cases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
+	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
+	generateAddressUseCase := usecases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
 		requiredConfirmationsByNetwork,
 		receiptExpiresAfterByNetwork,
 	)
-	allocatePaymentAddressUseCase := use_cases.NewAllocatePaymentAddressUseCase(
+	allocatePaymentAddressUseCase := usecases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
 		chainAddressDeriver,
 		addressPolicyReader,
 		allocationIssuancePolicy,
 		clock,
 	)
-	getPaymentAddressStatusUseCase := use_cases.NewGetPaymentAddressStatusUseCase(
+	getPaymentAddressStatusUseCase := usecases.NewGetPaymentAddressStatusUseCase(
 		postgresadapter.NewPaymentAddressStatusFinder(db),
 		addressPolicyReader,
 	)
@@ -204,7 +204,7 @@ func (c *Container) Close() error {
 	return c.closeFn()
 }
 
-func loadBitcoinRequiredConfirmationsFromEnv() (map[value_objects.NetworkID]int32, error) {
+func loadBitcoinRequiredConfirmationsFromEnv() (map[valueobjects.NetworkID]int32, error) {
 	mainnetConfirmations, err := parsePositiveInt32EnvWithDefault(
 		envBitcoinMainnetRequiredConfirmations,
 		defaultBitcoinRequiredConfirmations,
@@ -220,13 +220,13 @@ func loadBitcoinRequiredConfirmationsFromEnv() (map[value_objects.NetworkID]int3
 		return nil, err
 	}
 
-	return map[value_objects.NetworkID]int32{
-		value_objects.NetworkID(value_objects.BitcoinNetworkMainnet):  mainnetConfirmations,
-		value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4): testnet4Confirmations,
+	return map[valueobjects.NetworkID]int32{
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet):  mainnetConfirmations,
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): testnet4Confirmations,
 	}, nil
 }
 
-func loadBitcoinReceiptExpiresAfterByNetworkFromEnv() (map[value_objects.NetworkID]time.Duration, error) {
+func loadBitcoinReceiptExpiresAfterByNetworkFromEnv() (map[valueobjects.NetworkID]time.Duration, error) {
 	mainnetExpiresAfter, err := parsePositiveDurationEnvWithDefault(
 		envBitcoinMainnetReceiptExpiresAfter,
 		defaultBitcoinReceiptExpiresAfter,
@@ -242,9 +242,9 @@ func loadBitcoinReceiptExpiresAfterByNetworkFromEnv() (map[value_objects.Network
 		return nil, err
 	}
 
-	return map[value_objects.NetworkID]time.Duration{
-		value_objects.NetworkID(value_objects.BitcoinNetworkMainnet):  mainnetExpiresAfter,
-		value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4): testnet4ExpiresAfter,
+	return map[valueobjects.NetworkID]time.Duration{
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet):  mainnetExpiresAfter,
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): testnet4ExpiresAfter,
 	}, nil
 }
 

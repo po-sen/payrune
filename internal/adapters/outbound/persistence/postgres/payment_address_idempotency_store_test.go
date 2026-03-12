@@ -10,20 +10,20 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/lib/pq"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 func newFindPaymentAddressIdempotencyInput(idempotencyKey string) outport.FindPaymentAddressIdempotencyInput {
 	return outport.FindPaymentAddressIdempotencyInput{
-		Chain:          value_objects.SupportedChainBitcoin,
+		Chain:          valueobjects.SupportedChainBitcoin,
 		IdempotencyKey: idempotencyKey,
 	}
 }
 
 func newClaimPaymentAddressIdempotencyInput(idempotencyKey string) outport.ClaimPaymentAddressIdempotencyInput {
 	return outport.ClaimPaymentAddressIdempotencyInput{
-		Chain:               value_objects.SupportedChainBitcoin,
+		Chain:               valueobjects.SupportedChainBitcoin,
 		IdempotencyKey:      idempotencyKey,
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 125000,
@@ -162,7 +162,7 @@ func TestPaymentAddressIdempotencyStoreCompleteSuccess(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = store.Complete(context.Background(), outport.CompletePaymentAddressIdempotencyInput{
-		Chain:            value_objects.SupportedChainBitcoin,
+		Chain:            valueobjects.SupportedChainBitcoin,
 		IdempotencyKey:   " idem-complete ",
 		PaymentAddressID: 99,
 	})
@@ -185,7 +185,7 @@ func TestPaymentAddressIdempotencyStoreReleaseSuccess(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = store.Release(context.Background(), outport.ReleasePaymentAddressIdempotencyInput{
-		Chain:          value_objects.SupportedChainBitcoin,
+		Chain:          valueobjects.SupportedChainBitcoin,
 		IdempotencyKey: " idem-release ",
 	})
 	if err != nil {

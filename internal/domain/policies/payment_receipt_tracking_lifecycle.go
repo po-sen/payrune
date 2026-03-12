@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 const (
@@ -37,7 +37,7 @@ func (p PaymentReceiptTrackingLifecyclePolicy) ExpireIfDue(
 
 func (p PaymentReceiptTrackingLifecyclePolicy) ApplyObservation(
 	tracking entities.PaymentReceiptTracking,
-	observation value_objects.PaymentReceiptObservation,
+	observation valueobjects.PaymentReceiptObservation,
 	observedAt time.Time,
 ) (entities.PaymentReceiptTracking, error) {
 	return tracking.ApplyObservation(observation, observedAt)

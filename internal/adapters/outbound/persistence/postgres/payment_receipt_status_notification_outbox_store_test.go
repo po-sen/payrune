@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/events"
 	"payrune/internal/domain/policies"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type stubSQLResult struct {
@@ -74,8 +74,8 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSuccess(t *te
 
 	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
 		PaymentAddressID:      101,
-		PreviousStatus:        value_objects.PaymentReceiptStatusWatching,
-		CurrentStatus:         value_objects.PaymentReceiptStatusPaidUnconfirmed,
+		PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
+		CurrentStatus:         valueobjects.PaymentReceiptStatusPaidUnconfirmed,
 		ObservedTotalMinor:    1000,
 		ConfirmedTotalMinor:   0,
 		UnconfirmedTotalMinor: 1000,
@@ -120,8 +120,8 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSupportsRever
 
 	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
 		PaymentAddressID:      102,
-		PreviousStatus:        value_objects.PaymentReceiptStatusPaidUnconfirmed,
-		CurrentStatus:         value_objects.PaymentReceiptStatusPaidUnconfirmedReverted,
+		PreviousStatus:        valueobjects.PaymentReceiptStatusPaidUnconfirmed,
+		CurrentStatus:         valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted,
 		ObservedTotalMinor:    400,
 		ConfirmedTotalMinor:   0,
 		UnconfirmedTotalMinor: 400,
@@ -145,8 +145,8 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedAddressNotFou
 
 	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
 		PaymentAddressID:      88,
-		PreviousStatus:        value_objects.PaymentReceiptStatusWatching,
-		CurrentStatus:         value_objects.PaymentReceiptStatusPaidConfirmed,
+		PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
+		CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
 		ObservedTotalMinor:    100,
 		ConfirmedTotalMinor:   100,
 		UnconfirmedTotalMinor: 0,
@@ -164,8 +164,8 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedExecError(t *
 
 	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
 		PaymentAddressID:      88,
-		PreviousStatus:        value_objects.PaymentReceiptStatusWatching,
-		CurrentStatus:         value_objects.PaymentReceiptStatusPaidConfirmed,
+		PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
+		CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
 		ObservedTotalMinor:    100,
 		ConfirmedTotalMinor:   100,
 		UnconfirmedTotalMinor: 0,
@@ -223,7 +223,7 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 	if err != nil {
 		t.Fatalf("scanPaymentReceiptStatusNotificationOutboxMessage returned error: %v", err)
 	}
-	if notification.DeliveryStatus != value_objects.PaymentReceiptNotificationDeliveryStatusSent {
+	if notification.DeliveryStatus != valueobjects.PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected delivery status: got %q", notification.DeliveryStatus)
 	}
 	if notification.DeliveredAt == nil || !notification.DeliveredAt.Equal(deliveredAt) {
@@ -255,10 +255,10 @@ func TestScanPaymentReceiptStatusNotificationSupportsRevertedStatus(t *testing.T
 	if err != nil {
 		t.Fatalf("scanPaymentReceiptStatusNotificationOutboxMessage returned error: %v", err)
 	}
-	if notification.PreviousStatus != value_objects.PaymentReceiptStatusPaidUnconfirmed {
+	if notification.PreviousStatus != valueobjects.PaymentReceiptStatusPaidUnconfirmed {
 		t.Fatalf("unexpected previous status: got %q", notification.PreviousStatus)
 	}
-	if notification.CurrentStatus != value_objects.PaymentReceiptStatusPaidUnconfirmedReverted {
+	if notification.CurrentStatus != valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted {
 		t.Fatalf("unexpected current status: got %q", notification.CurrentStatus)
 	}
 }
@@ -269,7 +269,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
 		policies.PaymentReceiptStatusNotificationDeliveryResult{
-			Status: value_objects.PaymentReceiptNotificationDeliveryStatusSent,
+			Status: valueobjects.PaymentReceiptNotificationDeliveryStatusSent,
 		},
 	)
 	if err == nil {
@@ -312,7 +312,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultPendingSuccess(
 		context.Background(),
 		policies.PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID: 99,
-			Status:         value_objects.PaymentReceiptNotificationDeliveryStatusPending,
+			Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
 			Attempts:       2,
 			LastError:      "timeout",
 			NextAttemptAt:  &nextAttemptAt,
@@ -336,7 +336,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultFailedSuccess(t
 		context.Background(),
 		policies.PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID: 99,
-			Status:         value_objects.PaymentReceiptNotificationDeliveryStatusFailed,
+			Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
 			Attempts:       3,
 			LastError:      "webhook returned status 500",
 		},

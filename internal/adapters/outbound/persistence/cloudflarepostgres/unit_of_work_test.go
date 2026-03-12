@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 )
 
 type fakeBridge struct {

@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type AddressPolicy struct {
@@ -22,7 +22,7 @@ type ListAddressPoliciesResponse struct {
 }
 
 type GenerateAddressInput struct {
-	Chain           value_objects.SupportedChain
+	Chain           valueobjects.SupportedChain
 	AddressPolicyID string
 	Index           uint32
 }
@@ -39,7 +39,7 @@ type GenerateAddressResponse struct {
 }
 
 type AllocatePaymentAddressInput struct {
-	Chain               value_objects.SupportedChain
+	Chain               valueobjects.SupportedChain
 	AddressPolicyID     string
 	ExpectedAmountMinor int64
 	CustomerReference   string
@@ -61,7 +61,7 @@ type AllocatePaymentAddressResponse struct {
 }
 
 type GetPaymentAddressStatusInput struct {
-	Chain            value_objects.SupportedChain
+	Chain            valueobjects.SupportedChain
 	PaymentAddressID int64
 }
 

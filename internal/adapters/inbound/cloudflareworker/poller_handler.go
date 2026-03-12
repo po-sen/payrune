@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"payrune/internal/application/dto"
-	inport "payrune/internal/application/ports/in"
+	inport "payrune/internal/application/ports/inbound"
 )
 
 type PollerRequest struct {

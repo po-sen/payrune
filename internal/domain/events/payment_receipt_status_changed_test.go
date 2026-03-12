@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func TestNewPaymentReceiptStatusChanged(t *testing.T) {
@@ -12,8 +12,8 @@ func TestNewPaymentReceiptStatusChanged(t *testing.T) {
 
 	event, err := NewPaymentReceiptStatusChanged(
 		101,
-		value_objects.PaymentReceiptStatusWatching,
-		value_objects.PaymentReceiptStatusPaidConfirmed,
+		valueobjects.PaymentReceiptStatusWatching,
+		valueobjects.PaymentReceiptStatusPaidConfirmed,
 		1000,
 		1000,
 		0,
@@ -33,8 +33,8 @@ func TestNewPaymentReceiptStatusChanged(t *testing.T) {
 func TestNewPaymentReceiptStatusChangedValidation(t *testing.T) {
 	_, err := NewPaymentReceiptStatusChanged(
 		0,
-		value_objects.PaymentReceiptStatusWatching,
-		value_objects.PaymentReceiptStatusPaidConfirmed,
+		valueobjects.PaymentReceiptStatusWatching,
+		valueobjects.PaymentReceiptStatusPaidConfirmed,
 		0,
 		0,
 		0,
@@ -46,8 +46,8 @@ func TestNewPaymentReceiptStatusChangedValidation(t *testing.T) {
 
 	_, err = NewPaymentReceiptStatusChanged(
 		1,
-		value_objects.PaymentReceiptStatusWatching,
-		value_objects.PaymentReceiptStatusWatching,
+		valueobjects.PaymentReceiptStatusWatching,
+		valueobjects.PaymentReceiptStatusWatching,
 		0,
 		0,
 		0,

@@ -25,15 +25,15 @@ services:
     command: ["up"]
     environment:
       DATABASE_URL: postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable
-      MIGRATIONS_SOURCE: file:///app/migrations
+      MIGRATIONS_SOURCE: file:///api/migrations
     depends_on:
       postgres:
         condition: service_healthy
     restart: "no"
-  app:
+  api:
     build:
       context: ../..
-      dockerfile: build/app/Dockerfile
+      dockerfile: build/api/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable}
       BITCOIN_MAINNET_LEGACY_XPUB: ${BITCOIN_MAINNET_LEGACY_XPUB:-}

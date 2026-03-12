@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 const (
@@ -39,15 +39,15 @@ type PaymentAddressAllocationIssuancePlan struct {
 }
 
 type PaymentAddressAllocationIssuancePolicy struct {
-	requiredConfirmationsByNetwork map[value_objects.NetworkID]int32
-	receiptExpiresAfterByNetwork   map[value_objects.NetworkID]time.Duration
+	requiredConfirmationsByNetwork map[valueobjects.NetworkID]int32
+	receiptExpiresAfterByNetwork   map[valueobjects.NetworkID]time.Duration
 }
 
 func NewPaymentAddressAllocationIssuancePolicy(
-	requiredConfirmationsByNetwork map[value_objects.NetworkID]int32,
-	receiptExpiresAfterByNetwork map[value_objects.NetworkID]time.Duration,
+	requiredConfirmationsByNetwork map[valueobjects.NetworkID]int32,
+	receiptExpiresAfterByNetwork map[valueobjects.NetworkID]time.Duration,
 ) PaymentAddressAllocationIssuancePolicy {
-	confirmationsByNetwork := make(map[value_objects.NetworkID]int32)
+	confirmationsByNetwork := make(map[valueobjects.NetworkID]int32)
 	for network, confirmations := range requiredConfirmationsByNetwork {
 		if confirmations <= 0 {
 			continue
@@ -55,7 +55,7 @@ func NewPaymentAddressAllocationIssuancePolicy(
 		confirmationsByNetwork[network] = confirmations
 	}
 
-	expiresAfterByNetwork := make(map[value_objects.NetworkID]time.Duration)
+	expiresAfterByNetwork := make(map[valueobjects.NetworkID]time.Duration)
 	for network, expiresAfter := range receiptExpiresAfterByNetwork {
 		if expiresAfter <= 0 {
 			continue
@@ -71,7 +71,7 @@ func NewPaymentAddressAllocationIssuancePolicy(
 
 func (p PaymentAddressAllocationIssuancePolicy) Plan(
 	issuancePolicy entities.AddressIssuancePolicy,
-	requestedChain value_objects.SupportedChain,
+	requestedChain valueobjects.SupportedChain,
 	expectedAmountMinor int64,
 	customerReference string,
 	issuedAt time.Time,
@@ -104,7 +104,7 @@ func (p PaymentAddressAllocationIssuancePolicy) Plan(
 }
 
 func (p PaymentAddressAllocationIssuancePolicy) requiredConfirmationsForNetwork(
-	network value_objects.NetworkID,
+	network valueobjects.NetworkID,
 ) int32 {
 	if configured, ok := p.requiredConfirmationsByNetwork[network]; ok && configured > 0 {
 		return configured
@@ -113,7 +113,7 @@ func (p PaymentAddressAllocationIssuancePolicy) requiredConfirmationsForNetwork(
 }
 
 func (p PaymentAddressAllocationIssuancePolicy) receiptExpiresAfterForNetwork(
-	network value_objects.NetworkID,
+	network valueobjects.NetworkID,
 ) time.Duration {
 	if configured, ok := p.receiptExpiresAfterByNetwork[network]; ok && configured > 0 {
 		return configured

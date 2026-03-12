@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func TestMarkPaymentReceiptStatusNotificationSent(t *testing.T) {
@@ -14,7 +14,7 @@ func TestMarkPaymentReceiptStatusNotificationSent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MarkPaymentReceiptStatusNotificationSent returned error: %v", err)
 	}
-	if result.Status != value_objects.PaymentReceiptNotificationDeliveryStatusSent {
+	if result.Status != valueobjects.PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected status: got %q", result.Status)
 	}
 	if result.DeliveredAt == nil || !result.DeliveredAt.Equal(now) {
@@ -36,7 +36,7 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureRetry(t *testing.
 	if err != nil {
 		t.Fatalf("ResolvePaymentReceiptStatusNotificationDeliveryFailure returned error: %v", err)
 	}
-	if result.Status != value_objects.PaymentReceiptNotificationDeliveryStatusPending {
+	if result.Status != valueobjects.PaymentReceiptNotificationDeliveryStatusPending {
 		t.Fatalf("unexpected status: got %q", result.Status)
 	}
 	if result.Attempts != 2 {
@@ -61,7 +61,7 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureTerminal(t *testi
 	if err != nil {
 		t.Fatalf("ResolvePaymentReceiptStatusNotificationDeliveryFailure returned error: %v", err)
 	}
-	if result.Status != value_objects.PaymentReceiptNotificationDeliveryStatusFailed {
+	if result.Status != valueobjects.PaymentReceiptNotificationDeliveryStatusFailed {
 		t.Fatalf("unexpected status: got %q", result.Status)
 	}
 	if result.Attempts != 3 {

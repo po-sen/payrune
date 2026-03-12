@@ -5,12 +5,12 @@ import (
 	"strings"
 	"time"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentReceiptStatusNotificationDeliveryResult struct {
 	NotificationID int64
-	Status         value_objects.PaymentReceiptNotificationDeliveryStatus
+	Status         valueobjects.PaymentReceiptNotificationDeliveryStatus
 	Attempts       int32
 	LastError      string
 	NextAttemptAt  *time.Time
@@ -31,7 +31,7 @@ func MarkPaymentReceiptStatusNotificationSent(
 	deliveredAtUTC := deliveredAt.UTC()
 	return PaymentReceiptStatusNotificationDeliveryResult{
 		NotificationID: notificationID,
-		Status:         value_objects.PaymentReceiptNotificationDeliveryStatusSent,
+		Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusSent,
 		DeliveredAt:    &deliveredAtUTC,
 	}, nil
 }
@@ -65,7 +65,7 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	if attempts >= maxAttempts {
 		return PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID: notificationID,
-			Status:         value_objects.PaymentReceiptNotificationDeliveryStatusFailed,
+			Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
 			Attempts:       attempts,
 			LastError:      normalizedError,
 		}, nil
@@ -78,7 +78,7 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	nextAttemptAt := now.Add(retryDelay).UTC()
 	return PaymentReceiptStatusNotificationDeliveryResult{
 		NotificationID: notificationID,
-		Status:         value_objects.PaymentReceiptNotificationDeliveryStatusPending,
+		Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
 		Attempts:       attempts,
 		LastError:      normalizedError,
 		NextAttemptAt:  &nextAttemptAt,

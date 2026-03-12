@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 const maxNonHardenedIndex int64 = 0x7fffffff
@@ -87,11 +87,11 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		return entities.PaymentAddressAllocation{}, false, outport.ErrAddressIndexExhausted
 	}
 
-	chain, ok := value_objects.ParseSupportedChain(rawChain)
+	chain, ok := valueobjects.ParseSupportedChain(rawChain)
 	if !ok {
 		return entities.PaymentAddressAllocation{}, false, errors.New("persisted allocation chain is invalid")
 	}
-	network, ok := value_objects.ParseNetworkID(rawNetwork)
+	network, ok := valueobjects.ParseNetworkID(rawNetwork)
 	if !ok {
 		return entities.PaymentAddressAllocation{}, false, errors.New("persisted allocation network is invalid")
 	}
@@ -102,7 +102,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		DerivationIndex:     uint32(derivationIndex),
 		ExpectedAmountMinor: expectedAmountMinor,
 		CustomerReference:   customerReference,
-		Status:              value_objects.PaymentAddressAllocationStatusIssued,
+		Status:              valueobjects.PaymentAddressAllocationStatusIssued,
 		Chain:               chain,
 		Network:             network,
 		Scheme:              strings.TrimSpace(scheme),
@@ -245,7 +245,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		DerivationIndex:     uint32(derivationIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,
-		Status:              value_objects.PaymentAddressAllocationStatusReserved,
+		Status:              valueobjects.PaymentAddressAllocationStatusReserved,
 	}, true, nil
 }
 
@@ -338,6 +338,6 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		DerivationIndex:     uint32(nextIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,
-		Status:              value_objects.PaymentAddressAllocationStatusReserved,
+		Status:              valueobjects.PaymentAddressAllocationStatusReserved,
 	}, nil
 }

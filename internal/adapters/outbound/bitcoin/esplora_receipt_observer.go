@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 const defaultEsploraChainPageSize = 25
@@ -26,7 +26,7 @@ type BitcoinEsploraObserverConfig struct {
 }
 
 type BitcoinEsploraReceiptObserver struct {
-	clients map[value_objects.NetworkID]*bitcoinAPIClient
+	clients map[valueobjects.NetworkID]*bitcoinAPIClient
 }
 
 type bitcoinAPIClient struct {
@@ -54,11 +54,11 @@ type esploraTxStatus struct {
 }
 
 func NewBitcoinEsploraReceiptObserver(
-	configs map[value_objects.NetworkID]*BitcoinEsploraObserverConfig,
+	configs map[valueobjects.NetworkID]*BitcoinEsploraObserverConfig,
 ) (*BitcoinEsploraReceiptObserver, error) {
-	clients := make(map[value_objects.NetworkID]*bitcoinAPIClient, len(configs))
+	clients := make(map[valueobjects.NetworkID]*bitcoinAPIClient, len(configs))
 	for rawNetwork, config := range configs {
-		bitcoinNetwork, ok := value_objects.ParseBitcoinNetwork(string(rawNetwork))
+		bitcoinNetwork, ok := valueobjects.ParseBitcoinNetwork(string(rawNetwork))
 		if !ok {
 			return nil, fmt.Errorf("bitcoin network is not supported: %s", rawNetwork)
 		}
@@ -71,7 +71,7 @@ func NewBitcoinEsploraReceiptObserver(
 			continue
 		}
 
-		clients[value_objects.NetworkID(bitcoinNetwork)] = client
+		clients[valueobjects.NetworkID(bitcoinNetwork)] = client
 	}
 	if len(clients) == 0 {
 		return nil, errors.New("at least one bitcoin endpoint is required")
@@ -139,7 +139,7 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 
 func (o *BitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 	ctx context.Context,
-	network value_objects.NetworkID,
+	network valueobjects.NetworkID,
 ) (int64, error) {
 	client, err := o.selectClient(network)
 	if err != nil {
@@ -149,14 +149,14 @@ func (o *BitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 }
 
 func (o *BitcoinEsploraReceiptObserver) selectClient(
-	network value_objects.NetworkID,
+	network valueobjects.NetworkID,
 ) (*bitcoinAPIClient, error) {
-	bitcoinNetwork, ok := value_objects.ParseBitcoinNetwork(string(network))
+	bitcoinNetwork, ok := valueobjects.ParseBitcoinNetwork(string(network))
 	if !ok {
 		return nil, fmt.Errorf("bitcoin network is not supported: %s", network)
 	}
 
-	client, ok := o.clients[value_objects.NetworkID(bitcoinNetwork)]
+	client, ok := o.clients[valueobjects.NetworkID(bitcoinNetwork)]
 	if !ok || client == nil {
 		return nil, fmt.Errorf("bitcoin %s endpoint is not configured", bitcoinNetwork)
 	}

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 )
 
 const defaultWebhookTimeout = 10 * time.Second

@@ -8,10 +8,10 @@ import (
 	"time"
 
 	applicationoutbox "payrune/internal/application/outbox"
-	outport "payrune/internal/application/ports/out"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/events"
 	"payrune/internal/domain/policies"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentReceiptStatusNotificationOutboxStore struct {
@@ -140,7 +140,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 	result policies.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	switch result.Status {
-	case value_objects.PaymentReceiptNotificationDeliveryStatusSent:
+	case valueobjects.PaymentReceiptNotificationDeliveryStatusSent:
 		if result.DeliveredAt == nil {
 			return errors.New("delivered at is required")
 		}
@@ -160,7 +160,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			return err
 		}
 		return ensureNotificationRowsAffected(execResult)
-	case value_objects.PaymentReceiptNotificationDeliveryStatusPending:
+	case valueobjects.PaymentReceiptNotificationDeliveryStatusPending:
 		if result.NextAttemptAt == nil {
 			return errors.New("next attempt at is required")
 		}
@@ -183,7 +183,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			return err
 		}
 		return ensureNotificationRowsAffected(execResult)
-	case value_objects.PaymentReceiptNotificationDeliveryStatusFailed:
+	case valueobjects.PaymentReceiptNotificationDeliveryStatusFailed:
 		execResult, err := r.executor.ExecContext(
 			ctx,
 			`UPDATE payment_receipt_status_notifications
@@ -245,15 +245,15 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, err
 	}
 
-	previousStatus, ok := value_objects.ParsePaymentReceiptStatus(previousStatusRaw)
+	previousStatus, ok := valueobjects.ParsePaymentReceiptStatus(previousStatusRaw)
 	if !ok {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("unsupported previous status: %s", previousStatusRaw)
 	}
-	currentStatus, ok := value_objects.ParsePaymentReceiptStatus(currentStatusRaw)
+	currentStatus, ok := valueobjects.ParsePaymentReceiptStatus(currentStatusRaw)
 	if !ok {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("unsupported current status: %s", currentStatusRaw)
 	}
-	deliveryStatus, ok := value_objects.ParsePaymentReceiptNotificationDeliveryStatus(deliveryStatusRaw)
+	deliveryStatus, ok := valueobjects.ParsePaymentReceiptNotificationDeliveryStatus(deliveryStatusRaw)
 	if !ok {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("unsupported delivery status: %s", deliveryStatusRaw)
 	}

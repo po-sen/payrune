@@ -16,11 +16,11 @@ import (
 	blockchainadapter "payrune/internal/adapters/outbound/blockchain"
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	"payrune/internal/adapters/outbound/system"
-	inport "payrune/internal/application/ports/in"
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/application/use_cases"
+	inport "payrune/internal/application/ports/inbound"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PollerContainer struct {
@@ -75,8 +75,8 @@ func NewPollerContainer() (*PollerContainer, error) {
 		return nil, err
 	}
 	receiptObserver, err := blockchainadapter.NewMultiChainReceiptObserver(
-		map[value_objects.ChainID]outport.ChainReceiptObserver{
-			value_objects.ChainIDBitcoin: bitcoinObserver,
+		map[valueobjects.ChainID]outport.ChainReceiptObserver{
+			valueobjects.ChainIDBitcoin: bitcoinObserver,
 		},
 	)
 	if err != nil {
@@ -84,7 +84,7 @@ func NewPollerContainer() (*PollerContainer, error) {
 		return nil, err
 	}
 	clock := system.NewClock()
-	runReceiptPollingCycleUseCase := use_cases.NewRunReceiptPollingCycleUseCase(
+	runReceiptPollingCycleUseCase := usecases.NewRunReceiptPollingCycleUseCase(
 		unitOfWork,
 		receiptObserver,
 		clock,
@@ -124,14 +124,14 @@ func loadBitcoinTestnet4EsploraConfigFromEnv() *bitcoin.BitcoinEsploraObserverCo
 	})
 }
 
-func loadBitcoinEsploraConfigsFromEnv() map[value_objects.NetworkID]*bitcoin.BitcoinEsploraObserverConfig {
-	configs := make(map[value_objects.NetworkID]*bitcoin.BitcoinEsploraObserverConfig, 2)
+func loadBitcoinEsploraConfigsFromEnv() map[valueobjects.NetworkID]*bitcoin.BitcoinEsploraObserverConfig {
+	configs := make(map[valueobjects.NetworkID]*bitcoin.BitcoinEsploraObserverConfig, 2)
 
 	if mainnetConfig := loadBitcoinMainnetEsploraConfigFromEnv(); mainnetConfig != nil {
-		configs[value_objects.NetworkID(value_objects.BitcoinNetworkMainnet)] = mainnetConfig
+		configs[valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet)] = mainnetConfig
 	}
 	if testnet4Config := loadBitcoinTestnet4EsploraConfigFromEnv(); testnet4Config != nil {
-		configs[value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4)] = testnet4Config
+		configs[valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4)] = testnet4Config
 	}
 
 	return configs

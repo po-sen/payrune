@@ -11,19 +11,19 @@ import (
 	"time"
 
 	"payrune/internal/application/dto"
-	inport "payrune/internal/application/ports/in"
-	"payrune/internal/domain/value_objects"
+	inport "payrune/internal/application/ports/inbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type fakeListAddressPoliciesUseCase struct {
 	response  dto.ListAddressPoliciesResponse
 	err       error
-	lastChain value_objects.SupportedChain
+	lastChain valueobjects.SupportedChain
 }
 
 func (f *fakeListAddressPoliciesUseCase) Execute(
 	_ context.Context,
-	chain value_objects.SupportedChain,
+	chain valueobjects.SupportedChain,
 ) (dto.ListAddressPoliciesResponse, error) {
 	f.lastChain = chain
 	if f.err != nil {
@@ -115,7 +115,7 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if listUC.lastChain != value_objects.SupportedChainBitcoin {
+	if listUC.lastChain != valueobjects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain passed to use case: got %q", listUC.lastChain)
 	}
 
@@ -164,7 +164,7 @@ func TestChainAddressControllerGenerateSuccess(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if generateUC.lastInput.Chain != value_objects.SupportedChainBitcoin {
+	if generateUC.lastInput.Chain != valueobjects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain in input: got %q", generateUC.lastInput.Chain)
 	}
 	if generateUC.lastInput.AddressPolicyID != "bitcoin-mainnet-legacy" {
@@ -355,7 +355,7 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 	if got := rr.Header().Get(idempotencyReplayedHeader); got != "" {
 		t.Fatalf("expected no idempotency replayed header on fresh success, got %q", got)
 	}
-	if allocateUC.lastInput.Chain != value_objects.SupportedChainBitcoin {
+	if allocateUC.lastInput.Chain != valueobjects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain in input: got %q", allocateUC.lastInput.Chain)
 	}
 	if allocateUC.lastInput.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
@@ -625,7 +625,7 @@ func TestChainAddressControllerGetPaymentStatusSuccess(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if getStatusUC.lastInput.Chain != value_objects.SupportedChainBitcoin {
+	if getStatusUC.lastInput.Chain != valueobjects.SupportedChainBitcoin {
 		t.Fatalf("unexpected chain in input: got %q", getStatusUC.lastInput.Chain)
 	}
 	if getStatusUC.lastInput.PaymentAddressID != 101 {

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentAddressAllocation struct {
@@ -14,9 +14,9 @@ type PaymentAddressAllocation struct {
 	DerivationIndex     uint32
 	ExpectedAmountMinor int64
 	CustomerReference   string
-	Status              value_objects.PaymentAddressAllocationStatus
-	Chain               value_objects.SupportedChain
-	Network             value_objects.NetworkID
+	Status              valueobjects.PaymentAddressAllocationStatus
+	Chain               valueobjects.SupportedChain
+	Network             valueobjects.NetworkID
 	Scheme              string
 	Address             string
 	DerivationPath      string
@@ -47,7 +47,7 @@ func NewPaymentAddressAllocation(
 		DerivationIndex:     derivationIndex,
 		ExpectedAmountMinor: expectedAmountMinor,
 		CustomerReference:   strings.TrimSpace(customerReference),
-		Status:              value_objects.PaymentAddressAllocationStatusReserved,
+		Status:              valueobjects.PaymentAddressAllocationStatusReserved,
 	}, nil
 }
 
@@ -75,7 +75,7 @@ func (a PaymentAddressAllocation) MarkIssued(
 	}
 
 	issued := a
-	issued.Status = value_objects.PaymentAddressAllocationStatusIssued
+	issued.Status = valueobjects.PaymentAddressAllocationStatusIssued
 	issued.Chain = policy.AddressPolicy.Chain
 	issued.Network = policy.AddressPolicy.Network
 	issued.Scheme = policy.AddressPolicy.Scheme
@@ -93,7 +93,7 @@ func (a PaymentAddressAllocation) MarkDerivationFailed(reason string) (PaymentAd
 	}
 
 	failed := a
-	failed.Status = value_objects.PaymentAddressAllocationStatusDerivationFailed
+	failed.Status = valueobjects.PaymentAddressAllocationStatusDerivationFailed
 	failed.FailureReason = normalizedReason
 	failed.Chain = ""
 	failed.Network = ""
@@ -108,18 +108,18 @@ func (a PaymentAddressAllocation) IssueReceiptTracking(
 	requiredConfirmations int32,
 	expiresAt time.Time,
 ) (PaymentReceiptTracking, error) {
-	if a.Status != value_objects.PaymentAddressAllocationStatusIssued {
+	if a.Status != valueobjects.PaymentAddressAllocationStatusIssued {
 		return PaymentReceiptTracking{}, errors.New("payment address allocation is not issued")
 	}
 	if expiresAt.IsZero() {
 		return PaymentReceiptTracking{}, errors.New("expires at is required")
 	}
 
-	chainID, ok := value_objects.ParseChainID(string(a.Chain))
+	chainID, ok := valueobjects.ParseChainID(string(a.Chain))
 	if !ok {
 		return PaymentReceiptTracking{}, errors.New("chain is invalid")
 	}
-	networkID, ok := value_objects.ParseNetworkID(string(a.Network))
+	networkID, ok := valueobjects.ParseNetworkID(string(a.Network))
 	if !ok {
 		return PaymentReceiptTracking{}, errors.New("network is invalid")
 	}

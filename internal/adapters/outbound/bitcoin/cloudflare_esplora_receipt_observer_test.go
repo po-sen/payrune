@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	outport "payrune/internal/application/ports/out"
-	"payrune/internal/domain/value_objects"
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type fakeCloudflareEsploraBridge struct {
@@ -22,7 +22,7 @@ type fakeCloudflareEsploraBridge struct {
 func (f *fakeCloudflareEsploraBridge) FetchLatestBlockHeight(
 	context.Context,
 	string,
-	value_objects.NetworkID,
+	valueobjects.NetworkID,
 ) (int64, error) {
 	return f.latestBlockHeight, f.latestErr
 }
@@ -30,7 +30,7 @@ func (f *fakeCloudflareEsploraBridge) FetchLatestBlockHeight(
 func (f *fakeCloudflareEsploraBridge) FetchAddressChainTransactions(
 	context.Context,
 	string,
-	value_objects.NetworkID,
+	valueobjects.NetworkID,
 	string,
 ) ([]esploraTransaction, error) {
 	return f.chainTransactions, f.chainErr
@@ -39,7 +39,7 @@ func (f *fakeCloudflareEsploraBridge) FetchAddressChainTransactions(
 func (f *fakeCloudflareEsploraBridge) FetchAddressMempoolTransactions(
 	context.Context,
 	string,
-	value_objects.NetworkID,
+	valueobjects.NetworkID,
 	string,
 ) ([]esploraTransaction, error) {
 	return f.mempoolTxs, f.mempoolErr
@@ -73,7 +73,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverObserveAddress(t *testing.T) {
 	})
 
 	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
+		Network:               valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
 		Address:               "tb1qexample",
 		IssuedAt:              issuedAt,
 		RequiredConfirmations: 1,
@@ -100,7 +100,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverFetchLatestBlockHeight(t *testin
 
 	latestBlockHeight, err := observer.FetchLatestBlockHeight(
 		context.Background(),
-		value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 	)
 	if err != nil {
 		t.Fatalf("FetchLatestBlockHeight returned error: %v", err)
@@ -116,7 +116,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverBridgeError(t *testing.T) {
 	})
 
 	_, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               value_objects.NetworkID(value_objects.BitcoinNetworkMainnet),
+		Network:               valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 		Address:               "bc1qexample",
 		IssuedAt:              time.Date(2026, 3, 11, 12, 0, 0, 0, time.UTC),
 		RequiredConfirmations: 1,

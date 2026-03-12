@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/value_objects"
+	"payrune/internal/domain/valueobjects"
 )
 
 func TestPaymentReceiptTrackingLifecyclePolicyExpireIfDue(t *testing.T) {
@@ -23,7 +23,7 @@ func TestPaymentReceiptTrackingLifecyclePolicyExpireIfDue(t *testing.T) {
 	if !expired {
 		t.Fatal("expected tracking to expire")
 	}
-	if expiredTracking.Status != value_objects.PaymentReceiptStatusFailedExpired {
+	if expiredTracking.Status != valueobjects.PaymentReceiptStatusFailedExpired {
 		t.Fatalf("unexpected status: got %q", expiredTracking.Status)
 	}
 	if expiredTracking.LastError != defaultPaymentReceiptExpiredReason {
@@ -59,8 +59,8 @@ func newPolicyTestTracking(t *testing.T) entities.PaymentReceiptTracking {
 	tracking, err := entities.NewPaymentReceiptTracking(
 		1,
 		"policy-a",
-		value_objects.ChainIDBitcoin,
-		value_objects.NetworkID(value_objects.BitcoinNetworkTestnet4),
+		valueobjects.ChainIDBitcoin,
+		valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
 		"tb1qpolicytest",
 		time.Date(2026, 3, 7, 8, 0, 0, 0, time.UTC),
 		1000,
