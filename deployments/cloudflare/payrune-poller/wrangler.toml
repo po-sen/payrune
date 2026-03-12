@@ -4,6 +4,13 @@ compatibility_date = "2026-03-11"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = true
 
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true
+head_sampling_rate = 1
+
 [env.mainnet]
 name = "payrune-poller-mainnet"
 
@@ -11,13 +18,13 @@ name = "payrune-poller-mainnet"
 POLL_CHAIN = "bitcoin"
 POLL_NETWORK = "mainnet"
 POLL_RESCHEDULE_INTERVAL = "10m"
-POLL_BATCH_SIZE = "1"
+POLL_BATCH_SIZE = "5"
 POLL_CLAIM_TTL = "2m"
 BITCOIN_MAINNET_ESPLORA_URL = "https://mempool.space/api"
 BITCOIN_MAINNET_ESPLORA_TIMEOUT = "10s"
 
 [env.mainnet.triggers]
-crons = ["* * * * *"]
+crons = ["*/5 * * * *"]
 
 [env.testnet4]
 name = "payrune-poller-testnet4"
@@ -26,10 +33,10 @@ name = "payrune-poller-testnet4"
 POLL_CHAIN = "bitcoin"
 POLL_NETWORK = "testnet4"
 POLL_RESCHEDULE_INTERVAL = "10m"
-POLL_BATCH_SIZE = "1"
+POLL_BATCH_SIZE = "5"
 POLL_CLAIM_TTL = "2m"
 BITCOIN_TESTNET4_ESPLORA_URL = "https://mempool.space/testnet4/api"
 BITCOIN_TESTNET4_ESPLORA_TIMEOUT = "10s"
 
 [env.testnet4.triggers]
-crons = ["* * * * *"]
+crons = ["*/5 * * * *"]

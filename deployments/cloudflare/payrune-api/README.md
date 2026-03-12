@@ -22,6 +22,8 @@ JavaScript so the Worker bundle stays under Cloudflare's free-plan size limit.
 
 Future `/v1/...` API work should usually happen in Go, not in this directory.
 
+Cloudflare observability logs are enabled by default in `wrangler.toml`.
+
 ### Required Worker secret
 
 - `POSTGRES_CONNECTION_STRING`

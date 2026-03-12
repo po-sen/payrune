@@ -17,12 +17,15 @@ Shell env still wins over values from `.env.cloudflare`.
 Non-secret defaults now live in `wrangler.toml`:
 
 - `POLL_RESCHEDULE_INTERVAL = "10m"`
-- `POLL_BATCH_SIZE = "1"`
+- `POLL_BATCH_SIZE = "5"`
 - `POLL_CLAIM_TTL = "2m"`
+- `crons = ["*/5 * * * *"]`
 - `BITCOIN_MAINNET_ESPLORA_URL = "https://mempool.space/api"`
 - `BITCOIN_MAINNET_ESPLORA_TIMEOUT = "10s"`
 - `BITCOIN_TESTNET4_ESPLORA_URL = "https://mempool.space/testnet4/api"`
 - `BITCOIN_TESTNET4_ESPLORA_TIMEOUT = "10s"`
+
+Cloudflare observability logs are enabled by default in `wrangler.toml`.
 
 ## Migration
 
