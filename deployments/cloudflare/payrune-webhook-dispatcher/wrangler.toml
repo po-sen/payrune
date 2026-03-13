@@ -1,0 +1,26 @@
+name = "payrune-webhook-dispatcher"
+main = "src/index.mjs"
+compatibility_date = "2026-03-13"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true
+head_sampling_rate = 1
+
+[vars]
+RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE = "50"
+RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL = "30s"
+RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS = "10"
+RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY = "1m"
+PAYMENT_RECEIPT_WEBHOOK_TIMEOUT = "10s"
+
+[[services]]
+binding = "RECEIPT_WEBHOOK_MOCK"
+service = "receipt-webhook-mock"
+
+[triggers]
+crons = ["* * * * *"]

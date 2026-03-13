@@ -23,6 +23,8 @@ const defaultWebhookTimeout = 10 * time.Second
 
 type PaymentReceiptWebhookNotifierConfig struct {
 	URL                string
+	CloudflareBinding  string
+	CloudflarePath     string
 	Secret             string
 	Timeout            time.Duration
 	InsecureSkipVerify bool

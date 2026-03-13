@@ -1,0 +1,12 @@
+{
+  "name": "receipt-webhook-mock",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.6.0"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "payrune-webhook-dispatcher",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:wasm": "bash ../../../scripts/build-cf-webhook-dispatcher-worker-wasm.sh",
+    "check": "npm run build:wasm && node --check src/index.mjs && node --check src/go-wasm-runtime.mjs && node --check src/postgres-bridge.mjs && node --check src/webhook-notifier-bridge.mjs",
+    "test": "npm run build:wasm && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.6.0"
+  }
+}

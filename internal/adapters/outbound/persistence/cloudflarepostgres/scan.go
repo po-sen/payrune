@@ -113,6 +113,35 @@ func assignValue(dest any, value any) error {
 		}
 		*target = sql.NullTime{Time: timestamp, Valid: true}
 		return nil
+	case *time.Time:
+		if target == nil {
+			return fmt.Errorf("destination time.Time pointer is nil")
+		}
+		if value == nil {
+			*target = time.Time{}
+			return nil
+		}
+		timestamp, err := asTime(value)
+		if err != nil {
+			return err
+		}
+		*target = timestamp
+		return nil
+	case **time.Time:
+		if target == nil {
+			return fmt.Errorf("destination *time.Time pointer is nil")
+		}
+		if value == nil {
+			*target = nil
+			return nil
+		}
+		timestamp, err := asTime(value)
+		if err != nil {
+			return err
+		}
+		timeValue := timestamp
+		*target = &timeValue
+		return nil
 	default:
 		return fmt.Errorf("unsupported scan destination type %T", dest)
 	}
