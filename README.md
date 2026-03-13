@@ -171,6 +171,12 @@ make cf-up
 make cf-down
 ```
 
+Cloudflare credentials:
+
+- you can keep `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env.cloudflare`
+- local interactive deploy can still use `wrangler login`
+- CI or non-interactive deploy can also source the same values from CI secrets
+
 `make cf-up` does:
 
 1. migrate PostgreSQL
