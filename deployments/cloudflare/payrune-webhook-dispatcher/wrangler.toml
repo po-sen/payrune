@@ -12,7 +12,7 @@ invocation_logs = true
 head_sampling_rate = 1
 
 [vars]
-RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE = "50"
+RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE = "20"
 RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL = "30s"
 RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS = "10"
 RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY = "1m"
@@ -23,4 +23,4 @@ binding = "RECEIPT_WEBHOOK_MOCK"
 service = "receipt-webhook-mock"
 
 [triggers]
-crons = ["* * * * *"]
+crons = ["10,25,40,55 * * * *"]

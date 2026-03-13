@@ -18,13 +18,13 @@ name = "payrune-poller-mainnet"
 POLL_CHAIN = "bitcoin"
 POLL_NETWORK = "mainnet"
 POLL_RESCHEDULE_INTERVAL = "10m"
-POLL_BATCH_SIZE = "5"
+POLL_BATCH_SIZE = "10"
 POLL_CLAIM_TTL = "2m"
 BITCOIN_MAINNET_ESPLORA_URL = "https://mempool.space/api"
 BITCOIN_MAINNET_ESPLORA_TIMEOUT = "10s"
 
 [env.mainnet.triggers]
-crons = ["*/5 * * * *"]
+crons = ["5,20,35,50 * * * *"]
 
 [env.testnet4]
 name = "payrune-poller-testnet4"
@@ -33,10 +33,10 @@ name = "payrune-poller-testnet4"
 POLL_CHAIN = "bitcoin"
 POLL_NETWORK = "testnet4"
 POLL_RESCHEDULE_INTERVAL = "10m"
-POLL_BATCH_SIZE = "5"
+POLL_BATCH_SIZE = "10"
 POLL_CLAIM_TTL = "2m"
 BITCOIN_TESTNET4_ESPLORA_URL = "https://mempool.space/testnet4/api"
 BITCOIN_TESTNET4_ESPLORA_TIMEOUT = "10s"
 
 [env.testnet4.triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/15 * * * *"]

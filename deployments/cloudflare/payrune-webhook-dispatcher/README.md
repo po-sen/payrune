@@ -19,12 +19,12 @@ Shell env still wins over values from `.env.cloudflare`.
 
 Non-secret defaults live in `wrangler.toml`:
 
-- `RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE = "50"`
+- `RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE = "20"`
 - `RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL = "30s"`
 - `RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS = "10"`
 - `RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY = "1m"`
 - `PAYMENT_RECEIPT_WEBHOOK_TIMEOUT = "10s"`
-- `crons = ["* * * * *"]`
+- `triggers.crons = ["10,25,40,55 * * * *"]`
 
 Dispatcher always targets the internal Cloudflare mock binding mode:
 
