@@ -1,4 +1,4 @@
-package cloudflare
+package bootstrap
 
 import (
 	"context"
@@ -7,19 +7,19 @@ import (
 	"testing"
 )
 
-func TestHandleRequest(t *testing.T) {
+func TestExecuteAPIWorkerRequest(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	response, err := HandleRequest(context.Background(), mux, Request{
+	response, err := executeAPIWorkerRequest(context.Background(), mux, apiWorkerRequest{
 		Method: http.MethodGet,
 		Path:   "/health",
 	})
 	if err != nil {
-		t.Fatalf("HandleRequest returned error: %v", err)
+		t.Fatalf("executeAPIWorkerRequest returned error: %v", err)
 	}
 	if response.Status != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Status)
