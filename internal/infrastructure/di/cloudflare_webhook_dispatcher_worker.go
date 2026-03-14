@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	inboundadapter "payrune/internal/adapters/inbound/cloudflareworker"
+	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	cloudflarepostgres "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
 	"payrune/internal/adapters/outbound/system"
 	webhookadapter "payrune/internal/adapters/outbound/webhook"
@@ -30,52 +30,52 @@ const (
 func BuildCloudflareWebhookDispatcherRuntime(
 	env map[string]string,
 	postgresBridgeID string,
-) (*inboundadapter.WebhookDispatcherHandler, inboundadapter.WebhookDispatcherRequest, error) {
+) (*scheduleradapter.WebhookDispatcherHandler, scheduleradapter.WebhookDispatcherRequest, error) {
 	request, err := buildCloudflareWebhookDispatcherRequest(env)
 	if err != nil {
-		return nil, inboundadapter.WebhookDispatcherRequest{}, err
+		return nil, scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 
 	notifierConfig, err := loadCloudflarePaymentReceiptWebhookNotifierConfig(env)
 	if err != nil {
-		return nil, inboundadapter.WebhookDispatcherRequest{}, err
+		return nil, scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 	notifier, err := webhookadapter.NewCloudflarePaymentReceiptStatusWebhookNotifier(
 		notifierConfig,
 		webhookadapter.NewCloudflarePaymentReceiptStatusWebhookBridge(),
 	)
 	if err != nil {
-		return nil, inboundadapter.WebhookDispatcherRequest{}, err
+		return nil, scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 
 	unitOfWork := cloudflarepostgres.NewUnitOfWork(postgresBridgeID, cloudflarepostgres.NewJSBridge())
 	clock := system.NewClock()
 	useCase := usecases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, notifier, clock)
 
-	return inboundadapter.NewWebhookDispatcherHandler(inboundadapter.WebhookDispatcherDependencies{
+	return scheduleradapter.NewWebhookDispatcherHandler(scheduleradapter.WebhookDispatcherDependencies{
 		RunReceiptWebhookDispatchCycleUseCase: useCase,
 	}), request, nil
 }
 
-func buildCloudflareWebhookDispatcherRequest(env map[string]string) (inboundadapter.WebhookDispatcherRequest, error) {
+func buildCloudflareWebhookDispatcherRequest(env map[string]string) (scheduleradapter.WebhookDispatcherRequest, error) {
 	batchSize, err := parsePositiveIntEnvWithDefault(env, cfEnvReceiptWebhookDispatchBatchSize, cfDefaultReceiptWebhookDispatchBatchSize)
 	if err != nil {
-		return inboundadapter.WebhookDispatcherRequest{}, err
+		return scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 	dispatchTTL, err := parseDurationMapWithDefault(env, cfEnvReceiptWebhookDispatchClaimTTL, cfDefaultReceiptWebhookDispatchClaimTTL)
 	if err != nil {
-		return inboundadapter.WebhookDispatcherRequest{}, err
+		return scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 	maxAttempts, err := parsePositiveInt32MapWithDefault(env, cfEnvReceiptWebhookDispatchMaxAttempts, cfDefaultReceiptWebhookDispatchMaxAttempts)
 	if err != nil {
-		return inboundadapter.WebhookDispatcherRequest{}, err
+		return scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 	retryDelay, err := parseDurationMapWithDefault(env, cfEnvReceiptWebhookDispatchRetryDelay, cfDefaultReceiptWebhookDispatchRetryDelay)
 	if err != nil {
-		return inboundadapter.WebhookDispatcherRequest{}, err
+		return scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 
-	return inboundadapter.WebhookDispatcherRequest{
+	return scheduleradapter.WebhookDispatcherRequest{
 		BatchSize:   batchSize,
 		DispatchTTL: dispatchTTL,
 		RetryDelay:  retryDelay,

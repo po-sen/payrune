@@ -1,4 +1,4 @@
-package cloudflareworker
+package cloudflare
 
 import (
 	"context"
@@ -8,9 +8,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
-
-	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
-	inport "payrune/internal/application/ports/inbound"
 )
 
 type Request struct {
@@ -25,29 +22,6 @@ type Response struct {
 	Status  int               `json:"status"`
 	Headers map[string]string `json:"headers"`
 	Body    string            `json:"body"`
-}
-
-type APIDependencies struct {
-	CheckHealthUseCase             inport.CheckHealthUseCase
-	ListAddressPoliciesUseCase     inport.ListAddressPoliciesUseCase
-	GenerateAddressUseCase         inport.GenerateAddressUseCase
-	AllocatePaymentAddressUseCase  inport.AllocatePaymentAddressUseCase
-	GetPaymentAddressStatusUseCase inport.GetPaymentAddressStatusUseCase
-}
-
-func NewAPIHandler(deps APIDependencies) http.Handler {
-	healthController := httpcontroller.NewHealthController(deps.CheckHealthUseCase)
-	chainAddressController := httpcontroller.NewChainAddressController(
-		deps.ListAddressPoliciesUseCase,
-		deps.GenerateAddressUseCase,
-		deps.AllocatePaymentAddressUseCase,
-		deps.GetPaymentAddressStatusUseCase,
-	)
-
-	mux := http.NewServeMux()
-	healthController.RegisterRoutes(mux)
-	chainAddressController.RegisterRoutes(mux)
-	return mux
 }
 
 func HandleRequest(ctx context.Context, handler http.Handler, request Request) (Response, error) {

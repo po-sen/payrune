@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	inboundadapter "payrune/internal/adapters/inbound/cloudflareworker"
+	httpadapter "payrune/internal/adapters/inbound/http"
+	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
 	"payrune/internal/adapters/outbound/bitcoin"
 	"payrune/internal/adapters/outbound/blockchain"
 	cloudflarepostgres "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
@@ -165,12 +166,14 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		addressPolicyReader,
 	)
 
-	return inboundadapter.NewAPIHandler(inboundadapter.APIDependencies{
-		CheckHealthUseCase:             healthUseCase,
-		ListAddressPoliciesUseCase:     listAddressPoliciesUseCase,
-		GenerateAddressUseCase:         generateAddressUseCase,
-		AllocatePaymentAddressUseCase:  allocatePaymentAddressUseCase,
-		GetPaymentAddressStatusUseCase: getPaymentAddressStatusUseCase,
+	return httpadapter.NewPublicHandler(httpadapter.Dependencies{
+		HealthController: httpcontroller.NewHealthController(healthUseCase),
+		ChainAddressController: httpcontroller.NewChainAddressController(
+			listAddressPoliciesUseCase,
+			generateAddressUseCase,
+			allocatePaymentAddressUseCase,
+			getPaymentAddressStatusUseCase,
+		),
 	}), nil
 }
 

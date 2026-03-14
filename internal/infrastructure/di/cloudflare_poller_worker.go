@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	inboundadapter "payrune/internal/adapters/inbound/cloudflareworker"
+	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	"payrune/internal/adapters/outbound/bitcoin"
 	blockchainadapter "payrune/internal/adapters/outbound/blockchain"
 	cloudflarepostgres "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
@@ -32,10 +32,10 @@ func BuildCloudflarePollerRuntime(
 	env map[string]string,
 	postgresBridgeID string,
 	bitcoinBridgeID string,
-) (*inboundadapter.PollerHandler, inboundadapter.PollerRequest, error) {
+) (*scheduleradapter.PollerHandler, scheduleradapter.PollerRequest, error) {
 	request, err := buildCloudflarePollerRequest(env)
 	if err != nil {
-		return nil, inboundadapter.PollerRequest{}, err
+		return nil, scheduleradapter.PollerRequest{}, err
 	}
 
 	clock := system.NewClock()
@@ -50,7 +50,7 @@ func BuildCloudflarePollerRuntime(
 		},
 	)
 	if err != nil {
-		return nil, inboundadapter.PollerRequest{}, err
+		return nil, scheduleradapter.PollerRequest{}, err
 	}
 
 	useCase := usecases.NewRunReceiptPollingCycleUseCase(
@@ -60,38 +60,38 @@ func BuildCloudflarePollerRuntime(
 		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
-	handler := inboundadapter.NewPollerHandler(inboundadapter.PollerDependencies{
+	handler := scheduleradapter.NewPollerHandler(scheduleradapter.PollerDependencies{
 		RunReceiptPollingCycleUseCase: useCase,
 	})
 	return handler, request, nil
 }
 
-func buildCloudflarePollerRequest(env map[string]string) (inboundadapter.PollerRequest, error) {
+func buildCloudflarePollerRequest(env map[string]string) (scheduleradapter.PollerRequest, error) {
 	batchSize, err := parsePositiveIntEnvWithDefault(env, envPollBatchSize, defaultPollerBatchSize)
 	if err != nil {
-		return inboundadapter.PollerRequest{}, err
+		return scheduleradapter.PollerRequest{}, err
 	}
 	rescheduleInterval, err := parseDurationMapWithDefault(env, envPollRescheduleInterval, defaultPollerRescheduleInterval)
 	if err != nil {
-		return inboundadapter.PollerRequest{}, err
+		return scheduleradapter.PollerRequest{}, err
 	}
 	claimTTL, err := parseDurationMapWithDefault(env, envPollClaimTTL, defaultPollerClaimTTL)
 	if err != nil {
-		return inboundadapter.PollerRequest{}, err
+		return scheduleradapter.PollerRequest{}, err
 	}
 	chain, err := parseChainEnv(env, envPollChain)
 	if err != nil {
-		return inboundadapter.PollerRequest{}, err
+		return scheduleradapter.PollerRequest{}, err
 	}
 	network, err := parseNetworkEnv(env, envPollNetwork)
 	if err != nil {
-		return inboundadapter.PollerRequest{}, err
+		return scheduleradapter.PollerRequest{}, err
 	}
 	if network != "" && chain == "" {
-		return inboundadapter.PollerRequest{}, fmt.Errorf("%s is required when %s is set", envPollChain, envPollNetwork)
+		return scheduleradapter.PollerRequest{}, fmt.Errorf("%s is required when %s is set", envPollChain, envPollNetwork)
 	}
 
-	return inboundadapter.PollerRequest{
+	return scheduleradapter.PollerRequest{
 		BatchSize:          batchSize,
 		RescheduleInterval: rescheduleInterval,
 		ClaimTTL:           claimTTL,

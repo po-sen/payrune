@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	_ "github.com/lib/pq"
 
+	httpadapter "payrune/internal/adapters/inbound/http"
 	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
 	"payrune/internal/adapters/outbound/bitcoin"
 	"payrune/internal/adapters/outbound/blockchain"
@@ -33,9 +35,8 @@ const (
 )
 
 type Container struct {
-	HealthController       *httpcontroller.HealthController
-	ChainAddressController *httpcontroller.ChainAddressController
-	closeFn                func() error
+	APIHandler http.Handler
+	closeFn    func() error
 }
 
 func NewContainer() (*Container, error) {
@@ -191,9 +192,11 @@ func NewContainer() (*Container, error) {
 	)
 
 	return &Container{
-		HealthController:       healthController,
-		ChainAddressController: chainAddressController,
-		closeFn:                db.Close,
+		APIHandler: httpadapter.NewPublicHandler(httpadapter.Dependencies{
+			HealthController:       healthController,
+			ChainAddressController: chainAddressController,
+		}),
+		closeFn: db.Close,
 	}, nil
 }
 

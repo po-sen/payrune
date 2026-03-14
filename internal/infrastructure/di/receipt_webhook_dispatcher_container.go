@@ -12,16 +12,16 @@ import (
 
 	_ "github.com/lib/pq"
 
+	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	"payrune/internal/adapters/outbound/system"
 	webhookadapter "payrune/internal/adapters/outbound/webhook"
-	inport "payrune/internal/application/ports/inbound"
 	"payrune/internal/application/usecases"
 )
 
 type ReceiptWebhookDispatcherContainer struct {
-	RunReceiptWebhookDispatchCycleUseCase inport.RunReceiptWebhookDispatchCycleUseCase
-	closeFn                               func() error
+	WebhookDispatcherHandler *scheduleradapter.WebhookDispatcherHandler
+	closeFn                  func() error
 }
 
 const (
@@ -65,8 +65,12 @@ func NewReceiptWebhookDispatcherContainer() (*ReceiptWebhookDispatcherContainer,
 	useCase := usecases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, notifier, clock)
 
 	return &ReceiptWebhookDispatcherContainer{
-		RunReceiptWebhookDispatchCycleUseCase: useCase,
-		closeFn:                               db.Close,
+		WebhookDispatcherHandler: scheduleradapter.NewWebhookDispatcherHandler(
+			scheduleradapter.WebhookDispatcherDependencies{
+				RunReceiptWebhookDispatchCycleUseCase: useCase,
+			},
+		),
+		closeFn: db.Close,
 	}, nil
 }
 

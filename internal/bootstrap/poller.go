@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"payrune/internal/application/dto"
+	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	"payrune/internal/infrastructure/di"
 )
 
@@ -43,7 +43,7 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 	}()
 
 	runCycle := func() {
-		output, err := container.RunReceiptPollingCycleUseCase.Execute(ctx, dto.RunReceiptPollingCycleInput{
+		output, err := container.PollerHandler.Handle(ctx, scheduleradapter.PollerRequest{
 			BatchSize:          config.BatchSize,
 			RescheduleInterval: config.RescheduleInterval,
 			ClaimTTL:           config.ClaimTTL,

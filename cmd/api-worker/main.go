@@ -4,24 +4,10 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"syscall/js"
 
-	inboundadapter "payrune/internal/adapters/inbound/cloudflareworker"
-	"payrune/internal/infrastructure/di"
+	"payrune/internal/bootstrap"
 )
-
-type requestEnvelope struct {
-	Request  inboundadapter.Request `json:"request"`
-	Env      map[string]string      `json:"env"`
-	BridgeID string                 `json:"bridgeId"`
-}
-
-type responseEnvelope struct {
-	Response inboundadapter.Response `json:"response"`
-}
-
-type responsePayload = inboundadapter.Response
 
 func main() {
 	js.Global().Set("payruneHandle", js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -36,7 +22,7 @@ func main() {
 			}
 
 			go func() {
-				responseJSON, err := handleRequestJSON(payload)
+				responseJSON, err := bootstrap.HandleCloudflareAPIRequestJSON(context.Background(), payload)
 				if err != nil {
 					reject.Invoke(err.Error())
 					return
@@ -52,31 +38,4 @@ func main() {
 	}))
 
 	select {}
-}
-
-func handleRequestJSON(payload string) (string, error) {
-	var envelope requestEnvelope
-	if err := json.Unmarshal([]byte(payload), &envelope); err != nil {
-		return "", err
-	}
-
-	response, err := handleRequest(context.Background(), envelope)
-	if err != nil {
-		return "", err
-	}
-
-	encoded, err := json.Marshal(responseEnvelope{Response: response})
-	if err != nil {
-		return "", err
-	}
-	return string(encoded), nil
-}
-
-func handleRequest(ctx context.Context, envelope requestEnvelope) (responsePayload, error) {
-	handler, err := di.BuildCloudflareAPIHTTPHandler(envelope.Env, envelope.BridgeID)
-	if err != nil {
-		return inboundadapter.Response{}, err
-	}
-
-	return inboundadapter.HandleRequest(ctx, handler, envelope.Request)
 }

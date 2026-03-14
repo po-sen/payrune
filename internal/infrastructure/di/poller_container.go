@@ -12,11 +12,11 @@ import (
 
 	_ "github.com/lib/pq"
 
+	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	"payrune/internal/adapters/outbound/bitcoin"
 	blockchainadapter "payrune/internal/adapters/outbound/blockchain"
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	"payrune/internal/adapters/outbound/system"
-	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
@@ -24,8 +24,8 @@ import (
 )
 
 type PollerContainer struct {
-	RunReceiptPollingCycleUseCase inport.RunReceiptPollingCycleUseCase
-	closeFn                       func() error
+	PollerHandler *scheduleradapter.PollerHandler
+	closeFn       func() error
 }
 
 const (
@@ -92,8 +92,10 @@ func NewPollerContainer() (*PollerContainer, error) {
 	)
 
 	return &PollerContainer{
-		RunReceiptPollingCycleUseCase: runReceiptPollingCycleUseCase,
-		closeFn:                       db.Close,
+		PollerHandler: scheduleradapter.NewPollerHandler(scheduleradapter.PollerDependencies{
+			RunReceiptPollingCycleUseCase: runReceiptPollingCycleUseCase,
+		}),
+		closeFn: db.Close,
 	}, nil
 }
 

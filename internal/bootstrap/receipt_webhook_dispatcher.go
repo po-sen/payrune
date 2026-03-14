@@ -5,19 +5,19 @@ import (
 	"log"
 	"time"
 
-	"payrune/internal/application/dto"
+	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	"payrune/internal/infrastructure/di"
 )
 
 const (
-	defaultReceiptWebhookDispatchInterval    = 15 * time.Second
-	defaultReceiptWebhookDispatchBatchSize   = 50
-	defaultReceiptWebhookDispatchClaimTTL    = 30 * time.Second
-	defaultReceiptWebhookDispatchMaxAttempts = int32(10)
-	defaultReceiptWebhookDispatchRetryDelay  = time.Minute
+	defaultReceiptWebhookDispatcherInterval    = 15 * time.Second
+	defaultReceiptWebhookDispatcherBatchSize   = 50
+	defaultReceiptWebhookDispatcherClaimTTL    = 30 * time.Second
+	defaultReceiptWebhookDispatcherMaxAttempts = int32(10)
+	defaultReceiptWebhookDispatcherRetryDelay  = time.Minute
 )
 
-type ReceiptWebhookDispatchConfig struct {
+type ReceiptWebhookDispatcherConfig struct {
 	Interval    time.Duration
 	BatchSize   int
 	ClaimTTL    time.Duration
@@ -25,21 +25,21 @@ type ReceiptWebhookDispatchConfig struct {
 	RetryDelay  time.Duration
 }
 
-func RunReceiptWebhookDispatcher(ctx context.Context, config ReceiptWebhookDispatchConfig) error {
+func RunReceiptWebhookDispatcher(ctx context.Context, config ReceiptWebhookDispatcherConfig) error {
 	if config.Interval <= 0 {
-		config.Interval = defaultReceiptWebhookDispatchInterval
+		config.Interval = defaultReceiptWebhookDispatcherInterval
 	}
 	if config.BatchSize <= 0 {
-		config.BatchSize = defaultReceiptWebhookDispatchBatchSize
+		config.BatchSize = defaultReceiptWebhookDispatcherBatchSize
 	}
 	if config.ClaimTTL <= 0 {
-		config.ClaimTTL = defaultReceiptWebhookDispatchClaimTTL
+		config.ClaimTTL = defaultReceiptWebhookDispatcherClaimTTL
 	}
 	if config.MaxAttempts <= 0 {
-		config.MaxAttempts = defaultReceiptWebhookDispatchMaxAttempts
+		config.MaxAttempts = defaultReceiptWebhookDispatcherMaxAttempts
 	}
 	if config.RetryDelay <= 0 {
-		config.RetryDelay = defaultReceiptWebhookDispatchRetryDelay
+		config.RetryDelay = defaultReceiptWebhookDispatcherRetryDelay
 	}
 
 	container, err := di.NewReceiptWebhookDispatcherContainer()
@@ -51,7 +51,7 @@ func RunReceiptWebhookDispatcher(ctx context.Context, config ReceiptWebhookDispa
 	}()
 
 	runCycle := func() {
-		output, err := container.RunReceiptWebhookDispatchCycleUseCase.Execute(ctx, dto.RunReceiptWebhookDispatchCycleInput{
+		output, err := container.WebhookDispatcherHandler.Handle(ctx, scheduleradapter.WebhookDispatcherRequest{
 			BatchSize:   config.BatchSize,
 			DispatchTTL: config.ClaimTTL,
 			RetryDelay:  config.RetryDelay,

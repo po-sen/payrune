@@ -6,11 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"payrune/internal/adapters/inbound/http/middleware"
 	"payrune/internal/infrastructure/di"
 )
 
-func Run(ctx context.Context, addr string) error {
+func RunAPI(ctx context.Context, addr string) error {
 	container, err := di.NewContainer()
 	if err != nil {
 		return err
@@ -19,14 +18,9 @@ func Run(ctx context.Context, addr string) error {
 		_ = container.Close()
 	}()
 
-	mux := http.NewServeMux()
-	container.HealthController.RegisterRoutes(mux)
-	container.ChainAddressController.RegisterRoutes(mux)
-	handler := middleware.CORS(mux)
-
 	httpServer := &http.Server{
 		Addr:              addr,
-		Handler:           handler,
+		Handler:           container.APIHandler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

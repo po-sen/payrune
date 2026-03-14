@@ -17,7 +17,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	config, err := loadReceiptWebhookDispatchConfigFromEnv()
+	config, err := loadReceiptWebhookDispatcherConfigFromEnv()
 	if err != nil {
 		log.Fatalf("invalid webhook dispatcher config: %v", err)
 	}
@@ -27,29 +27,29 @@ func main() {
 	}
 }
 
-func loadReceiptWebhookDispatchConfigFromEnv() (bootstrap.ReceiptWebhookDispatchConfig, error) {
+func loadReceiptWebhookDispatcherConfigFromEnv() (bootstrap.ReceiptWebhookDispatcherConfig, error) {
 	interval, err := parseRequiredPositiveDurationEnv("RECEIPT_WEBHOOK_DISPATCH_INTERVAL")
 	if err != nil {
-		return bootstrap.ReceiptWebhookDispatchConfig{}, err
+		return bootstrap.ReceiptWebhookDispatcherConfig{}, err
 	}
 	batchSize, err := parseRequiredPositiveIntEnv("RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE")
 	if err != nil {
-		return bootstrap.ReceiptWebhookDispatchConfig{}, err
+		return bootstrap.ReceiptWebhookDispatcherConfig{}, err
 	}
 	claimTTL, err := parseRequiredPositiveDurationEnv("RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL")
 	if err != nil {
-		return bootstrap.ReceiptWebhookDispatchConfig{}, err
+		return bootstrap.ReceiptWebhookDispatcherConfig{}, err
 	}
 	maxAttempts, err := parseRequiredPositiveInt32Env("RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS")
 	if err != nil {
-		return bootstrap.ReceiptWebhookDispatchConfig{}, err
+		return bootstrap.ReceiptWebhookDispatcherConfig{}, err
 	}
 	retryDelay, err := parseRequiredPositiveDurationEnv("RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY")
 	if err != nil {
-		return bootstrap.ReceiptWebhookDispatchConfig{}, err
+		return bootstrap.ReceiptWebhookDispatcherConfig{}, err
 	}
 
-	return bootstrap.ReceiptWebhookDispatchConfig{
+	return bootstrap.ReceiptWebhookDispatcherConfig{
 		Interval:    interval,
 		BatchSize:   batchSize,
 		ClaimTTL:    claimTTL,

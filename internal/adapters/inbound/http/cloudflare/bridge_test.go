@@ -1,4 +1,4 @@
-package cloudflareworker
+package cloudflare
 
 import (
 	"context"
