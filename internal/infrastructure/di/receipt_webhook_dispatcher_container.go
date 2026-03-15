@@ -1,22 +1,17 @@
 package di
 
 import (
-	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
-	"time"
-
-	_ "github.com/lib/pq"
 
 	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	"payrune/internal/adapters/outbound/system"
 	webhookadapter "payrune/internal/adapters/outbound/webhook"
 	"payrune/internal/application/usecases"
+	postgresdriver "payrune/internal/infrastructure/drivers/postgres"
 )
 
 type ReceiptWebhookDispatcherContainer struct {
@@ -32,21 +27,9 @@ const (
 )
 
 func NewReceiptWebhookDispatcherContainer() (*ReceiptWebhookDispatcherContainer, error) {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if databaseURL == "" {
-		return nil, errors.New("DATABASE_URL is required")
-	}
-
-	db, err := sql.Open("postgres", databaseURL)
+	db, err := postgresdriver.OpenFromEnv()
 	if err != nil {
-		return nil, fmt.Errorf("open database connection: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("ping database connection: %w", err)
+		return nil, err
 	}
 
 	notifierConfig, err := loadPaymentReceiptWebhookNotifierConfigFromEnv()

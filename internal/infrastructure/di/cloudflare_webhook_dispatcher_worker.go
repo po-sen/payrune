@@ -10,6 +10,8 @@ import (
 	"payrune/internal/adapters/outbound/system"
 	webhookadapter "payrune/internal/adapters/outbound/webhook"
 	"payrune/internal/application/usecases"
+	cloudflarepostgresdriver "payrune/internal/infrastructure/drivers/cloudflarepostgres"
+	cloudflarewebhookdriver "payrune/internal/infrastructure/drivers/cloudflarewebhook"
 )
 
 const (
@@ -42,13 +44,13 @@ func BuildCloudflareWebhookDispatcherRuntime(
 	}
 	notifier, err := webhookadapter.NewCloudflarePaymentReceiptStatusWebhookNotifier(
 		notifierConfig,
-		webhookadapter.NewCloudflarePaymentReceiptStatusWebhookBridge(),
+		cloudflarewebhookdriver.NewBridge(),
 	)
 	if err != nil {
 		return nil, scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 
-	unitOfWork := cloudflarepostgres.NewUnitOfWork(postgresBridgeID, cloudflarepostgres.NewJSBridge())
+	unitOfWork := cloudflarepostgres.NewUnitOfWork(postgresBridgeID, cloudflarepostgresdriver.NewJSBridge())
 	clock := system.NewClock()
 	useCase := usecases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, notifier, clock)
 

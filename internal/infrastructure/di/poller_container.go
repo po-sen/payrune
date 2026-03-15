@@ -1,16 +1,10 @@
 package di
 
 import (
-	"context"
-	"database/sql"
-	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	_ "github.com/lib/pq"
 
 	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	"payrune/internal/adapters/outbound/bitcoin"
@@ -21,6 +15,7 @@ import (
 	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
+	postgresdriver "payrune/internal/infrastructure/drivers/postgres"
 )
 
 type PollerContainer struct {
@@ -51,21 +46,9 @@ type bitcoinEsploraEnvKeys struct {
 }
 
 func NewPollerContainer() (*PollerContainer, error) {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if databaseURL == "" {
-		return nil, errors.New("DATABASE_URL is required")
-	}
-
-	db, err := sql.Open("postgres", databaseURL)
+	db, err := postgresdriver.OpenFromEnv()
 	if err != nil {
-		return nil, fmt.Errorf("open database connection: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("ping database connection: %w", err)
+		return nil, err
 	}
 
 	unitOfWork := postgresadapter.NewUnitOfWork(db)

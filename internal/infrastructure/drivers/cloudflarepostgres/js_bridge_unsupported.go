@@ -1,15 +1,17 @@
 //go:build !js || !wasm
 
-package cloudflarepostgres
+package cloudflarepostgresdriver
 
 import (
 	"context"
 	"errors"
+
+	cloudflarepostgresadapter "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
 )
 
 type unsupportedBridge struct{}
 
-func NewJSBridge() Bridge {
+func NewJSBridge() cloudflarepostgresadapter.Bridge {
 	return &unsupportedBridge{}
 }
 

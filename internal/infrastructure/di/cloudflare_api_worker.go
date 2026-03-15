@@ -17,6 +17,7 @@ import (
 	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
+	cloudflarepostgresdriver "payrune/internal/infrastructure/drivers/cloudflarepostgres"
 )
 
 const (
@@ -147,7 +148,7 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	generateAddressUseCase := usecases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
-	bridge := cloudflarepostgres.NewJSBridge()
+	bridge := cloudflarepostgresdriver.NewJSBridge()
 	dbExecutor := cloudflarepostgres.NewExecutor(bridgeID, bridge)
 	unitOfWork := cloudflarepostgres.NewUnitOfWork(bridgeID, bridge)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(

@@ -14,6 +14,7 @@ import (
 	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
+	cloudflarepostgresdriver "payrune/internal/infrastructure/drivers/cloudflarepostgres"
 )
 
 const (
@@ -39,7 +40,7 @@ func BuildCloudflarePollerRuntime(
 	}
 
 	clock := system.NewClock()
-	unitOfWork := cloudflarepostgres.NewUnitOfWork(postgresBridgeID, cloudflarepostgres.NewJSBridge())
+	unitOfWork := cloudflarepostgres.NewUnitOfWork(postgresBridgeID, cloudflarepostgresdriver.NewJSBridge())
 	bitcoinObserver := bitcoin.NewCloudflareBitcoinEsploraReceiptObserver(
 		bitcoinBridgeID,
 		bitcoin.NewCloudflareEsploraBridge(),

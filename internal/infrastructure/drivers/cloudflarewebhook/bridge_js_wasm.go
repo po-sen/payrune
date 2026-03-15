@@ -1,24 +1,30 @@
 //go:build js && wasm
 
-package webhook
+package cloudflarewebhookdriver
 
 import (
 	"context"
 	"errors"
 	"syscall/js"
+	"time"
+
+	webhookadapter "payrune/internal/adapters/outbound/webhook"
 )
 
-const jsFnWebhookPost = "__payruneWebhookPost"
+const (
+	jsFnWebhookPost       = "__payruneWebhookPost"
+	defaultWebhookTimeout = 10 * time.Second
+)
 
-type jsCloudflarePaymentReceiptStatusWebhookBridge struct{}
+type jsBridge struct{}
 
-func NewCloudflarePaymentReceiptStatusWebhookBridge() CloudflarePaymentReceiptStatusWebhookBridge {
-	return &jsCloudflarePaymentReceiptStatusWebhookBridge{}
+func NewBridge() webhookadapter.CloudflarePaymentReceiptStatusWebhookBridge {
+	return &jsBridge{}
 }
 
-func (b *jsCloudflarePaymentReceiptStatusWebhookBridge) PostJSON(
+func (b *jsBridge) PostJSON(
 	ctx context.Context,
-	input CloudflarePaymentReceiptStatusWebhookPostInput,
+	input webhookadapter.CloudflarePaymentReceiptStatusWebhookPostInput,
 ) error {
 	headers := js.Global().Get("Object").New()
 	for key, value := range input.Headers {
@@ -30,14 +36,14 @@ func (b *jsCloudflarePaymentReceiptStatusWebhookBridge) PostJSON(
 		timeoutMs = defaultWebhookTimeout.Milliseconds()
 	}
 
-	_, err := awaitWebhookPromise(
+	_, err := awaitPromise(
 		ctx,
 		js.Global().Call(jsFnWebhookPost, input.Binding, input.Path, timeoutMs, headers, string(input.Body)),
 	)
 	return err
 }
 
-func awaitWebhookPromise(ctx context.Context, promise js.Value) (js.Value, error) {
+func awaitPromise(ctx context.Context, promise js.Value) (js.Value, error) {
 	resultCh := make(chan js.Value, 1)
 	errCh := make(chan error, 1)
 
@@ -54,7 +60,7 @@ func awaitWebhookPromise(ctx context.Context, promise js.Value) (js.Value, error
 			errCh <- errors.New("javascript webhook promise rejected")
 			return nil
 		}
-		errCh <- jsWebhookError(args[0])
+		errCh <- jsError(args[0])
 		return nil
 	})
 
@@ -76,7 +82,7 @@ func awaitWebhookPromise(ctx context.Context, promise js.Value) (js.Value, error
 	}
 }
 
-func jsWebhookError(value js.Value) error {
+func jsError(value js.Value) error {
 	if value.IsNull() || value.IsUndefined() {
 		return errors.New("webhook bridge error is missing")
 	}

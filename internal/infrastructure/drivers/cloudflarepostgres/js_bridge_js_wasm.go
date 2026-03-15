@@ -1,6 +1,6 @@
 //go:build js && wasm
 
-package cloudflarepostgres
+package cloudflarepostgresdriver
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"syscall/js"
 	"time"
+
+	cloudflarepostgresadapter "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
 )
 
 const (
@@ -20,13 +22,13 @@ const (
 	jsFnQueryRow = "__payrunePgQueryRow"
 )
 
-type JSBridge struct{}
+type jsBridge struct{}
 
-func NewJSBridge() Bridge {
-	return &JSBridge{}
+func NewJSBridge() cloudflarepostgresadapter.Bridge {
+	return &jsBridge{}
 }
 
-func (b *JSBridge) BeginTx(ctx context.Context, bridgeID string) (string, error) {
+func (b *jsBridge) BeginTx(ctx context.Context, bridgeID string) (string, error) {
 	value, err := awaitPromise(ctx, js.Global().Call(jsFnBeginTx, bridgeID))
 	if err != nil {
 		return "", err
@@ -34,17 +36,17 @@ func (b *JSBridge) BeginTx(ctx context.Context, bridgeID string) (string, error)
 	return value.String(), nil
 }
 
-func (b *JSBridge) CommitTx(ctx context.Context, bridgeID string, txID string) error {
+func (b *jsBridge) CommitTx(ctx context.Context, bridgeID string, txID string) error {
 	_, err := awaitPromise(ctx, js.Global().Call(jsFnCommitTx, bridgeID, txID))
 	return err
 }
 
-func (b *JSBridge) RollbackTx(ctx context.Context, bridgeID string, txID string) error {
+func (b *jsBridge) RollbackTx(ctx context.Context, bridgeID string, txID string) error {
 	_, err := awaitPromise(ctx, js.Global().Call(jsFnRollback, bridgeID, txID))
 	return err
 }
 
-func (b *JSBridge) Exec(ctx context.Context, bridgeID string, txID string, query string, args []any) (int64, error) {
+func (b *jsBridge) Exec(ctx context.Context, bridgeID string, txID string, query string, args []any) (int64, error) {
 	value, err := awaitPromise(ctx, js.Global().Call(jsFnExec, bridgeID, txID, query, jsArgs(args)))
 	if err != nil {
 		return 0, err
@@ -52,7 +54,7 @@ func (b *JSBridge) Exec(ctx context.Context, bridgeID string, txID string, query
 	return int64(value.Get("rowCount").Int()), nil
 }
 
-func (b *JSBridge) Query(ctx context.Context, bridgeID string, txID string, query string, args []any) ([][]any, error) {
+func (b *jsBridge) Query(ctx context.Context, bridgeID string, txID string, query string, args []any) ([][]any, error) {
 	value, err := awaitPromise(ctx, js.Global().Call(jsFnQuery, bridgeID, txID, query, jsArgs(args)))
 	if err != nil {
 		return nil, err
@@ -60,7 +62,7 @@ func (b *JSBridge) Query(ctx context.Context, bridgeID string, txID string, quer
 	return jsRowsToGo(value.Get("rows"))
 }
 
-func (b *JSBridge) QueryRow(
+func (b *jsBridge) QueryRow(
 	ctx context.Context,
 	bridgeID string,
 	txID string,
@@ -203,7 +205,7 @@ func jsError(value js.Value) error {
 	code := value.Get("code")
 	constraint := value.Get("constraint")
 	if message.Truthy() || code.Truthy() || constraint.Truthy() {
-		return &QueryError{
+		return &cloudflarepostgresadapter.QueryError{
 			Message:    message.String(),
 			Code:       code.String(),
 			Constraint: constraint.String(),
