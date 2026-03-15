@@ -123,6 +123,32 @@ func TestHDXPubAddressDeriverDerivationPathChangeLevelXPub(t *testing.T) {
 	}
 }
 
+func TestHDXPubAddressDeriverAbsoluteDerivationPathAccountLevelXPubUsesActualAccount(t *testing.T) {
+	xpub := newAccountLevelXPubForAccount(t, &chaincfg.MainNetParams, 5)
+	deriver := newTestDeriver()
+
+	path, err := deriver.AbsoluteDerivationPath(xpub, "m/84'/0'/0'", 9)
+	if err != nil {
+		t.Fatalf("AbsoluteDerivationPath returned error: %v", err)
+	}
+	if path != "m/84'/0'/5'/0/9" {
+		t.Fatalf("unexpected absolute derivation path: got %q, want %q", path, "m/84'/0'/5'/0/9")
+	}
+}
+
+func TestHDXPubAddressDeriverAbsoluteDerivationPathChangeLevelXPubUsesConfiguredAccountPrefix(t *testing.T) {
+	xpub := newChangeLevelXPubForAccountAndBranch(t, &chaincfg.MainNetParams, 5, 1)
+	deriver := newTestDeriver()
+
+	path, err := deriver.AbsoluteDerivationPath(xpub, "m/84'/0'/5'", 9)
+	if err != nil {
+		t.Fatalf("AbsoluteDerivationPath returned error: %v", err)
+	}
+	if path != "m/84'/0'/5'/1/9" {
+		t.Fatalf("unexpected absolute derivation path: got %q, want %q", path, "m/84'/0'/5'/1/9")
+	}
+}
+
 func TestHDXPubAddressDeriverAddressTypeByScheme(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -350,6 +376,10 @@ func newTestXPub(t *testing.T, params *chaincfg.Params) string {
 }
 
 func newAccountLevelXPub(t *testing.T, params *chaincfg.Params) string {
+	return newAccountLevelXPubForAccount(t, params, 0)
+}
+
+func newAccountLevelXPubForAccount(t *testing.T, params *chaincfg.Params, account uint32) string {
 	t.Helper()
 
 	seed := bytes.Repeat([]byte{0x42}, 32)
@@ -372,7 +402,7 @@ func newAccountLevelXPub(t *testing.T, params *chaincfg.Params) string {
 		t.Fatalf("failed to derive coin type key: %v", err)
 	}
 
-	accountKey, err := coinTypeKey.Derive(hdkeychain.HardenedKeyStart)
+	accountKey, err := coinTypeKey.Derive(hdkeychain.HardenedKeyStart + account)
 	if err != nil {
 		t.Fatalf("failed to derive account key: %v", err)
 	}
@@ -386,15 +416,24 @@ func newAccountLevelXPub(t *testing.T, params *chaincfg.Params) string {
 }
 
 func newChangeLevelXPub(t *testing.T, params *chaincfg.Params) string {
+	return newChangeLevelXPubForAccountAndBranch(t, params, 0, 0)
+}
+
+func newChangeLevelXPubForAccountAndBranch(
+	t *testing.T,
+	params *chaincfg.Params,
+	account uint32,
+	branch uint32,
+) string {
 	t.Helper()
 
-	accountXPub := newAccountLevelXPub(t, params)
+	accountXPub := newAccountLevelXPubForAccount(t, params, account)
 	accountKey, err := hdkeychain.NewKeyFromString(accountXPub)
 	if err != nil {
 		t.Fatalf("failed to parse account xpub: %v", err)
 	}
 
-	changeKey, err := accountKey.Derive(0)
+	changeKey, err := accountKey.Derive(branch)
 	if err != nil {
 		t.Fatalf("failed to derive external chain branch: %v", err)
 	}

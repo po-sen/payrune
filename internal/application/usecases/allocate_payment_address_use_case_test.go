@@ -225,6 +225,9 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if deriver.lastInput.AccountPublicKey != "xpub-main" {
 		t.Fatalf("unexpected public key passed to deriver: got %q", deriver.lastInput.AccountPublicKey)
 	}
+	if deriver.lastInput.DerivationPathPrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected derivation path prefix passed to deriver: got %q", deriver.lastInput.DerivationPathPrefix)
+	}
 	if response.Address != "bc1qallocatedaddress" {
 		t.Fatalf("unexpected address: got %q", response.Address)
 	}

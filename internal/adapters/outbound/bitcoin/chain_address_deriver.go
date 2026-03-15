@@ -17,6 +17,7 @@ type addressDeriver interface {
 		index uint32,
 	) (string, error)
 	DerivationPath(xpub string, index uint32) (string, error)
+	AbsoluteDerivationPath(xpub string, derivationPathPrefix string, index uint32) (string, error)
 }
 
 type ChainAddressDeriver struct {
@@ -64,6 +65,15 @@ func (g *ChainAddressDeriver) DeriveAddress(
 		return outport.DeriveChainAddressOutput{}, err
 	}
 
+	absoluteDerivationPath, err := g.deriver.AbsoluteDerivationPath(
+		input.AccountPublicKey,
+		input.DerivationPathPrefix,
+		input.Index,
+	)
+	if err != nil {
+		return outport.DeriveChainAddressOutput{}, err
+	}
+
 	relativeDerivationPath, err := g.deriver.DerivationPath(input.AccountPublicKey, input.Index)
 	if err != nil {
 		return outport.DeriveChainAddressOutput{}, err
@@ -72,5 +82,6 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	return outport.DeriveChainAddressOutput{
 		Address:                address,
 		RelativeDerivationPath: relativeDerivationPath,
+		DerivationPath:         absoluteDerivationPath,
 	}, nil
 }

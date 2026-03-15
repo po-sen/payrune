@@ -61,6 +61,9 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	if deriver.lastInput.AccountPublicKey != "xpub-main" {
 		t.Fatalf("unexpected public key: got %q", deriver.lastInput.AccountPublicKey)
 	}
+	if deriver.lastInput.DerivationPathPrefix != "m/44'/0'/0'" {
+		t.Fatalf("unexpected derivation path prefix: got %q", deriver.lastInput.DerivationPathPrefix)
+	}
 	if deriver.lastInput.Index != 9 {
 		t.Fatalf("unexpected index: got %d", deriver.lastInput.Index)
 	}

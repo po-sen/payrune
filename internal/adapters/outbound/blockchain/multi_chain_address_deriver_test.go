@@ -85,6 +85,7 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 		output: outport.DeriveChainAddressOutput{
 			Address:                "bc1qgenerated",
 			RelativeDerivationPath: "0/12",
+			DerivationPath:         "m/84'/0'/5'/0/12",
 		},
 	}
 	deriver, err := NewMultiChainAddressDeriver(bitcoin)
@@ -93,17 +94,21 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	}
 
 	output, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:            valueobjects.SupportedChain(" BitCoin "),
-		Network:          valueobjects.NetworkID(" MainNet "),
-		Scheme:           " nativeSegwit ",
-		AccountPublicKey: " xpub-main ",
-		Index:            12,
+		Chain:                valueobjects.SupportedChain(" BitCoin "),
+		Network:              valueobjects.NetworkID(" MainNet "),
+		Scheme:               " nativeSegwit ",
+		AccountPublicKey:     " xpub-main ",
+		DerivationPathPrefix: " m/84'/0'/0' ",
+		Index:                12,
 	})
 	if err != nil {
 		t.Fatalf("DeriveAddress returned error: %v", err)
 	}
 	if output.Address != "bc1qgenerated" {
 		t.Fatalf("unexpected address: got %q", output.Address)
+	}
+	if output.DerivationPath != "m/84'/0'/5'/0/12" {
+		t.Fatalf("unexpected derivation path: got %q", output.DerivationPath)
 	}
 	if bitcoin.calls != 1 {
 		t.Fatalf("unexpected deriver calls: got %d", bitcoin.calls)
@@ -119,6 +124,9 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	}
 	if bitcoin.lastInput.AccountPublicKey != "xpub-main" {
 		t.Fatalf("unexpected normalized account public key: got %q", bitcoin.lastInput.AccountPublicKey)
+	}
+	if bitcoin.lastInput.DerivationPathPrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected normalized derivation path prefix: got %q", bitcoin.lastInput.DerivationPathPrefix)
 	}
 }
 

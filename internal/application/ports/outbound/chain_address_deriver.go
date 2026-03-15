@@ -6,16 +6,18 @@ import (
 )
 
 type DeriveChainAddressInput struct {
-	Chain            valueobjects.SupportedChain
-	Network          valueobjects.NetworkID
-	Scheme           string
-	AccountPublicKey string
-	Index            uint32
+	Chain                valueobjects.SupportedChain
+	Network              valueobjects.NetworkID
+	Scheme               string
+	AccountPublicKey     string
+	DerivationPathPrefix string
+	Index                uint32
 }
 
 type DeriveChainAddressOutput struct {
 	Address                string
 	RelativeDerivationPath string
+	DerivationPath         string
 }
 
 type ChainAddressDeriver interface {

@@ -50,11 +50,12 @@ func (uc *generateAddressUseCase) Execute(
 	}
 
 	output, err := uc.deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:            input.Chain,
-		Network:          policy.AddressPolicy.Network,
-		Scheme:           policy.AddressPolicy.Scheme,
-		AccountPublicKey: policy.DerivationConfig.AccountPublicKey,
-		Index:            input.Index,
+		Chain:                input.Chain,
+		Network:              policy.AddressPolicy.Network,
+		Scheme:               policy.AddressPolicy.Scheme,
+		AccountPublicKey:     policy.DerivationConfig.AccountPublicKey,
+		DerivationPathPrefix: policy.DerivationConfig.DerivationPathPrefix,
+		Index:                input.Index,
 	})
 	if err != nil {
 		return dto.GenerateAddressResponse{}, err

@@ -1,7 +1,9 @@
 package bitcoin
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"payrune/internal/domain/valueobjects"
 
@@ -76,15 +78,31 @@ func (d *HDXPubAddressDeriver) DerivationPath(xpub string, index uint32) (string
 		return "", fmt.Errorf("parse xpub: %w", err)
 	}
 
-	// Return path relative to account level (m/purpose'/coin_type'/account').
-	if extendedKey.Depth() <= 3 {
-		return fmt.Sprintf("0/%d", index), nil
-	}
-	if extendedKey.Depth() == 4 {
-		return fmt.Sprintf("%d/%d", extendedKey.ChildIndex(), index), nil
+	return relativeDerivationPath(extendedKey, index), nil
+}
+
+func (d *HDXPubAddressDeriver) AbsoluteDerivationPath(
+	xpub string,
+	derivationPathPrefix string,
+	index uint32,
+) (string, error) {
+	extendedKey, err := hdkeychain.NewKeyFromString(xpub)
+	if err != nil {
+		return "", fmt.Errorf("parse xpub: %w", err)
 	}
 
-	return fmt.Sprintf("%d", index), nil
+	prefix, err := normalizedDerivationPathPrefix(derivationPathPrefix)
+	if err != nil {
+		return "", err
+	}
+	if extendedKey.Depth() == 3 {
+		prefix, err = replaceAccountPathSegment(prefix, formatDerivationPathIndex(extendedKey.ChildIndex()))
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return prefix + "/" + relativeDerivationPath(extendedKey, index), nil
 }
 
 func deriveAddressExtendedKey(
@@ -108,6 +126,46 @@ func deriveAddressExtendedKey(
 	}
 
 	return childKey, nil
+}
+
+func relativeDerivationPath(extendedKey *hdkeychain.ExtendedKey, index uint32) string {
+	// Return path relative to account level (m/purpose'/coin_type'/account').
+	if extendedKey.Depth() <= 3 {
+		return fmt.Sprintf("0/%d", index)
+	}
+	if extendedKey.Depth() == 4 {
+		return fmt.Sprintf("%s/%d", formatDerivationPathIndex(extendedKey.ChildIndex()), index)
+	}
+
+	return fmt.Sprintf("%d", index)
+}
+
+func normalizedDerivationPathPrefix(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	trimmed = strings.TrimSuffix(trimmed, "/")
+	if trimmed == "" {
+		return "", errors.New("derivation path prefix is required")
+	}
+	if !strings.HasPrefix(trimmed, "m/") {
+		return "", errors.New("derivation path prefix is required")
+	}
+	return trimmed, nil
+}
+
+func replaceAccountPathSegment(prefix string, accountSegment string) (string, error) {
+	segments := strings.Split(prefix, "/")
+	if len(segments) < 4 {
+		return "", errors.New("derivation path prefix must include account segment")
+	}
+	segments[len(segments)-1] = accountSegment
+	return strings.Join(segments, "/"), nil
+}
+
+func formatDerivationPathIndex(index uint32) string {
+	if index >= hdkeychain.HardenedKeyStart {
+		return fmt.Sprintf("%d'", index-hdkeychain.HardenedKeyStart)
+	}
+	return fmt.Sprintf("%d", index)
 }
 
 func networkParams(network valueobjects.BitcoinNetwork) (*chaincfg.Params, error) {
