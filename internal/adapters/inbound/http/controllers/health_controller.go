@@ -15,11 +15,7 @@ func NewHealthController(checkHealth inport.CheckHealthUseCase) *HealthControlle
 	return &HealthController{checkHealth: checkHealth}
 }
 
-func (c *HealthController) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/health", c.handleHealth)
-}
-
-func (c *HealthController) handleHealth(w http.ResponseWriter, r *http.Request) {
+func (c *HealthController) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

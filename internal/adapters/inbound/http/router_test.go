@@ -54,10 +54,10 @@ func (f *fakeGetPaymentAddressStatusUseCase) Execute(
 	return dto.GetPaymentAddressStatusResponse{}, nil
 }
 
-func TestNewPublicHandlerRegistersRoutesAndAppliesCORS(t *testing.T) {
-	handler := NewPublicHandler(Dependencies{
-		HealthController: controllers.NewHealthController(&fakeCheckHealthUseCase{}),
-		ChainAddressController: controllers.NewChainAddressController(
+func TestNewPublicRouterRegistersRoutesAndAppliesCORS(t *testing.T) {
+	router := NewPublicRouter(RouterControllers{
+		Health: controllers.NewHealthController(&fakeCheckHealthUseCase{}),
+		ChainAddress: controllers.NewChainAddressController(
 			&fakeListAddressPoliciesUseCase{},
 			&fakeGenerateAddressUseCase{},
 			&fakeAllocatePaymentAddressUseCase{},
@@ -69,13 +69,33 @@ func TestNewPublicHandlerRegistersRoutesAndAppliesCORS(t *testing.T) {
 	request.Header.Set("Origin", "http://localhost:8081")
 	recorder := httptest.NewRecorder()
 
-	handler.ServeHTTP(recorder, request)
+	router.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
 	}
 	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:8081" {
 		t.Fatalf("unexpected allowed origin header: %q", got)
+	}
+}
+
+func TestRouterRegistersChainAddressRoutes(t *testing.T) {
+	router := newRouter(RouterControllers{
+		ChainAddress: controllers.NewChainAddressController(
+			&fakeListAddressPoliciesUseCase{},
+			&fakeGenerateAddressUseCase{},
+			&fakeAllocatePaymentAddressUseCase{},
+			&fakeGetPaymentAddressStatusUseCase{},
+		),
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/address-policies", nil)
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
 	}
 }
 

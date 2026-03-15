@@ -83,6 +83,15 @@ func (f *fakeGetPaymentAddressStatusUseCase) Execute(
 	return f.response, nil
 }
 
+func newChainAddressTestMux(controller *ChainAddressController) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/chains/{chain}/address-policies", controller.HandleListAddressPolicies)
+	mux.HandleFunc("/v1/chains/{chain}/addresses", controller.HandleGenerateAddress)
+	mux.HandleFunc("/v1/chains/{chain}/payment-addresses", controller.HandleAllocatePaymentAddress)
+	mux.HandleFunc("/v1/chains/{chain}/payment-addresses/{paymentAddressId}", controller.HandleGetPaymentAddressStatus)
+	return mux
+}
+
 func TestChainAddressControllerListSuccess(t *testing.T) {
 	listUC := &fakeListAddressPoliciesUseCase{
 		response: dto.ListAddressPoliciesResponse{
@@ -105,8 +114,7 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
 
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/address-policies", nil)
 	rr := httptest.NewRecorder()
@@ -154,8 +162,7 @@ func TestChainAddressControllerGenerateSuccess(t *testing.T) {
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
 
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/addresses?addressPolicyId=bitcoin-mainnet-legacy&index=0", nil)
 	rr := httptest.NewRecorder()
@@ -182,8 +189,7 @@ func TestChainAddressControllerRejectMethod(t *testing.T) {
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/chains/bitcoin/address-policies", nil)
 	rr := httptest.NewRecorder()
@@ -204,8 +210,7 @@ func TestChainAddressControllerRejectInvalidPath(t *testing.T) {
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin", nil)
 	rr := httptest.NewRecorder()
@@ -223,8 +228,7 @@ func TestChainAddressControllerRejectUnknownChain(t *testing.T) {
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/eth/address-policies", nil)
 	rr := httptest.NewRecorder()
@@ -250,8 +254,7 @@ func TestChainAddressControllerRejectMissingAddressPolicyID(t *testing.T) {
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/addresses?index=1", nil)
 	rr := httptest.NewRecorder()
@@ -269,8 +272,7 @@ func TestChainAddressControllerRejectInvalidIndex(t *testing.T) {
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/addresses?addressPolicyId=bitcoin-mainnet-legacy&index=2147483648", nil)
 	rr := httptest.NewRecorder()
@@ -301,8 +303,7 @@ func TestChainAddressControllerGenerateErrorMapping(t *testing.T) {
 				&fakeAllocatePaymentAddressUseCase{},
 				&fakeGetPaymentAddressStatusUseCase{},
 			)
-			mux := http.NewServeMux()
-			controller.RegisterRoutes(mux)
+			mux := newChainAddressTestMux(controller)
 
 			req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/addresses?addressPolicyId=bitcoin-mainnet-legacy&index=1", nil)
 			rr := httptest.NewRecorder()
@@ -337,8 +338,7 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
 
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -412,8 +412,7 @@ func TestChainAddressControllerAllocatePaymentAddressReplayHeader(t *testing.T) 
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
 
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -439,8 +438,7 @@ func TestChainAddressControllerAllocatePaymentAddressRejectMethod(t *testing.T) 
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/payment-addresses", nil)
 	rr := httptest.NewRecorder()
@@ -461,8 +459,7 @@ func TestChainAddressControllerAllocatePaymentAddressRejectInvalidBody(t *testin
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -484,8 +481,7 @@ func TestChainAddressControllerAllocatePaymentAddressRejectMissingAddressPolicyI
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -507,8 +503,7 @@ func TestChainAddressControllerAllocatePaymentAddressRejectMissingExpectedAmount
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -546,8 +541,7 @@ func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) 
 				&fakeAllocatePaymentAddressUseCase{err: tc.err},
 				&fakeGetPaymentAddressStatusUseCase{},
 			)
-			mux := http.NewServeMux()
-			controller.RegisterRoutes(mux)
+			mux := newChainAddressTestMux(controller)
 
 			req := httptest.NewRequest(
 				http.MethodPost,
@@ -571,8 +565,7 @@ func TestChainAddressControllerListInternalError(t *testing.T) {
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/address-policies", nil)
 	rr := httptest.NewRecorder()
@@ -615,8 +608,7 @@ func TestChainAddressControllerGetPaymentStatusSuccess(t *testing.T) {
 		getStatusUC,
 	)
 
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/payment-addresses/101", nil)
 	rr := httptest.NewRecorder()
@@ -651,8 +643,7 @@ func TestChainAddressControllerGetPaymentStatusRejectMethod(t *testing.T) {
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/chains/bitcoin/payment-addresses/101", nil)
 	rr := httptest.NewRecorder()
@@ -673,8 +664,7 @@ func TestChainAddressControllerGetPaymentStatusRejectInvalidPaymentAddressID(t *
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
 	)
-	mux := http.NewServeMux()
-	controller.RegisterRoutes(mux)
+	mux := newChainAddressTestMux(controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/payment-addresses/not-a-number", nil)
 	rr := httptest.NewRecorder()
@@ -703,8 +693,7 @@ func TestChainAddressControllerGetPaymentStatusErrorMapping(t *testing.T) {
 				&fakeAllocatePaymentAddressUseCase{},
 				&fakeGetPaymentAddressStatusUseCase{err: tc.err},
 			)
-			mux := http.NewServeMux()
-			controller.RegisterRoutes(mux)
+			mux := newChainAddressTestMux(controller)
 
 			req := httptest.NewRequest(http.MethodGet, "/v1/chains/bitcoin/payment-addresses/101", nil)
 			rr := httptest.NewRecorder()

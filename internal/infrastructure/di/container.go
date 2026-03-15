@@ -176,9 +176,9 @@ func NewContainer() (*Container, error) {
 	)
 
 	return &Container{
-		APIHandler: httpadapter.NewPublicHandler(httpadapter.Dependencies{
-			HealthController:       healthController,
-			ChainAddressController: chainAddressController,
+		APIHandler: httpadapter.NewPublicRouter(httpadapter.RouterControllers{
+			Health:       healthController,
+			ChainAddress: chainAddressController,
 		}),
 		closeFn: db.Close,
 	}, nil

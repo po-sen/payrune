@@ -38,36 +38,36 @@ func NewChainAddressController(
 	}
 }
 
-func (c *ChainAddressController) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/v1/chains/", c.handleChainsV1)
+func (c *ChainAddressController) HandleListAddressPolicies(w http.ResponseWriter, r *http.Request) {
+	chain, ok := parseSupportedChainPathValue(w, r)
+	if !ok {
+		return
+	}
+	c.handleListAddressPolicies(w, r, chain)
 }
 
-func (c *ChainAddressController) handleChainsV1(w http.ResponseWriter, r *http.Request) {
-	chainRaw, resource, resourceID, ok := parseChainRoute(r.URL.Path)
+func (c *ChainAddressController) HandleGenerateAddress(w http.ResponseWriter, r *http.Request) {
+	chain, ok := parseSupportedChainPathValue(w, r)
 	if !ok {
-		http.NotFound(w, r)
 		return
 	}
-	chain, ok := valueobjects.ParseSupportedChain(chainRaw)
-	if !ok {
-		writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: inport.ErrChainNotSupported.Error()})
-		return
-	}
+	c.handleGenerateAddress(w, r, chain)
+}
 
-	switch resource {
-	case "address-policies":
-		c.handleListAddressPolicies(w, r, chain)
-	case "addresses":
-		c.handleGenerateAddress(w, r, chain)
-	case "payment-addresses":
-		if resourceID == "" {
-			c.handleAllocatePaymentAddress(w, r, chain)
-			return
-		}
-		c.handleGetPaymentAddressStatus(w, r, chain, resourceID)
-	default:
-		http.NotFound(w, r)
+func (c *ChainAddressController) HandleAllocatePaymentAddress(w http.ResponseWriter, r *http.Request) {
+	chain, ok := parseSupportedChainPathValue(w, r)
+	if !ok {
+		return
 	}
+	c.handleAllocatePaymentAddress(w, r, chain)
+}
+
+func (c *ChainAddressController) HandleGetPaymentAddressStatus(w http.ResponseWriter, r *http.Request) {
+	chain, ok := parseSupportedChainPathValue(w, r)
+	if !ok {
+		return
+	}
+	c.handleGetPaymentAddressStatus(w, r, chain, r.PathValue("paymentAddressId"))
 }
 
 func (c *ChainAddressController) handleListAddressPolicies(
@@ -246,24 +246,17 @@ func (c *ChainAddressController) handleGetPaymentAddressStatus(
 	writeJSON(w, http.StatusOK, response)
 }
 
-func parseChainRoute(path string) (string, string, string, bool) {
-	const prefix = "/v1/chains/"
-	if !strings.HasPrefix(path, prefix) {
-		return "", "", "", false
+func parseSupportedChainPathValue(
+	w http.ResponseWriter,
+	r *http.Request,
+) (valueobjects.SupportedChain, bool) {
+	chainRaw := strings.TrimSpace(r.PathValue("chain"))
+	chain, ok := valueobjects.ParseSupportedChain(chainRaw)
+	if !ok {
+		writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: inport.ErrChainNotSupported.Error()})
+		return "", false
 	}
-
-	rest := strings.Trim(strings.TrimPrefix(path, prefix), "/")
-	parts := strings.Split(rest, "/")
-	if len(parts) != 2 && len(parts) != 3 {
-		return "", "", "", false
-	}
-
-	resourceID := ""
-	if len(parts) == 3 {
-		resourceID = parts[2]
-	}
-
-	return parts[0], parts[1], resourceID, true
+	return chain, true
 }
 
 func parseIndexQuery(raw string) (uint32, error) {
