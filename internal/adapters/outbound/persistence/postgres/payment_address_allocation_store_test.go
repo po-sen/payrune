@@ -24,9 +24,7 @@ func newAllocationStoreTestPolicy() entities.AddressIssuancePolicy {
 			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
 		DerivationConfig: valueobjects.AddressDerivationConfig{
-			AccountPublicKey:         "xpub-main",
-			PublicKeyFingerprintAlgo: "sha256-trunc64-hex-v1",
-			PublicKeyFingerprint:     "fingerprint-main",
+			AccountPublicKey: "xpub-main",
 		},
 	}.Normalize()
 }
@@ -249,8 +247,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationNotFound(t *testing
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, derivation_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
+			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
 		).
 		WillReturnError(sql.ErrNoRows)
 
@@ -281,8 +278,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationRejectsOverflowInde
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, derivation_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
+			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
 		).
 		WillReturnRows(rows)
 
@@ -310,8 +306,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationSuccess(t *testing.
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, derivation_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
+			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
 		).
 		WillReturnRows(rows)
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
@@ -352,22 +347,28 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO address_policy_cursors")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
+			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT next_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
+			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"next_index"}).AddRow(int64(21)))
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO address_policy_allocations")).
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO address_policy_allocations (
+			   address_policy_id,
+			   account_public_key,
+			   derivation_index,
+			   expected_amount_minor,
+			   customer_reference,
+			   allocation_status
+			 )
+		 VALUES ($1, $2, $3, $4, $5, 'reserved')
+		 RETURNING id`)).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
+			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
 			int64(21),
 			int64(125000),
 			"order-2",
@@ -376,8 +377,7 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_cursors")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
-			input.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
+			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 

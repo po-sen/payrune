@@ -19,8 +19,6 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 			"satoshi",
 			8,
 			"xpub-main",
-			testPublicKeyFingerprintAlgo,
-			"fingerprint-main-legacy",
 			"m/44'/0'/0'",
 		),
 		newAddressIssuancePolicy(
@@ -30,8 +28,6 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			"satoshi",
 			8,
-			"",
-			"",
 			"",
 			"",
 		),

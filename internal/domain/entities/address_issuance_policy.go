@@ -7,10 +7,9 @@ import (
 )
 
 var (
-	ErrAddressPolicyChainMismatch            = errors.New("address policy chain mismatch")
-	ErrAddressPolicyNotEnabled               = errors.New("address policy is not enabled")
-	ErrAddressPolicyFingerprintNotConfigured = errors.New("address policy fingerprint is not configured")
-	ErrExpectedAmountMinorInvalid            = errors.New("expected amount minor must be greater than zero")
+	ErrAddressPolicyChainMismatch = errors.New("address policy chain mismatch")
+	ErrAddressPolicyNotEnabled    = errors.New("address policy is not enabled")
+	ErrExpectedAmountMinorInvalid = errors.New("expected amount minor must be greater than zero")
 )
 
 type AddressIssuancePolicy struct {
@@ -45,10 +44,6 @@ func (p AddressIssuancePolicy) ValidateForAllocationIssuance(
 	}
 	if expectedAmountMinor <= 0 {
 		return AddressIssuancePolicy{}, ErrExpectedAmountMinorInvalid
-	}
-	if normalized.DerivationConfig.PublicKeyFingerprintAlgo == "" ||
-		normalized.DerivationConfig.PublicKeyFingerprint == "" {
-		return AddressIssuancePolicy{}, ErrAddressPolicyFingerprintNotConfigured
 	}
 	return normalized, nil
 }

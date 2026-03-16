@@ -50,8 +50,6 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 				"satoshi",
 				8,
 				"xpub",
-				testPublicKeyFingerprintAlgo,
-				"fingerprint",
 				"m/84'/0'/0'",
 			),
 		}),

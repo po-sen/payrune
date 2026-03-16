@@ -6,16 +6,12 @@ import (
 )
 
 type AddressDerivationConfig struct {
-	AccountPublicKey         string
-	PublicKeyFingerprintAlgo string
-	PublicKeyFingerprint     string
-	DerivationPathPrefix     string
+	AccountPublicKey     string
+	DerivationPathPrefix string
 }
 
 func (c AddressDerivationConfig) Normalize() AddressDerivationConfig {
 	c.AccountPublicKey = strings.TrimSpace(c.AccountPublicKey)
-	c.PublicKeyFingerprintAlgo = strings.TrimSpace(c.PublicKeyFingerprintAlgo)
-	c.PublicKeyFingerprint = strings.TrimSpace(c.PublicKeyFingerprint)
 	c.DerivationPathPrefix = normalizeDerivationPathPrefix(c.DerivationPathPrefix)
 	return c
 }

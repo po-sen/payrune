@@ -2,8 +2,6 @@ package policy
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
@@ -11,19 +9,15 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-const accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1 = "sha256-trunc64-hex-v1"
-
 type AddressPolicyConfig struct {
-	AddressPolicyID          string
-	Chain                    valueobjects.SupportedChain
-	Network                  valueobjects.NetworkID
-	Scheme                   string
-	MinorUnit                string
-	Decimals                 uint8
-	AccountPublicKey         string
-	PublicKeyFingerprintAlgo string
-	PublicKeyFingerprint     string
-	DerivationPathPrefix     string
+	AddressPolicyID      string
+	Chain                valueobjects.SupportedChain
+	Network              valueobjects.NetworkID
+	Scheme               string
+	MinorUnit            string
+	Decimals             uint8
+	AccountPublicKey     string
+	DerivationPathPrefix string
 }
 
 type addressPolicyReader struct {
@@ -48,23 +42,10 @@ func NewAddressPolicyReader(configs []AddressPolicyConfig) outport.AddressPolicy
 				Decimals:        cfg.Decimals,
 			},
 			DerivationConfig: valueobjects.AddressDerivationConfig{
-				AccountPublicKey:         strings.TrimSpace(cfg.AccountPublicKey),
-				PublicKeyFingerprintAlgo: strings.TrimSpace(cfg.PublicKeyFingerprintAlgo),
-				PublicKeyFingerprint:     strings.TrimSpace(cfg.PublicKeyFingerprint),
-				DerivationPathPrefix:     strings.TrimSpace(cfg.DerivationPathPrefix),
+				AccountPublicKey:     strings.TrimSpace(cfg.AccountPublicKey),
+				DerivationPathPrefix: strings.TrimSpace(cfg.DerivationPathPrefix),
 			},
 		}.Normalize()
-
-		if issuancePolicy.DerivationConfig.IsEnabled() && issuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo == "" {
-			issuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo = accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1
-		}
-		if issuancePolicy.DerivationConfig.IsEnabled() && issuancePolicy.DerivationConfig.PublicKeyFingerprint == "" {
-			issuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo = accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1
-			issuancePolicy.DerivationConfig.PublicKeyFingerprint = fingerprintAccountPublicKeySHA256Trunc64HexV1(
-				issuancePolicy.DerivationConfig.AccountPublicKey,
-			)
-		}
-		issuancePolicy = issuancePolicy.Normalize()
 
 		if issuancePolicy.AddressPolicy.AddressPolicyID == "" {
 			continue
@@ -106,13 +87,4 @@ func (r *addressPolicyReader) FindIssuanceByID(
 		return entities.AddressIssuancePolicy{}, false, nil
 	}
 	return policy, true, nil
-}
-
-func fingerprintAccountPublicKeySHA256Trunc64HexV1(accountPublicKey string) string {
-	trimmed := strings.TrimSpace(accountPublicKey)
-	if trimmed == "" {
-		return ""
-	}
-	sum := sha256.Sum256([]byte(trimmed))
-	return hex.EncodeToString(sum[:8])
 }

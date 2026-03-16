@@ -48,7 +48,6 @@ func newAllocationPolicy(
 	network valueobjects.NetworkID,
 	scheme string,
 	publicKey string,
-	publicKeyFingerprint string,
 	derivationPathPrefix string,
 ) entities.AddressIssuancePolicy {
 	return newAddressIssuancePolicy(
@@ -59,8 +58,6 @@ func newAllocationPolicy(
 		"satoshi",
 		8,
 		publicKey,
-		testPublicKeyFingerprintAlgo,
-		publicKeyFingerprint,
 		derivationPathPrefix,
 	)
 }
@@ -92,7 +89,6 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			"xpub-main",
-			"fingerprint-main-native-segwit",
 			"m/84'/0'/0'",
 		),
 	})
@@ -136,13 +132,10 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 			allocator.lastReopenInput.IssuancePolicy.AddressPolicy.AddressPolicyID,
 		)
 	}
-	if allocator.lastReopenInput.IssuancePolicy.DerivationConfig.PublicKeyFingerprint == "" {
-		t.Fatalf("expected non-empty xpub fingerprint")
-	}
-	if allocator.lastReopenInput.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo != testPublicKeyFingerprintAlgo {
+	if allocator.lastReopenInput.IssuancePolicy.DerivationConfig.AccountPublicKey != "xpub-main" {
 		t.Fatalf(
-			"unexpected xpub fingerprint algorithm: got %q",
-			allocator.lastReopenInput.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
+			"unexpected account public key passed to allocator reopen: got %q",
+			allocator.lastReopenInput.IssuancePolicy.DerivationConfig.AccountPublicKey,
 		)
 	}
 	if allocator.lastReopenInput.CustomerReference != "order-001" {
@@ -285,7 +278,6 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			"xpub-main",
-			"fingerprint-main-native-segwit",
 			"m/84'/0'/0'",
 		),
 	})
@@ -363,7 +355,6 @@ func TestAllocatePaymentAddressUseCaseRejectsConflictingDuplicateIdempotencyKey(
 				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 				string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 				"xpub-main",
-				"fingerprint-main-native-segwit",
 				"m/84'/0'/0'",
 			),
 		}),
@@ -439,7 +430,6 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 				string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 				"xpub-main",
-				"fingerprint-main-native-segwit",
 				"m/84'/0'/0'",
 			),
 		}),
@@ -501,7 +491,6 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			"xpub-main",
-			"fingerprint-main-native-segwit",
 			"m/84'/0'/0'",
 		),
 	})
@@ -560,7 +549,6 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testin
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			"xpub-main",
-			"fingerprint-main-native-segwit",
 			"m/84'/0'/0'",
 		),
 	})
@@ -639,7 +627,6 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			"xpub-main",
-			"fingerprint-main-native-segwit",
 			"m/84'/0'/0'",
 		),
 	})
@@ -704,7 +691,6 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeLegacy),
 			"xpub-main",
-			"fingerprint-main-legacy",
 			"m/44'/0'/0'",
 		),
 	})
@@ -766,7 +752,6 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			"xpub-main",
-			"fingerprint-main-native-segwit",
 			"m/84'/0'/0'",
 		),
 	})
@@ -847,8 +832,6 @@ func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 			8,
 			"",
 			"",
-			"",
-			"",
 		),
 	})
 	allocator := &fakePaymentAddressAllocationStore{}
@@ -878,7 +861,6 @@ func TestAllocatePaymentAddressUseCaseMapsExhaustedError(t *testing.T) {
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeLegacy),
 			"xpub-main",
-			"fingerprint-main-legacy",
 			"m/44'/0'/0'",
 		),
 	})
@@ -918,7 +900,6 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeLegacy),
 			"xpub-main",
-			"fingerprint-main-legacy",
 			"m/44'/0'/0'",
 		),
 	})
@@ -991,7 +972,6 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeLegacy),
 			"xpub-main",
-			"fingerprint-main-legacy",
 			"m/44'/0'/0'",
 		),
 	})
@@ -1032,7 +1012,6 @@ func TestAllocatePaymentAddressUseCaseRejectInvalidExpectedAmount(t *testing.T) 
 			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			string(valueobjects.BitcoinAddressSchemeLegacy),
 			"xpub-main",
-			"fingerprint-main-legacy",
 			"m/44'/0'/0'",
 		),
 	})

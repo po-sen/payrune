@@ -14,8 +14,6 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-const testPublicKeyFingerprintAlgo = "sha256-trunc64-hex-v1"
-
 type inMemoryAddressPolicyReader struct {
 	ordered      []entities.AddressPolicy
 	issuanceByID map[string]entities.AddressIssuancePolicy
@@ -31,8 +29,6 @@ func newAddressIssuancePolicy(
 	minorUnit string,
 	decimals uint8,
 	accountPublicKey string,
-	fingerprintAlgo string,
-	fingerprint string,
 	derivationPathPrefix string,
 ) entities.AddressIssuancePolicy {
 	return entities.AddressIssuancePolicy{
@@ -45,10 +41,8 @@ func newAddressIssuancePolicy(
 			Decimals:        decimals,
 		},
 		DerivationConfig: valueobjects.AddressDerivationConfig{
-			AccountPublicKey:         accountPublicKey,
-			PublicKeyFingerprintAlgo: fingerprintAlgo,
-			PublicKeyFingerprint:     fingerprint,
-			DerivationPathPrefix:     derivationPathPrefix,
+			AccountPublicKey:     accountPublicKey,
+			DerivationPathPrefix: derivationPathPrefix,
 		},
 	}.Normalize()
 }

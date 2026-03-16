@@ -18,10 +18,8 @@ func newTestAddressIssuancePolicy() AddressIssuancePolicy {
 			Decimals:        8,
 		},
 		DerivationConfig: valueobjects.AddressDerivationConfig{
-			AccountPublicKey:         " xpub-main ",
-			PublicKeyFingerprintAlgo: " hash160 ",
-			PublicKeyFingerprint:     " fingerprint-main ",
-			DerivationPathPrefix:     "m/84'/0'/0'",
+			AccountPublicKey:     " xpub-main ",
+			DerivationPathPrefix: "m/84'/0'/0'",
 		},
 	}
 }
@@ -36,12 +34,6 @@ func TestAddressIssuancePolicyNormalize(t *testing.T) {
 	}
 	if normalized.DerivationConfig.AccountPublicKey != "xpub-main" {
 		t.Fatalf("unexpected account public key: got %q", normalized.DerivationConfig.AccountPublicKey)
-	}
-	if normalized.DerivationConfig.PublicKeyFingerprintAlgo != "hash160" {
-		t.Fatalf("unexpected fingerprint algorithm: got %q", normalized.DerivationConfig.PublicKeyFingerprintAlgo)
-	}
-	if normalized.DerivationConfig.PublicKeyFingerprint != "fingerprint-main" {
-		t.Fatalf("unexpected fingerprint: got %q", normalized.DerivationConfig.PublicKeyFingerprint)
 	}
 	if !normalized.AddressPolicy.Enabled {
 		t.Fatal("expected normalized address policy enabled")
@@ -95,22 +87,6 @@ func TestAddressIssuancePolicyValidateForAllocationIssuanceRejectsInvalidInput(t
 			chain:   valueobjects.SupportedChainBitcoin,
 			amount:  0,
 			wantErr: ErrExpectedAmountMinorInvalid,
-		},
-		{
-			name: "fingerprint missing",
-			policy: AddressIssuancePolicy{
-				AddressPolicy: AddressPolicy{
-					AddressPolicyID: "bitcoin-mainnet-native-segwit",
-					Chain:           valueobjects.SupportedChainBitcoin,
-				},
-				DerivationConfig: valueobjects.AddressDerivationConfig{
-					AccountPublicKey:     "xpub-main",
-					DerivationPathPrefix: "m/84'/0'/0'",
-				},
-			},
-			chain:   valueobjects.SupportedChainBitcoin,
-			amount:  1000,
-			wantErr: ErrAddressPolicyFingerprintNotConfigured,
 		},
 	}
 

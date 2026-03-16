@@ -7,7 +7,7 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-func TestAddressPolicyReaderComputesPublicKeyFingerprint(t *testing.T) {
+func TestAddressPolicyReaderPreservesAccountPublicKey(t *testing.T) {
 	reader := NewAddressPolicyReader([]AddressPolicyConfig{
 		{
 			AddressPolicyID:  "policy-a",
@@ -41,20 +41,14 @@ func TestAddressPolicyReaderComputesPublicKeyFingerprint(t *testing.T) {
 		t.Fatalf("expected policy-b exists")
 	}
 
-	if policyA.DerivationConfig.PublicKeyFingerprintAlgo != accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1 {
-		t.Fatalf("unexpected fingerprint algorithm for policy-a: got %q", policyA.DerivationConfig.PublicKeyFingerprintAlgo)
+	if policyA.DerivationConfig.AccountPublicKey != "xpub-a" {
+		t.Fatalf("unexpected account public key for policy-a: got %q", policyA.DerivationConfig.AccountPublicKey)
 	}
-	if policyB.DerivationConfig.PublicKeyFingerprintAlgo != accountPublicKeyFingerprintAlgorithmSHA256Trunc64HexV1 {
-		t.Fatalf("unexpected fingerprint algorithm for policy-b: got %q", policyB.DerivationConfig.PublicKeyFingerprintAlgo)
+	if policyB.DerivationConfig.AccountPublicKey != "xpub-b" {
+		t.Fatalf("unexpected account public key for policy-b: got %q", policyB.DerivationConfig.AccountPublicKey)
 	}
-	if policyA.DerivationConfig.PublicKeyFingerprint == "" {
-		t.Fatalf("expected non-empty fingerprint for policy-a")
-	}
-	if policyB.DerivationConfig.PublicKeyFingerprint == "" {
-		t.Fatalf("expected non-empty fingerprint for policy-b")
-	}
-	if policyA.DerivationConfig.PublicKeyFingerprint == policyB.DerivationConfig.PublicKeyFingerprint {
-		t.Fatalf("expected different fingerprints for different account public keys")
+	if policyA.DerivationConfig.AccountPublicKey == policyB.DerivationConfig.AccountPublicKey {
+		t.Fatalf("expected different account public keys for different policies")
 	}
 }
 

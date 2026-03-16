@@ -21,10 +21,8 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
 			DerivationConfig: valueobjects.AddressDerivationConfig{
-				AccountPublicKey:         "xpub-main",
-				PublicKeyFingerprintAlgo: "hash160",
-				PublicKeyFingerprint:     "fingerprint-main",
-				DerivationPathPrefix:     "m/84'/0'/0'",
+				AccountPublicKey:     "xpub-main",
+				DerivationPathPrefix: "m/84'/0'/0'",
 			},
 		},
 		valueobjects.SupportedChainBitcoin,
@@ -74,10 +72,8 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testi
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
 			DerivationConfig: valueobjects.AddressDerivationConfig{
-				AccountPublicKey:         "xpub-main",
-				PublicKeyFingerprintAlgo: "hash160",
-				PublicKeyFingerprint:     "fingerprint-main",
-				DerivationPathPrefix:     "m/84'/0'/0'",
+				AccountPublicKey:     "xpub-main",
+				DerivationPathPrefix: "m/84'/0'/0'",
 			},
 		},
 		valueobjects.SupportedChainBitcoin,
@@ -97,7 +93,7 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testi
 	}
 }
 
-func TestPaymentAddressAllocationIssuancePolicyPlanRejectsInvalidPolicy(t *testing.T) {
+func TestPaymentAddressAllocationIssuancePolicyPlanRejectsDisabledPolicy(t *testing.T) {
 	policy := NewPaymentAddressAllocationIssuancePolicy(nil, nil)
 
 	_, err := policy.Plan(
@@ -107,17 +103,14 @@ func TestPaymentAddressAllocationIssuancePolicyPlanRejectsInvalidPolicy(t *testi
 				Chain:           valueobjects.SupportedChainBitcoin,
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
-			DerivationConfig: valueobjects.AddressDerivationConfig{
-				AccountPublicKey:     "xpub-main",
-				DerivationPathPrefix: "m/84'/0'/0'",
-			},
+			DerivationConfig: valueobjects.AddressDerivationConfig{},
 		},
 		valueobjects.SupportedChainBitcoin,
 		1200,
 		"order-001",
 		time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC),
 	)
-	if !errors.Is(err, entities.ErrAddressPolicyFingerprintNotConfigured) {
+	if !errors.Is(err, entities.ErrAddressPolicyNotEnabled) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

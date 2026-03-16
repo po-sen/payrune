@@ -4,22 +4,14 @@ import "testing"
 
 func TestAddressDerivationConfigNormalize(t *testing.T) {
 	config := AddressDerivationConfig{
-		AccountPublicKey:         " xpub-main ",
-		PublicKeyFingerprintAlgo: " hash160 ",
-		PublicKeyFingerprint:     " fingerprint-main ",
-		DerivationPathPrefix:     "m/84'/0'/0'/",
+		AccountPublicKey:     " xpub-main ",
+		DerivationPathPrefix: "m/84'/0'/0'/",
 	}
 
 	normalized := config.Normalize()
 
 	if normalized.AccountPublicKey != "xpub-main" {
 		t.Fatalf("unexpected account public key: got %q", normalized.AccountPublicKey)
-	}
-	if normalized.PublicKeyFingerprintAlgo != "hash160" {
-		t.Fatalf("unexpected fingerprint algorithm: got %q", normalized.PublicKeyFingerprintAlgo)
-	}
-	if normalized.PublicKeyFingerprint != "fingerprint-main" {
-		t.Fatalf("unexpected fingerprint: got %q", normalized.PublicKeyFingerprint)
 	}
 	if normalized.DerivationPathPrefix != "m/84'/0'/0'" {
 		t.Fatalf("unexpected derivation path prefix: got %q", normalized.DerivationPathPrefix)
