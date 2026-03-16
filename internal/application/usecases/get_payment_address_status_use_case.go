@@ -11,17 +11,14 @@ import (
 )
 
 type getPaymentAddressStatusUseCase struct {
-	finder       outport.PaymentAddressStatusFinder
-	policyReader outport.AddressPolicyReader
+	finder outport.PaymentAddressStatusFinder
 }
 
 func NewGetPaymentAddressStatusUseCase(
 	finder outport.PaymentAddressStatusFinder,
-	policyReader outport.AddressPolicyReader,
 ) inport.GetPaymentAddressStatusUseCase {
 	return &getPaymentAddressStatusUseCase{
-		finder:       finder,
-		policyReader: policyReader,
+		finder: finder,
 	}
 }
 
@@ -31,9 +28,6 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 ) (dto.GetPaymentAddressStatusResponse, error) {
 	if uc.finder == nil {
 		return dto.GetPaymentAddressStatusResponse{}, errors.New("payment address status finder is not configured")
-	}
-	if uc.policyReader == nil {
-		return dto.GetPaymentAddressStatusResponse{}, errors.New("address policy reader is not configured")
 	}
 
 	record, found, err := uc.finder.FindByID(ctx, outport.FindPaymentAddressStatusInput{
@@ -47,14 +41,6 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressNotFound
 	}
 
-	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, record.AddressPolicyID)
-	if err != nil {
-		return dto.GetPaymentAddressStatusResponse{}, err
-	}
-	if !ok || policy.AddressPolicy.Chain != input.Chain {
-		return dto.GetPaymentAddressStatusResponse{}, errors.New("payment address policy is not configured")
-	}
-
 	return dto.GetPaymentAddressStatusResponse{
 		PaymentAddressID:        strconv.FormatInt(record.PaymentAddressID, 10),
 		AddressPolicyID:         record.AddressPolicyID,
@@ -62,8 +48,11 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 		Chain:                   string(record.Chain),
 		Network:                 string(record.Network),
 		Scheme:                  record.Scheme,
-		MinorUnit:               policy.AddressPolicy.MinorUnit,
-		Decimals:                policy.AddressPolicy.Decimals,
+		AssetCode:               record.AssetCode,
+		AssetType:               record.AssetType,
+		TokenAddress:            record.TokenAddress,
+		MinorUnit:               record.MinorUnit,
+		Decimals:                record.Decimals,
 		Address:                 record.Address,
 		CustomerReference:       record.CustomerReference,
 		PaymentStatus:           string(record.PaymentStatus),

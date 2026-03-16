@@ -23,6 +23,12 @@ type PaymentAddressStatusRecord struct {
 	Chain                   valueobjects.SupportedChain
 	Network                 valueobjects.NetworkID
 	Scheme                  string
+	AssetCode               string
+	AssetType               string
+	TokenAddress            string
+	MinorUnit               string
+	Decimals                uint8
+	IssuanceMethod          string
 	Address                 string
 	PaymentStatus           valueobjects.PaymentReceiptStatus
 	ObservedTotalMinor      int64

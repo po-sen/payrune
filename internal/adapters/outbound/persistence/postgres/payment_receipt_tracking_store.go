@@ -40,6 +40,12 @@ func (r *PaymentReceiptTrackingStore) Create(
 		     chain,
 		     network,
 		     address,
+		     asset_code,
+		     asset_type,
+		     token_address,
+		     minor_unit,
+		     decimals,
+		     issuance_method,
 		     issued_at,
 		     expires_at,
 		     expected_amount_minor,
@@ -57,7 +63,8 @@ func (r *PaymentReceiptTrackingStore) Create(
 		   )
 		   VALUES (
 		     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-		     $11, $12, $13, $14, $15, $16, $17, $18, $19
+		     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+		     $21, $22, $23, $24, $25
 		   )
 		   ON CONFLICT (payment_address_id) DO NOTHING`,
 		tracking.PaymentAddressID,
@@ -65,6 +72,12 @@ func (r *PaymentReceiptTrackingStore) Create(
 		string(tracking.Chain),
 		string(tracking.Network),
 		tracking.Address,
+		tracking.AssetCode,
+		tracking.AssetType,
+		nullIfEmpty(tracking.TokenAddress),
+		tracking.MinorUnit,
+		tracking.Decimals,
+		tracking.IssuanceMethod,
 		tracking.IssuedAt.UTC(),
 		nullableTimePointer(tracking.ExpiresAt),
 		tracking.ExpectedAmountMinor,
@@ -146,6 +159,12 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 		     pr.chain,
 		     pr.network,
 		     pr.address,
+		     pr.asset_code,
+		     pr.asset_type,
+		     COALESCE(pr.token_address, ''),
+		     pr.minor_unit,
+		     pr.decimals,
+		     pr.issuance_method,
 		     pr.issued_at,
 		     pr.expected_amount_minor,
 		     pr.required_confirmations,
@@ -255,6 +274,12 @@ func scanPaymentReceiptTracking(scanner interface {
 	var chainRaw string
 	var networkRaw string
 	var address string
+	var assetCode string
+	var assetType string
+	var tokenAddress string
+	var minorUnit string
+	var decimals int32
+	var issuanceMethod string
 	var issuedAt sql.NullTime
 	var expectedAmountMinor int64
 	var requiredConfirmations int32
@@ -276,6 +301,12 @@ func scanPaymentReceiptTracking(scanner interface {
 		&chainRaw,
 		&networkRaw,
 		&address,
+		&assetCode,
+		&assetType,
+		&tokenAddress,
+		&minorUnit,
+		&decimals,
+		&issuanceMethod,
 		&issuedAt,
 		&expectedAmountMinor,
 		&requiredConfirmations,
@@ -313,6 +344,12 @@ func scanPaymentReceiptTracking(scanner interface {
 		Chain:                   chain,
 		Network:                 network,
 		Address:                 address,
+		AssetCode:               strings.TrimSpace(assetCode),
+		AssetType:               strings.TrimSpace(assetType),
+		TokenAddress:            strings.TrimSpace(tokenAddress),
+		MinorUnit:               strings.TrimSpace(minorUnit),
+		Decimals:                uint8(decimals),
+		IssuanceMethod:          strings.TrimSpace(issuanceMethod),
 		ExpectedAmountMinor:     expectedAmountMinor,
 		RequiredConfirmations:   requiredConfirmations,
 		Status:                  status,

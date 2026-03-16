@@ -11,7 +11,9 @@ func TestParseSupportedChain(t *testing.T) {
 	}{
 		{name: "bitcoin", input: "bitcoin", want: SupportedChainBitcoin, wantOK: true},
 		{name: "bitcoin mixed case", input: " BitCoin ", want: SupportedChainBitcoin, wantOK: true},
-		{name: "unsupported chain", input: "ethereum", want: "", wantOK: false},
+		{name: "ethereum", input: "ethereum", want: SupportedChainEthereum, wantOK: true},
+		{name: "ethereum mixed case", input: " EtherEum ", want: SupportedChainEthereum, wantOK: true},
+		{name: "unsupported chain", input: "tron", want: "", wantOK: false},
 		{name: "invalid identifier", input: "btc/mainnet", want: "", wantOK: false},
 	}
 

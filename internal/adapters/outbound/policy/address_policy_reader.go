@@ -18,6 +18,9 @@ type AddressPolicyConfig struct {
 	Chain                    valueobjects.SupportedChain
 	Network                  valueobjects.NetworkID
 	Scheme                   string
+	AssetCode                string
+	AssetType                string
+	TokenAddress             string
 	MinorUnit                string
 	Decimals                 uint8
 	AccountPublicKey         string
@@ -44,6 +47,9 @@ func NewAddressPolicyReader(configs []AddressPolicyConfig) outport.AddressPolicy
 				Chain:           cfg.Chain,
 				Network:         cfg.Network,
 				Scheme:          cfg.Scheme,
+				AssetCode:       strings.TrimSpace(cfg.AssetCode),
+				AssetType:       strings.TrimSpace(cfg.AssetType),
+				TokenAddress:    strings.TrimSpace(cfg.TokenAddress),
 				MinorUnit:       strings.TrimSpace(cfg.MinorUnit),
 				Decimals:        cfg.Decimals,
 			},

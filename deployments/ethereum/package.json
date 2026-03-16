@@ -1,0 +1,15 @@
+{
+  "name": "payrune-ethereum-deployment",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "node src/compile-contracts.mjs",
+    "deploy:factory": "node src/deploy-factory.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.15.0",
+    "ganache": "^7.9.2",
+    "solc": "^0.8.30"
+  }
+}

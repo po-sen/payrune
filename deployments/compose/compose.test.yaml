@@ -1,4 +1,7 @@
 services:
+  evm-factory-deploy:
+    command:
+      - "--network=sepolia"
   api:
     environment:
       BITCOIN_MAINNET_LEGACY_XPUB: ""
@@ -34,6 +37,28 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+  poller-ethereum-sepolia:
+    build:
+      context: ../..
+      dockerfile: build/poller/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable}
+      POLL_CHAIN: ethereum
+      POLL_NETWORK: sepolia
+      POLL_TICK_INTERVAL: ${POLL_TICK_INTERVAL:-5s}
+      POLL_RESCHEDULE_INTERVAL: ${POLL_RESCHEDULE_INTERVAL:-10m}
+      POLL_BATCH_SIZE: ${POLL_BATCH_SIZE:-2}
+      POLL_CLAIM_TTL: ${POLL_CLAIM_TTL:-30s}
+      BITCOIN_TESTNET4_ESPLORA_URL: ${BITCOIN_TESTNET4_ESPLORA_URL:-https://mempool.space/testnet4/api}
+      BITCOIN_TESTNET4_ESPLORA_USER: ${BITCOIN_TESTNET4_ESPLORA_USER:-}
+      BITCOIN_TESTNET4_ESPLORA_PASSWORD: ${BITCOIN_TESTNET4_ESPLORA_PASSWORD:-}
+      BITCOIN_TESTNET4_ESPLORA_TIMEOUT: ${BITCOIN_TESTNET4_ESPLORA_TIMEOUT:-10s}
+      ETHEREUM_SEPOLIA_BLOCKSCOUT_URL: ${ETHEREUM_SEPOLIA_BLOCKSCOUT_URL:-https://eth-sepolia.blockscout.com}
+      ETHEREUM_SEPOLIA_BLOCKSCOUT_TIMEOUT: ${ETHEREUM_SEPOLIA_BLOCKSCOUT_TIMEOUT:-10s}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
   receipt-webhook-dispatcher:
     depends_on:
       receipt-webhook-mock:
@@ -56,4 +81,14 @@ services:
       - ../swagger:/usr/share/nginx/html/specs:ro
     depends_on:
       - api
+    restart: unless-stopped
+  db-viewer:
+    image: adminer:5
+    ports:
+      - "8082:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped

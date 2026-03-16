@@ -42,6 +42,7 @@ services:
       BITCOIN_MAINNET_TAPROOT_XPUB: ${BITCOIN_MAINNET_TAPROOT_XPUB:-}
       BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS: ${BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS:-2}
       BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER: ${BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER:-24h}
+      ETHEREUM_SEPOLIA_USDT_TOKEN_ADDRESS: ${ETHEREUM_SEPOLIA_USDT_TOKEN_ADDRESS:-}
     ports:
       - "8080:8080"
     depends_on:
@@ -68,6 +69,28 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+  poller-ethereum-mainnet:
+    build:
+      context: ../..
+      dockerfile: build/poller/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable}
+      POLL_CHAIN: ethereum
+      POLL_NETWORK: mainnet
+      POLL_TICK_INTERVAL: ${POLL_TICK_INTERVAL:-5s}
+      POLL_RESCHEDULE_INTERVAL: ${POLL_RESCHEDULE_INTERVAL:-10m}
+      POLL_BATCH_SIZE: ${POLL_BATCH_SIZE:-2}
+      POLL_CLAIM_TTL: ${POLL_CLAIM_TTL:-30s}
+      BITCOIN_MAINNET_ESPLORA_URL: ${BITCOIN_MAINNET_ESPLORA_URL:-https://mempool.space/api}
+      BITCOIN_MAINNET_ESPLORA_USER: ${BITCOIN_MAINNET_ESPLORA_USER:-}
+      BITCOIN_MAINNET_ESPLORA_PASSWORD: ${BITCOIN_MAINNET_ESPLORA_PASSWORD:-}
+      BITCOIN_MAINNET_ESPLORA_TIMEOUT: ${BITCOIN_MAINNET_ESPLORA_TIMEOUT:-10s}
+      ETHEREUM_MAINNET_BLOCKSCOUT_URL: ${ETHEREUM_MAINNET_BLOCKSCOUT_URL:-https://eth.blockscout.com}
+      ETHEREUM_MAINNET_BLOCKSCOUT_TIMEOUT: ${ETHEREUM_MAINNET_BLOCKSCOUT_TIMEOUT:-10s}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
   receipt-webhook-dispatcher:
     build:
       context: ../..
@@ -87,6 +110,46 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+  evm-sweeper:
+    profiles: ["ops"]
+    build:
+      context: ../..
+      dockerfile: build/evm-sweeper/Dockerfile
+    command: ["--dry-run"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable}
+      ETHEREUM_MAINNET_RPC_URL: ${ETHEREUM_MAINNET_RPC_URL:-https://ethereum-rpc.publicnode.com}
+      ETHEREUM_MAINNET_SWEEPER_PRIVATE_KEY: ${ETHEREUM_MAINNET_SWEEPER_PRIVATE_KEY:-}
+      ETHEREUM_SEPOLIA_RPC_URL: ${ETHEREUM_SEPOLIA_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}
+      ETHEREUM_SEPOLIA_SWEEPER_PRIVATE_KEY: ${ETHEREUM_SEPOLIA_SWEEPER_PRIVATE_KEY:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+  evm-factory-deploy:
+    profiles: ["ops"]
+    build:
+      context: ../..
+      dockerfile: build/evm-factory-deploy/Dockerfile
+    command: ["--network=sepolia"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://payrune:payrune@postgres:5432/payrune?sslmode=disable}
+      ETHEREUM_MAINNET_RPC_URL: ${ETHEREUM_MAINNET_RPC_URL:-https://ethereum-rpc.publicnode.com}
+      ETHEREUM_MAINNET_DEPLOY_PRIVATE_KEY: ${ETHEREUM_MAINNET_DEPLOY_PRIVATE_KEY:-}
+      ETHEREUM_MAINNET_DEPLOY_CONFIRMATIONS: ${ETHEREUM_MAINNET_DEPLOY_CONFIRMATIONS:-1}
+      ETHEREUM_MAINNET_COLLECTOR_ADDRESS: ${ETHEREUM_MAINNET_COLLECTOR_ADDRESS:-0x2222222222222222222222222222222222222222}
+      ETHEREUM_MAINNET_FACTORY_DEPLOYMENT_MANIFEST: ${ETHEREUM_MAINNET_FACTORY_DEPLOYMENT_MANIFEST:-/api/deployments/ethereum/build/deployments/1-deposit-vault-factory.json}
+      ETHEREUM_SEPOLIA_RPC_URL: ${ETHEREUM_SEPOLIA_RPC_URL:-https://ethereum-sepolia-rpc.publicnode.com}
+      ETHEREUM_SEPOLIA_DEPLOY_PRIVATE_KEY: ${ETHEREUM_SEPOLIA_DEPLOY_PRIVATE_KEY:-}
+      ETHEREUM_SEPOLIA_DEPLOY_CONFIRMATIONS: ${ETHEREUM_SEPOLIA_DEPLOY_CONFIRMATIONS:-1}
+      ETHEREUM_SEPOLIA_COLLECTOR_ADDRESS: ${ETHEREUM_SEPOLIA_COLLECTOR_ADDRESS:-}
+      ETHEREUM_SEPOLIA_FACTORY_DEPLOYMENT_MANIFEST: ${ETHEREUM_SEPOLIA_FACTORY_DEPLOYMENT_MANIFEST:-/api/deployments/ethereum/build/deployments/11155111-deposit-vault-factory.json}
+    volumes:
+      - ../ethereum/build/deployments:/api/deployments/ethereum/build/deployments
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
 
 volumes:
   postgres_data:

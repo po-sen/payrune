@@ -142,6 +142,43 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 	}
 }
 
+func TestChainAddressControllerListEthereumSuccess(t *testing.T) {
+	listUC := &fakeListAddressPoliciesUseCase{
+		response: dto.ListAddressPoliciesResponse{
+			Chain: "ethereum",
+			AddressPolicies: []dto.AddressPolicy{{
+				AddressPolicyID: "ethereum-mainnet-eth",
+				Chain:           "ethereum",
+				Network:         "mainnet",
+				Scheme:          "create2_forwarder",
+				AssetCode:       "eth",
+				AssetType:       "native",
+				MinorUnit:       "wei",
+				Decimals:        18,
+				Enabled:         false,
+			}},
+		},
+	}
+	controller := NewChainAddressController(
+		listUC,
+		&fakeGenerateAddressUseCase{},
+		&fakeAllocatePaymentAddressUseCase{},
+		&fakeGetPaymentAddressStatusUseCase{},
+	)
+
+	mux := newChainAddressTestMux(controller)
+	req := httptest.NewRequest(http.MethodGet, "/v1/chains/ethereum/address-policies", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d", rr.Code)
+	}
+	if listUC.lastChain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain passed to use case: got %q", listUC.lastChain)
+	}
+}
+
 func TestChainAddressControllerGenerateSuccess(t *testing.T) {
 	generateUC := &fakeGenerateAddressUseCase{
 		response: dto.GenerateAddressResponse{

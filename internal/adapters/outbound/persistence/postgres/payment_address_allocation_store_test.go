@@ -22,6 +22,10 @@ func newAllocationStoreTestPolicy() entities.AddressIssuancePolicy {
 			Chain:           valueobjects.SupportedChainBitcoin,
 			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			AssetCode:       "btc",
+			AssetType:       "native",
+			MinorUnit:       "satoshi",
+			Decimals:        8,
 		},
 		DerivationConfig: valueobjects.AddressDerivationConfig{
 			AccountPublicKey:         "xpub-main",
@@ -68,6 +72,11 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 		Chain:            valueobjects.SupportedChainBitcoin,
 		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 		Scheme:           string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+		AssetCode:        "btc",
+		AssetType:        "native",
+		MinorUnit:        "satoshi",
+		Decimals:         8,
+		IssuanceMethod:   "xpub_derivation",
 		Address:          " bc1qallocated ",
 		DerivationPath:   " m/84'/0'/0'/0/11 ",
 	}
@@ -78,6 +87,12 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 			"bitcoin",
 			"mainnet",
 			"nativeSegwit",
+			"btc",
+			"native",
+			nil,
+			"satoshi",
+			uint8(8),
+			"xpub_derivation",
 			"bc1qallocated",
 			"m/84'/0'/0'/0/11",
 			issuedAt.UTC(),
@@ -148,6 +163,12 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"chain",
 		"network",
 		"scheme",
+		"asset_code",
+		"asset_type",
+		"token_address",
+		"minor_unit",
+		"decimals",
+		"issuance_method",
 		"address",
 		"derivation_path",
 		"failure_reason",
@@ -160,6 +181,12 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"bitcoin",
 		"mainnet",
 		"nativeSegwit",
+		"btc",
+		"native",
+		"",
+		"satoshi",
+		int32(8),
+		"xpub_derivation",
 		"bc1qlookup",
 		"m/84'/0'/0'/0/21",
 		"",
@@ -315,7 +342,17 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationSuccess(t *testing.
 		).
 		WillReturnRows(rows)
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
-		WithArgs(int64(99), int64(125000), "order-1").
+		WithArgs(
+			int64(99),
+			int64(125000),
+			"order-1",
+			"btc",
+			"native",
+			nil,
+			"satoshi",
+			uint8(8),
+			"xpub_derivation",
+		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	allocation, reopened, err := store.ReopenFailedReservation(context.Background(), input)
@@ -371,6 +408,12 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 			int64(21),
 			int64(125000),
 			"order-2",
+			"btc",
+			"native",
+			nil,
+			"satoshi",
+			uint8(8),
+			"xpub_derivation",
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(144)))
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_cursors")).

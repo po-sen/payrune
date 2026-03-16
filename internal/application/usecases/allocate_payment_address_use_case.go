@@ -2,17 +2,25 @@ package usecases
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"io"
 	"strconv"
 	"strings"
 	"time"
 
+	ethereumadapter "payrune/internal/adapters/outbound/ethereum"
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/policies"
+	"payrune/internal/domain/valueobjects"
 )
+
+const evmFactoryAddressFingerprintAlgorithm = "evm-factory-address-v1"
+
+var ethereumSaltReader io.Reader = rand.Reader
 
 type allocatePaymentAddressUseCase struct {
 	unitOfWork     outport.UnitOfWork
@@ -31,6 +39,8 @@ type allocatePaymentAddressTxOutcome struct {
 }
 
 type allocatePaymentAddressTxScope struct {
+	evmFactoryStore      outport.EVMFactoryStore
+	evmVaultStore        outport.EVMPaymentVaultStore
 	allocationStore      outport.PaymentAddressAllocationStore
 	idempotencyStore     outport.PaymentAddressIdempotencyStore
 	receiptTrackingStore outport.PaymentReceiptTrackingStore
@@ -38,6 +48,7 @@ type allocatePaymentAddressTxScope struct {
 
 type allocatePaymentAddressDerivationOutcome struct {
 	issuedAllocation entities.PaymentAddressAllocation
+	evmVault         *outport.CreateEVMPaymentVaultInput
 	// persistedDerivationFailureErr is returned after commit when derivation
 	// failed but the failure state was persisted successfully.
 	persistedDerivationFailureErr error
@@ -124,7 +135,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 		return dto.AllocatePaymentAddressResponse{}, txOutcome.persistedDerivationFailureErr
 	}
 
-	return uc.buildAllocatePaymentAddressResponse(policy.AddressPolicy, txOutcome.issuedAllocation)
+	return uc.buildAllocatePaymentAddressResponse(txOutcome.issuedAllocation)
 }
 
 func (uc *allocatePaymentAddressUseCase) loadIssuancePolicy(
@@ -188,10 +199,20 @@ func (uc *allocatePaymentAddressUseCase) executeIssuanceTransaction(
 		if err != nil {
 			return err
 		}
+		issuancePolicy, factoryRecord, err := uc.prepareIssuancePolicyForTransaction(
+			ctx,
+			stores,
+			issuancePlan.Reservation.IssuancePolicy,
+		)
+		if err != nil {
+			return err
+		}
 		if err := uc.claimIdempotencyKeyIfPresent(ctx, stores.idempotencyStore, idempotencyClaimInput); err != nil {
 			return err
 		}
 
+		reserveInput.IssuancePolicy = issuancePolicy
+		idempotencyClaimInput.AddressPolicyID = issuancePolicy.AddressPolicy.AddressPolicyID
 		allocation, err := uc.reserveAllocation(
 			ctx,
 			stores.allocationStore,
@@ -205,9 +226,10 @@ func (uc *allocatePaymentAddressUseCase) executeIssuanceTransaction(
 
 		derivationOutcome, err := uc.deriveIssuedAllocation(
 			ctx,
-			stores.allocationStore,
-			issuancePlan.Reservation.IssuancePolicy,
+			stores,
+			issuancePolicy,
 			allocation,
+			factoryRecord,
 		)
 		if err != nil {
 			return err
@@ -231,7 +253,7 @@ func (uc *allocatePaymentAddressUseCase) executeIssuanceTransaction(
 		return uc.persistIssuedAllocation(
 			ctx,
 			stores,
-			outcome.issuedAllocation,
+			derivationOutcome,
 			outport.CompletePaymentAddressIdempotencyInput{
 				Chain:            input.Chain,
 				IdempotencyKey:   idempotencyClaimInput.IdempotencyKey,
@@ -275,10 +297,15 @@ func (uc *allocatePaymentAddressUseCase) reserveAllocation(
 
 func (uc *allocatePaymentAddressUseCase) deriveIssuedAllocation(
 	ctx context.Context,
-	allocationStore outport.PaymentAddressAllocationStore,
+	stores allocatePaymentAddressTxScope,
 	policy entities.AddressIssuancePolicy,
 	allocation entities.PaymentAddressAllocation,
+	factoryRecord *outport.EVMFactoryRecord,
 ) (allocatePaymentAddressDerivationOutcome, error) {
+	if policy.AddressPolicy.Chain == valueobjects.SupportedChainEthereum {
+		return uc.deriveIssuedEthereumAllocation(ctx, stores, policy, allocation, factoryRecord)
+	}
+
 	output, err := uc.deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
 		Chain:                policy.AddressPolicy.Chain,
 		Network:              policy.AddressPolicy.Network,
@@ -288,7 +315,7 @@ func (uc *allocatePaymentAddressUseCase) deriveIssuedAllocation(
 		Index:                allocation.DerivationIndex,
 	})
 	if err != nil {
-		if persistErr := uc.persistDerivationFailure(ctx, allocationStore, allocation, err); persistErr != nil {
+		if persistErr := uc.persistDerivationFailure(ctx, stores.allocationStore, allocation, err); persistErr != nil {
 			return allocatePaymentAddressDerivationOutcome{}, persistErr
 		}
 		return allocatePaymentAddressDerivationOutcome{persistedDerivationFailureErr: err}, nil
@@ -301,13 +328,69 @@ func (uc *allocatePaymentAddressUseCase) deriveIssuedAllocation(
 
 	issuedAllocation, err := allocation.MarkIssued(policy, output.Address, derivationPath)
 	if err != nil {
-		if persistErr := uc.persistDerivationFailure(ctx, allocationStore, allocation, err); persistErr != nil {
+		if persistErr := uc.persistDerivationFailure(ctx, stores.allocationStore, allocation, err); persistErr != nil {
 			return allocatePaymentAddressDerivationOutcome{}, persistErr
 		}
 		return allocatePaymentAddressDerivationOutcome{persistedDerivationFailureErr: err}, nil
 	}
 
 	return allocatePaymentAddressDerivationOutcome{issuedAllocation: issuedAllocation}, nil
+}
+
+func (uc *allocatePaymentAddressUseCase) deriveIssuedEthereumAllocation(
+	ctx context.Context,
+	stores allocatePaymentAddressTxScope,
+	policy entities.AddressIssuancePolicy,
+	allocation entities.PaymentAddressAllocation,
+	factoryRecord *outport.EVMFactoryRecord,
+) (allocatePaymentAddressDerivationOutcome, error) {
+	if factoryRecord == nil {
+		return allocatePaymentAddressDerivationOutcome{}, errors.New("active evm factory record is required")
+	}
+	if stores.evmVaultStore == nil {
+		return allocatePaymentAddressDerivationOutcome{}, errors.New("evm payment vault store is not configured")
+	}
+
+	saltHex, err := ethereumadapter.GenerateSaltHex(ethereumSaltReader)
+	if err != nil {
+		if persistErr := uc.persistDerivationFailure(ctx, stores.allocationStore, allocation, err); persistErr != nil {
+			return allocatePaymentAddressDerivationOutcome{}, persistErr
+		}
+		return allocatePaymentAddressDerivationOutcome{persistedDerivationFailureErr: err}, nil
+	}
+	predictedAddress, err := ethereumadapter.PredictVaultAddress(
+		factoryRecord.FactoryAddress,
+		saltHex,
+		factoryRecord.VaultCreationCodeHash,
+	)
+	if err != nil {
+		if persistErr := uc.persistDerivationFailure(ctx, stores.allocationStore, allocation, err); persistErr != nil {
+			return allocatePaymentAddressDerivationOutcome{}, persistErr
+		}
+		return allocatePaymentAddressDerivationOutcome{persistedDerivationFailureErr: err}, nil
+	}
+
+	issuedAllocation, err := allocation.MarkIssued(policy, predictedAddress, "")
+	if err != nil {
+		if persistErr := uc.persistDerivationFailure(ctx, stores.allocationStore, allocation, err); persistErr != nil {
+			return allocatePaymentAddressDerivationOutcome{}, persistErr
+		}
+		return allocatePaymentAddressDerivationOutcome{persistedDerivationFailureErr: err}, nil
+	}
+
+	return allocatePaymentAddressDerivationOutcome{
+		issuedAllocation: issuedAllocation,
+		evmVault: &outport.CreateEVMPaymentVaultInput{
+			PaymentAddressID: allocation.PaymentAddressID,
+			Network:          policy.AddressPolicy.Network,
+			FactoryID:        factoryRecord.ID,
+			FactoryAddress:   factoryRecord.FactoryAddress,
+			CollectorAddress: factoryRecord.CollectorAddress,
+			TokenAddress:     policy.AddressPolicy.TokenAddress,
+			SaltHex:          saltHex,
+			PredictedAddress: predictedAddress,
+		},
+	}, nil
 }
 
 func (uc *allocatePaymentAddressUseCase) persistDerivationFailure(
@@ -323,16 +406,52 @@ func (uc *allocatePaymentAddressUseCase) persistDerivationFailure(
 	return allocationStore.MarkDerivationFailed(ctx, failedAllocation)
 }
 
+func (uc *allocatePaymentAddressUseCase) prepareIssuancePolicyForTransaction(
+	ctx context.Context,
+	stores allocatePaymentAddressTxScope,
+	policy entities.AddressIssuancePolicy,
+) (entities.AddressIssuancePolicy, *outport.EVMFactoryRecord, error) {
+	if policy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
+		return policy, nil, nil
+	}
+	if stores.evmFactoryStore == nil {
+		return entities.AddressIssuancePolicy{}, nil, errors.New("evm factory registry store is not configured")
+	}
+
+	record, found, err := stores.evmFactoryStore.FindActiveByNetwork(ctx, policy.AddressPolicy.Network)
+	if err != nil {
+		return entities.AddressIssuancePolicy{}, nil, err
+	}
+	if !found {
+		return entities.AddressIssuancePolicy{}, nil, inport.ErrAddressPolicyNotEnabled
+	}
+
+	enriched := policy
+	enriched.DerivationConfig.AccountPublicKey = record.FactoryAddress
+	enriched.DerivationConfig.PublicKeyFingerprintAlgo = evmFactoryAddressFingerprintAlgorithm
+	enriched.DerivationConfig.PublicKeyFingerprint = strings.ToLower(record.FactoryAddress)
+	enriched.DerivationConfig.DerivationPathPrefix = ""
+	enriched = enriched.Normalize()
+
+	return enriched, &record, nil
+}
+
 func (uc *allocatePaymentAddressUseCase) persistIssuedAllocation(
 	ctx context.Context,
 	stores allocatePaymentAddressTxScope,
-	issuedAllocation entities.PaymentAddressAllocation,
+	derivationOutcome allocatePaymentAddressDerivationOutcome,
 	idempotencyCompleteInput outport.CompletePaymentAddressIdempotencyInput,
 	issuedAt time.Time,
 	receiptTerms policies.PaymentReceiptIssuanceTerms,
 ) error {
+	issuedAllocation := derivationOutcome.issuedAllocation
 	if err := stores.allocationStore.Complete(ctx, issuedAllocation, issuedAt); err != nil {
 		return err
+	}
+	if derivationOutcome.evmVault != nil {
+		if _, err := stores.evmVaultStore.Create(ctx, *derivationOutcome.evmVault); err != nil {
+			return err
+		}
 	}
 
 	receiptTracking, err := issuedAllocation.IssueReceiptTracking(
@@ -365,6 +484,8 @@ func requireAllocatePaymentAddressTxScope(
 	}
 
 	return allocatePaymentAddressTxScope{
+		evmFactoryStore:      txScope.EVMFactoryRegistry,
+		evmVaultStore:        txScope.EVMPaymentVaults,
 		allocationStore:      txScope.PaymentAddressAllocation,
 		idempotencyStore:     txScope.PaymentAddressIdempotency,
 		receiptTrackingStore: txScope.PaymentReceiptTracking,
@@ -452,12 +573,8 @@ func (uc *allocatePaymentAddressUseCase) buildExistingIssuedAllocationResponse(
 	ctx context.Context,
 	allocation entities.PaymentAddressAllocation,
 ) (dto.AllocatePaymentAddressResponse, error) {
-	policy, err := uc.loadIssuancePolicy(ctx, allocation.AddressPolicyID)
-	if err != nil {
-		return dto.AllocatePaymentAddressResponse{}, err
-	}
-
-	response, err := uc.buildAllocatePaymentAddressResponse(policy.AddressPolicy, allocation)
+	_ = ctx
+	response, err := uc.buildAllocatePaymentAddressResponse(allocation)
 	if err != nil {
 		return dto.AllocatePaymentAddressResponse{}, err
 	}
@@ -500,7 +617,6 @@ func (uc *allocatePaymentAddressUseCase) completeIdempotencyKeyIfPresent(
 }
 
 func (uc *allocatePaymentAddressUseCase) buildAllocatePaymentAddressResponse(
-	policy entities.AddressPolicy,
 	issuedAllocation entities.PaymentAddressAllocation,
 ) (dto.AllocatePaymentAddressResponse, error) {
 	if issuedAllocation.PaymentAddressID <= 0 {
@@ -509,13 +625,16 @@ func (uc *allocatePaymentAddressUseCase) buildAllocatePaymentAddressResponse(
 
 	return dto.AllocatePaymentAddressResponse{
 		PaymentAddressID:    strconv.FormatInt(issuedAllocation.PaymentAddressID, 10),
-		AddressPolicyID:     policy.AddressPolicyID,
+		AddressPolicyID:     issuedAllocation.AddressPolicyID,
 		ExpectedAmountMinor: issuedAllocation.ExpectedAmountMinor,
 		Chain:               string(issuedAllocation.Chain),
 		Network:             string(issuedAllocation.Network),
 		Scheme:              issuedAllocation.Scheme,
-		MinorUnit:           policy.MinorUnit,
-		Decimals:            policy.Decimals,
+		AssetCode:           issuedAllocation.AssetCode,
+		AssetType:           issuedAllocation.AssetType,
+		TokenAddress:        issuedAllocation.TokenAddress,
+		MinorUnit:           issuedAllocation.MinorUnit,
+		Decimals:            issuedAllocation.Decimals,
 		Address:             issuedAllocation.Address,
 		CustomerReference:   issuedAllocation.CustomerReference,
 	}, nil

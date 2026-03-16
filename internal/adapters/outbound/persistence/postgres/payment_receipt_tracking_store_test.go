@@ -60,12 +60,18 @@ func TestScanPaymentReceiptTrackingSupportsGenericChainNetwork(t *testing.T) {
 	now := time.Date(2026, 3, 5, 15, 0, 0, 0, time.UTC)
 	tracking, err := scanPaymentReceiptTracking(stubScanner{
 		values: []any{
-			int64(1),   // id
-			int64(2),   // payment_address_id
-			"policy-1", // address_policy_id
-			"ethereum", // chain
-			"sepolia",  // network
-			"0xabc",    // address
+			int64(1),            // id
+			int64(2),            // payment_address_id
+			"policy-1",          // address_policy_id
+			"ethereum",          // chain
+			"sepolia",           // network
+			"0xabc",             // address
+			"usdt",              // asset_code
+			"erc20",             // asset_type
+			"0xtoken",           // token_address
+			"micro-usdt",        // minor_unit
+			int32(6),            // decimals
+			"create2_forwarder", // issuance_method
 			sql.NullTime{Valid: true, Time: now},
 			int64(100),   // expected_amount_minor
 			int32(2),     // required_confirmations
@@ -111,6 +117,12 @@ func TestScanPaymentReceiptTrackingRejectsInvalidNetwork(t *testing.T) {
 			"bitcoin",
 			"main/net",
 			"tb1qabc",
+			"btc",
+			"native",
+			"",
+			"satoshi",
+			int32(8),
+			"xpub_derivation",
 			sql.NullTime{Valid: true, Time: time.Now().UTC()},
 			int64(100),
 			int32(1),
@@ -140,6 +152,12 @@ func TestScanPaymentReceiptTrackingRejectsInvalidChain(t *testing.T) {
 			"eth/mainnet",
 			"mainnet",
 			"0xabc",
+			"eth",
+			"native",
+			"",
+			"wei",
+			int32(18),
+			"create2_forwarder",
 			sql.NullTime{Valid: true, Time: time.Now().UTC()},
 			int64(100),
 			int32(1),
@@ -169,11 +187,16 @@ func TestScanPaymentReceiptTrackingRejectsInvalidStatus(t *testing.T) {
 			"bitcoin",
 			"mainnet",
 			"bc1qabc",
+			"btc",
+			"native",
+			"",
+			"satoshi",
+			int32(8),
+			"xpub_derivation",
 			sql.NullTime{Valid: true, Time: time.Now().UTC()},
 			int64(100),
 			int32(1),
 			"unknown",
-			int64(0),
 			int64(0),
 			int64(0),
 			int64(0),
@@ -200,6 +223,11 @@ func newTrackingStoreTestEntity() entities.PaymentReceiptTracking {
 		Chain:                   valueobjects.ChainIDBitcoin,
 		Network:                 valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 		Address:                 "bc1qtracking",
+		AssetCode:               "btc",
+		AssetType:               "native",
+		MinorUnit:               "satoshi",
+		Decimals:                8,
+		IssuanceMethod:          "xpub_derivation",
 		IssuedAt:                issuedAt,
 		ExpiresAt:               &expiresAt,
 		ExpectedAmountMinor:     100000,
@@ -241,6 +269,12 @@ func TestPaymentReceiptTrackingStoreCreateSuccess(t *testing.T) {
 			"bitcoin",
 			"mainnet",
 			"bc1qtracking",
+			"btc",
+			"native",
+			nil,
+			"satoshi",
+			uint8(8),
+			"xpub_derivation",
 			tracking.IssuedAt.UTC(),
 			tracking.ExpiresAt.UTC(),
 			int64(100000),
@@ -355,6 +389,12 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 		"chain",
 		"network",
 		"address",
+		"asset_code",
+		"asset_type",
+		"token_address",
+		"minor_unit",
+		"decimals",
+		"issuance_method",
 		"issued_at",
 		"expected_amount_minor",
 		"required_confirmations",
@@ -375,6 +415,12 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 		"bitcoin",
 		"mainnet",
 		"bc1qtracking",
+		"btc",
+		"native",
+		"",
+		"satoshi",
+		int32(8),
+		"xpub_derivation",
 		now,
 		int64(100000),
 		int32(2),
@@ -444,6 +490,12 @@ func TestPaymentReceiptTrackingStoreClaimDueSkipsExpiredUntilNextPollAt(t *testi
 		"chain",
 		"network",
 		"address",
+		"asset_code",
+		"asset_type",
+		"token_address",
+		"minor_unit",
+		"decimals",
+		"issuance_method",
 		"issued_at",
 		"expected_amount_minor",
 		"required_confirmations",

@@ -41,6 +41,12 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		rawChain            string
 		rawNetwork          string
 		scheme              string
+		assetCode           string
+		assetType           string
+		tokenAddress        string
+		minorUnit           string
+		decimals            int32
+		issuanceMethod      string
 		address             string
 		derivationPath      string
 		failureReason       string
@@ -56,6 +62,12 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		        COALESCE(chain, ''),
 		        COALESCE(network, ''),
 		        COALESCE(scheme, ''),
+		        COALESCE(asset_code, ''),
+		        COALESCE(asset_type, ''),
+		        COALESCE(token_address, ''),
+		        COALESCE(minor_unit, ''),
+		        COALESCE(decimals, 0),
+		        COALESCE(issuance_method, ''),
 		        COALESCE(address, ''),
 		        COALESCE(derivation_path, ''),
 		        COALESCE(failure_reason, '')
@@ -73,6 +85,12 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		&rawChain,
 		&rawNetwork,
 		&scheme,
+		&assetCode,
+		&assetType,
+		&tokenAddress,
+		&minorUnit,
+		&decimals,
+		&issuanceMethod,
 		&address,
 		&derivationPath,
 		&failureReason,
@@ -106,6 +124,12 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		Chain:               chain,
 		Network:             network,
 		Scheme:              strings.TrimSpace(scheme),
+		AssetCode:           strings.TrimSpace(assetCode),
+		AssetType:           strings.TrimSpace(assetType),
+		TokenAddress:        strings.TrimSpace(tokenAddress),
+		MinorUnit:           strings.TrimSpace(minorUnit),
+		Decimals:            uint8(decimals),
+		IssuanceMethod:      strings.TrimSpace(issuanceMethod),
 		Address:             strings.TrimSpace(address),
 		DerivationPath:      strings.TrimSpace(derivationPath),
 		FailureReason:       strings.TrimSpace(failureReason),
@@ -127,16 +151,28 @@ func (r *PaymentAddressAllocationStore) Complete(
 		 SET chain = $2,
 		     network = $3,
 		     scheme = $4,
-		     address = $5,
-		     derivation_path = $6,
+		     asset_code = $5,
+		     asset_type = $6,
+		     token_address = $7,
+		     minor_unit = $8,
+		     decimals = $9,
+		     issuance_method = $10,
+		     address = $11,
+		     derivation_path = $12,
 		     allocation_status = 'issued',
-		     issued_at = $7,
+		     issued_at = $13,
 		     failure_reason = NULL
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
 		allocation.PaymentAddressID,
 		string(allocation.Chain),
 		string(allocation.Network),
 		string(allocation.Scheme),
+		strings.TrimSpace(allocation.AssetCode),
+		strings.TrimSpace(allocation.AssetType),
+		nullIfEmpty(allocation.TokenAddress),
+		strings.TrimSpace(allocation.MinorUnit),
+		allocation.Decimals,
+		strings.TrimSpace(allocation.IssuanceMethod),
 		strings.TrimSpace(allocation.Address),
 		nullIfEmpty(allocation.DerivationPath),
 		issuedAt.UTC(),
@@ -189,6 +225,12 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, bool, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
+	assetCode := strings.TrimSpace(input.IssuancePolicy.AddressPolicy.AssetCode)
+	assetType := strings.TrimSpace(input.IssuancePolicy.AddressPolicy.AssetType)
+	tokenAddress := nullIfEmpty(input.IssuancePolicy.AddressPolicy.TokenAddress)
+	minorUnit := strings.TrimSpace(input.IssuancePolicy.AddressPolicy.MinorUnit)
+	decimals := input.IssuancePolicy.AddressPolicy.Decimals
+	issuanceMethod := issuanceMethodForPolicy(input.IssuancePolicy)
 
 	var paymentAddressID int64
 	var derivationIndex int64
@@ -227,6 +269,12 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		     chain = NULL,
 		     network = NULL,
 		     scheme = NULL,
+		     asset_code = $4,
+		     asset_type = $5,
+		     token_address = $6,
+		     minor_unit = $7,
+		     decimals = $8,
+		     issuance_method = $9,
 		     address = NULL,
 		     derivation_path = NULL,
 		     reserved_at = NOW(),
@@ -235,6 +283,12 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		paymentAddressID,
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
+		assetCode,
+		assetType,
+		tokenAddress,
+		minorUnit,
+		decimals,
+		issuanceMethod,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, false, err
 	}
@@ -254,6 +308,12 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
+	assetCode := strings.TrimSpace(input.IssuancePolicy.AddressPolicy.AssetCode)
+	assetType := strings.TrimSpace(input.IssuancePolicy.AddressPolicy.AssetType)
+	tokenAddress := nullIfEmpty(input.IssuancePolicy.AddressPolicy.TokenAddress)
+	minorUnit := strings.TrimSpace(input.IssuancePolicy.AddressPolicy.MinorUnit)
+	decimals := input.IssuancePolicy.AddressPolicy.Decimals
+	issuanceMethod := issuanceMethodForPolicy(input.IssuancePolicy)
 
 	if _, err := r.executor.ExecContext(
 		ctx,
@@ -302,9 +362,15 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 			   derivation_index,
 			   expected_amount_minor,
 			   customer_reference,
+			   asset_code,
+			   asset_type,
+			   token_address,
+			   minor_unit,
+			   decimals,
+			   issuance_method,
 			   allocation_status
 			 )
-		 VALUES ($1, $2, $3, $4, $5, $6, 'reserved')
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'reserved')
 		 RETURNING id`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
 		input.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
@@ -312,6 +378,12 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		nextIndex,
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
+		assetCode,
+		assetType,
+		tokenAddress,
+		minorUnit,
+		decimals,
+		issuanceMethod,
 	).Scan(&paymentAddressID)
 	if err != nil {
 		return entities.PaymentAddressAllocation{}, err
@@ -348,4 +420,11 @@ func nullIfEmpty(value string) any {
 		return nil
 	}
 	return trimmed
+}
+
+func issuanceMethodForPolicy(policy entities.AddressIssuancePolicy) string {
+	if policy.AddressPolicy.Chain == valueobjects.SupportedChainEthereum {
+		return "create2_forwarder"
+	}
+	return "xpub_derivation"
 }

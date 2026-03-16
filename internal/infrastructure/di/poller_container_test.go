@@ -102,3 +102,51 @@ func TestLoadBitcoinEsploraConfigsFromEnvEmpty(t *testing.T) {
 		t.Fatalf("expected no configured networks, got %d", len(configs))
 	}
 }
+
+func TestLoadEthereumMainnetBlockscoutConfigFromEnvMissingURL(t *testing.T) {
+	t.Setenv(envEthereumMainnetBlockscoutURL, "")
+	t.Setenv(envEthereumMainnetBlockscoutTimeout, "")
+	t.Setenv(envEthereumMainnetBlockscoutTimeoutSeconds, "")
+
+	config := loadEthereumMainnetBlockscoutConfigFromEnv()
+	if config != nil {
+		t.Fatalf("expected nil config when url missing, got %+v", config)
+	}
+}
+
+func TestLoadEthereumSepoliaBlockscoutConfigFromEnv(t *testing.T) {
+	t.Setenv(envEthereumSepoliaBlockscoutURL, " https://eth-sepolia.blockscout.com ")
+	t.Setenv(envEthereumSepoliaBlockscoutTimeout, "15s")
+	t.Setenv(envEthereumSepoliaBlockscoutTimeoutSeconds, "")
+
+	config := loadEthereumSepoliaBlockscoutConfigFromEnv()
+	if config == nil {
+		t.Fatal("expected config, got nil")
+	}
+	if config.BaseURL != "https://eth-sepolia.blockscout.com" {
+		t.Fatalf("unexpected base url: got %q", config.BaseURL)
+	}
+	if config.Timeout != 15*time.Second {
+		t.Fatalf("unexpected timeout: got %s", config.Timeout)
+	}
+}
+
+func TestLoadEthereumBlockscoutConfigsFromEnv(t *testing.T) {
+	t.Setenv(envEthereumMainnetBlockscoutURL, "https://eth.blockscout.com")
+	t.Setenv(envEthereumMainnetBlockscoutTimeout, "")
+	t.Setenv(envEthereumMainnetBlockscoutTimeoutSeconds, "")
+	t.Setenv(envEthereumSepoliaBlockscoutURL, "https://eth-sepolia.blockscout.com")
+	t.Setenv(envEthereumSepoliaBlockscoutTimeout, "")
+	t.Setenv(envEthereumSepoliaBlockscoutTimeoutSeconds, "")
+
+	configs := loadEthereumBlockscoutConfigsFromEnv()
+	if len(configs) != 2 {
+		t.Fatalf("expected two configured networks, got %d", len(configs))
+	}
+	if _, ok := configs["mainnet"]; !ok {
+		t.Fatal("expected mainnet config")
+	}
+	if _, ok := configs["sepolia"]; !ok {
+		t.Fatal("expected sepolia config")
+	}
+}

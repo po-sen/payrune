@@ -35,12 +35,20 @@ func newAddressIssuancePolicy(
 	fingerprint string,
 	derivationPathPrefix string,
 ) entities.AddressIssuancePolicy {
+	assetCode := "btc"
+	assetType := "native"
+	if chain == valueobjects.SupportedChainEthereum {
+		assetCode = "eth"
+		assetType = "native"
+	}
 	return entities.AddressIssuancePolicy{
 		AddressPolicy: entities.AddressPolicy{
 			AddressPolicyID: addressPolicyID,
 			Chain:           chain,
 			Network:         network,
 			Scheme:          scheme,
+			AssetCode:       assetCode,
+			AssetType:       assetType,
 			MinorUnit:       minorUnit,
 			Decimals:        decimals,
 		},
@@ -259,6 +267,8 @@ func (f *fakePaymentAddressAllocationStore) MarkDerivationFailed(
 type fakeUnitOfWork struct {
 	err                  error
 	calls                int
+	evmFactoryStore      outport.EVMFactoryStore
+	evmVaultStore        outport.EVMPaymentVaultStore
 	allocationStore      outport.PaymentAddressAllocationStore
 	idempotencyStore     outport.PaymentAddressIdempotencyStore
 	receiptTrackingStore outport.PaymentReceiptTrackingStore
@@ -282,21 +292,74 @@ func (f *fakeUnitOfWork) WithinTransaction(
 	if f.err != nil {
 		return f.err
 	}
-	if f.allocationStore == nil {
-		return errors.New("payment address allocation store is not configured")
-	}
-	if f.idempotencyStore == nil {
-		return errors.New("payment address idempotency store is not configured")
-	}
-	if f.receiptTrackingStore == nil {
-		return errors.New("payment receipt tracking store is not configured")
+	if f.evmFactoryStore == nil &&
+		f.evmVaultStore == nil &&
+		f.allocationStore == nil &&
+		f.idempotencyStore == nil &&
+		f.receiptTrackingStore == nil &&
+		f.notificationOutbox == nil {
+		return errors.New("transaction stores are not configured")
 	}
 	return fn(outport.TxScope{
+		EVMFactoryRegistry:                     f.evmFactoryStore,
+		EVMPaymentVaults:                       f.evmVaultStore,
 		PaymentAddressAllocation:               f.allocationStore,
 		PaymentAddressIdempotency:              f.idempotencyStore,
 		PaymentReceiptTracking:                 f.receiptTrackingStore,
 		PaymentReceiptStatusNotificationOutbox: f.notificationOutbox,
 	})
+}
+
+type fakeEVMFactoryStore struct {
+	record            outport.EVMFactoryRecord
+	records           []outport.EVMFactoryRecord
+	found             bool
+	replaceErr        error
+	listErr           error
+	findErr           error
+	replaceCalls      int
+	listCalls         int
+	findCalls         int
+	lastReplaceInput  outport.ReplaceActiveEVMFactoryInput
+	lastReplaceNow    time.Time
+	lastFindByNetwork valueobjects.NetworkID
+}
+
+func (f *fakeEVMFactoryStore) ReplaceActive(
+	_ context.Context,
+	input outport.ReplaceActiveEVMFactoryInput,
+	now time.Time,
+) (outport.EVMFactoryRecord, error) {
+	f.replaceCalls++
+	f.lastReplaceInput = input
+	f.lastReplaceNow = now
+	if f.replaceErr != nil {
+		return outport.EVMFactoryRecord{}, f.replaceErr
+	}
+	return f.record, nil
+}
+
+func (f *fakeEVMFactoryStore) ListActive(_ context.Context) ([]outport.EVMFactoryRecord, error) {
+	f.listCalls++
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	return f.records, nil
+}
+
+func (f *fakeEVMFactoryStore) FindActiveByNetwork(
+	_ context.Context,
+	network valueobjects.NetworkID,
+) (outport.EVMFactoryRecord, bool, error) {
+	f.findCalls++
+	f.lastFindByNetwork = network
+	if f.findErr != nil {
+		return outport.EVMFactoryRecord{}, false, f.findErr
+	}
+	if f.found {
+		return f.record, true, nil
+	}
+	return outport.EVMFactoryRecord{}, false, nil
 }
 
 type fakePaymentAddressIdempotencyStore struct {
@@ -315,6 +378,86 @@ type fakePaymentAddressIdempotencyStore struct {
 	claimCalls       int
 	releaseCalls     int
 	completeCalls    int
+}
+
+type fakeEVMPaymentVaultStore struct {
+	record              outport.EVMPaymentVaultRecord
+	err                 error
+	createCalls         int
+	lastCreateInput     outport.CreateEVMPaymentVaultInput
+	sweepCandidates     []outport.EVMSweepCandidateRecord
+	findSweepErr        error
+	submittedSweepCalls int
+	lastSubmittedSweep  outport.MarkEVMSweepSubmittedInput
+	succeededSweepCalls int
+	lastSucceededSweep  outport.MarkEVMSweepResultInput
+	failedSweepCalls    int
+	lastFailedSweep     outport.MarkEVMSweepResultInput
+}
+
+func (f *fakeEVMPaymentVaultStore) Create(
+	_ context.Context,
+	input outport.CreateEVMPaymentVaultInput,
+) (outport.EVMPaymentVaultRecord, error) {
+	f.createCalls++
+	f.lastCreateInput = input
+	if f.err != nil {
+		return outport.EVMPaymentVaultRecord{}, f.err
+	}
+	if f.record.PaymentAddressID == 0 {
+		f.record = outport.EVMPaymentVaultRecord{
+			PaymentAddressID: input.PaymentAddressID,
+			Network:          input.Network,
+			FactoryID:        input.FactoryID,
+			FactoryAddress:   input.FactoryAddress,
+			CollectorAddress: input.CollectorAddress,
+			TokenAddress:     input.TokenAddress,
+			SaltHex:          input.SaltHex,
+			PredictedAddress: input.PredictedAddress,
+			DeployStatus:     "predicted",
+			SweepStatus:      "pending",
+		}
+	}
+	return f.record, nil
+}
+
+func (f *fakeEVMPaymentVaultStore) FindSweepCandidates(
+	_ context.Context,
+	_ outport.FindEVMSweepCandidatesInput,
+) ([]outport.EVMSweepCandidateRecord, error) {
+	if f.findSweepErr != nil {
+		return nil, f.findSweepErr
+	}
+	records := make([]outport.EVMSweepCandidateRecord, len(f.sweepCandidates))
+	copy(records, f.sweepCandidates)
+	return records, nil
+}
+
+func (f *fakeEVMPaymentVaultStore) MarkSweepSubmitted(
+	_ context.Context,
+	input outport.MarkEVMSweepSubmittedInput,
+) error {
+	f.submittedSweepCalls++
+	f.lastSubmittedSweep = input
+	return nil
+}
+
+func (f *fakeEVMPaymentVaultStore) MarkSweepSucceeded(
+	_ context.Context,
+	input outport.MarkEVMSweepResultInput,
+) error {
+	f.succeededSweepCalls++
+	f.lastSucceededSweep = input
+	return nil
+}
+
+func (f *fakeEVMPaymentVaultStore) MarkSweepFailed(
+	_ context.Context,
+	input outport.MarkEVMSweepResultInput,
+) error {
+	f.failedSweepCalls++
+	f.lastFailedSweep = input
+	return nil
 }
 
 type fakeFindPaymentAddressIdempotencyResult struct {

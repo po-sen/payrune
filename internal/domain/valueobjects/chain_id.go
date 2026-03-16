@@ -5,8 +5,9 @@ import "strings"
 type ChainID string
 
 const (
-	ChainIDBitcoin ChainID = "bitcoin"
-	maxIDLength    int     = 64
+	ChainIDBitcoin  ChainID = "bitcoin"
+	ChainIDEthereum ChainID = "ethereum"
+	maxIDLength     int     = 64
 )
 
 func ParseChainID(raw string) (ChainID, bool) {

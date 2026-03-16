@@ -3,7 +3,8 @@ package valueobjects
 type SupportedChain string
 
 const (
-	SupportedChainBitcoin SupportedChain = "bitcoin"
+	SupportedChainBitcoin  SupportedChain = "bitcoin"
+	SupportedChainEthereum SupportedChain = "ethereum"
 )
 
 func ParseSupportedChain(raw string) (SupportedChain, bool) {
@@ -15,6 +16,8 @@ func ParseSupportedChain(raw string) (SupportedChain, bool) {
 	switch chainID {
 	case ChainIDBitcoin:
 		return SupportedChainBitcoin, true
+	case ChainIDEthereum:
+		return SupportedChainEthereum, true
 	default:
 		return "", false
 	}

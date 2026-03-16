@@ -3,6 +3,8 @@ package outbound
 import "context"
 
 type TxScope struct {
+	EVMFactoryRegistry                     EVMFactoryStore
+	EVMPaymentVaults                       EVMPaymentVaultStore
 	PaymentAddressAllocation               PaymentAddressAllocationStore
 	PaymentAddressIdempotency              PaymentAddressIdempotencyStore
 	PaymentReceiptTracking                 PaymentReceiptTrackingStore

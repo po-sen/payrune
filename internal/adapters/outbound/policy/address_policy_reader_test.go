@@ -106,3 +106,39 @@ func TestAddressPolicyReaderUsesConfiguredDerivationPathPrefix(t *testing.T) {
 		)
 	}
 }
+
+func TestAddressPolicyReaderPreservesAssetMetadata(t *testing.T) {
+	reader := NewAddressPolicyReader([]AddressPolicyConfig{
+		{
+			AddressPolicyID: "ethereum-mainnet-usdt",
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkID("mainnet"),
+			Scheme:          "create2_forwarder",
+			AssetCode:       "usdt",
+			AssetType:       "erc20",
+			TokenAddress:    "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+			MinorUnit:       "microUsdt",
+			Decimals:        6,
+		},
+	})
+
+	policy, ok, err := reader.FindIssuanceByID(context.Background(), "ethereum-mainnet-usdt")
+	if err != nil {
+		t.Fatalf("FindIssuanceByID returned error: %v", err)
+	}
+	if !ok {
+		t.Fatalf("expected ethereum-mainnet-usdt exists")
+	}
+	if policy.AddressPolicy.AssetCode != "usdt" {
+		t.Fatalf("unexpected asset code: got %q", policy.AddressPolicy.AssetCode)
+	}
+	if policy.AddressPolicy.AssetType != "erc20" {
+		t.Fatalf("unexpected asset type: got %q", policy.AddressPolicy.AssetType)
+	}
+	if policy.AddressPolicy.TokenAddress != "0xdAC17F958D2ee523a2206206994597C13D831ec7" {
+		t.Fatalf("unexpected token address: got %q", policy.AddressPolicy.TokenAddress)
+	}
+	if policy.AddressPolicy.Enabled {
+		t.Fatalf("expected ethereum policy disabled without issuance config")
+	}
+}

@@ -11,6 +11,9 @@ type AddressPolicy struct {
 	Chain           string `json:"chain"`
 	Network         string `json:"network"`
 	Scheme          string `json:"scheme"`
+	AssetCode       string `json:"assetCode"`
+	AssetType       string `json:"assetType"`
+	TokenAddress    string `json:"tokenAddress,omitempty"`
 	MinorUnit       string `json:"minorUnit"`
 	Decimals        uint8  `json:"decimals"`
 	Enabled         bool   `json:"enabled"`
@@ -32,6 +35,9 @@ type GenerateAddressResponse struct {
 	Chain           string `json:"chain"`
 	Network         string `json:"network"`
 	Scheme          string `json:"scheme"`
+	AssetCode       string `json:"assetCode"`
+	AssetType       string `json:"assetType"`
+	TokenAddress    string `json:"tokenAddress,omitempty"`
 	MinorUnit       string `json:"minorUnit"`
 	Decimals        uint8  `json:"decimals"`
 	Index           uint32 `json:"index"`
@@ -53,6 +59,9 @@ type AllocatePaymentAddressResponse struct {
 	Chain               string `json:"chain"`
 	Network             string `json:"network"`
 	Scheme              string `json:"scheme"`
+	AssetCode           string `json:"assetCode"`
+	AssetType           string `json:"assetType"`
+	TokenAddress        string `json:"tokenAddress,omitempty"`
 	MinorUnit           string `json:"minorUnit"`
 	Decimals            uint8  `json:"decimals"`
 	Address             string `json:"address"`
@@ -72,6 +81,9 @@ type GetPaymentAddressStatusResponse struct {
 	Chain                   string     `json:"chain"`
 	Network                 string     `json:"network"`
 	Scheme                  string     `json:"scheme"`
+	AssetCode               string     `json:"assetCode"`
+	AssetType               string     `json:"assetType"`
+	TokenAddress            string     `json:"tokenAddress,omitempty"`
 	MinorUnit               string     `json:"minorUnit"`
 	Decimals                uint8      `json:"decimals"`
 	Address                 string     `json:"address"`

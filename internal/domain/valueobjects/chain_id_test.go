@@ -10,6 +10,7 @@ func TestParseChainID(t *testing.T) {
 		wantOK bool
 	}{
 		{name: "trim and lowercase", input: " BitCoin ", want: ChainIDBitcoin, wantOK: true},
+		{name: "ethereum", input: "Ethereum", want: ChainIDEthereum, wantOK: true},
 		{name: "custom chain value", input: "tron-main", want: ChainID("tron-main"), wantOK: true},
 		{name: "with underscore", input: "solana_devnet", want: ChainID("solana_devnet"), wantOK: true},
 		{name: "empty", input: " ", want: "", wantOK: false},

@@ -10,6 +10,9 @@ import (
 type ObservePaymentAddressInput struct {
 	Network               valueobjects.NetworkID
 	Address               string
+	AssetCode             string
+	AssetType             string
+	TokenAddress          string
 	IssuedAt              time.Time
 	RequiredConfirmations int32
 	LatestBlockHeight     int64
@@ -20,6 +23,9 @@ type ObserveChainPaymentAddressInput struct {
 	Chain                 valueobjects.ChainID
 	Network               valueobjects.NetworkID
 	Address               string
+	AssetCode             string
+	AssetType             string
+	TokenAddress          string
 	IssuedAt              time.Time
 	RequiredConfirmations int32
 	LatestBlockHeight     int64

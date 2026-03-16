@@ -164,7 +164,6 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	)
 	getPaymentAddressStatusUseCase := usecases.NewGetPaymentAddressStatusUseCase(
 		cloudflarepostgres.NewPaymentAddressStatusFinder(dbExecutor),
-		addressPolicyReader,
 	)
 
 	return httpadapter.NewPublicRouter(httpadapter.RouterControllers{

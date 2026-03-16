@@ -9,6 +9,7 @@ import (
 	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	"payrune/internal/adapters/outbound/bitcoin"
 	blockchainadapter "payrune/internal/adapters/outbound/blockchain"
+	ethereumadapter "payrune/internal/adapters/outbound/ethereum"
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	"payrune/internal/adapters/outbound/system"
 	outport "payrune/internal/application/ports/outbound"
@@ -35,12 +36,26 @@ const (
 	envBitcoinTestnet4EsploraPassword       = "BITCOIN_TESTNET4_ESPLORA_PASSWORD"
 	envBitcoinTestnet4EsploraTimeout        = "BITCOIN_TESTNET4_ESPLORA_TIMEOUT"
 	envBitcoinTestnet4EsploraTimeoutSeconds = "BITCOIN_TESTNET4_ESPLORA_TIMEOUT_SECONDS"
+
+	envEthereumMainnetBlockscoutURL            = "ETHEREUM_MAINNET_BLOCKSCOUT_URL"
+	envEthereumMainnetBlockscoutTimeout        = "ETHEREUM_MAINNET_BLOCKSCOUT_TIMEOUT"
+	envEthereumMainnetBlockscoutTimeoutSeconds = "ETHEREUM_MAINNET_BLOCKSCOUT_TIMEOUT_SECONDS"
+
+	envEthereumSepoliaBlockscoutURL            = "ETHEREUM_SEPOLIA_BLOCKSCOUT_URL"
+	envEthereumSepoliaBlockscoutTimeout        = "ETHEREUM_SEPOLIA_BLOCKSCOUT_TIMEOUT"
+	envEthereumSepoliaBlockscoutTimeoutSeconds = "ETHEREUM_SEPOLIA_BLOCKSCOUT_TIMEOUT_SECONDS"
 )
 
 type bitcoinEsploraEnvKeys struct {
 	url            string
 	user           string
 	password       string
+	timeout        string
+	timeoutSeconds string
+}
+
+type blockscoutEnvKeys struct {
+	url            string
 	timeout        string
 	timeoutSeconds string
 }
@@ -57,10 +72,19 @@ func NewPollerContainer() (*PollerContainer, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	observers := map[valueobjects.ChainID]outport.ChainReceiptObserver{
+		valueobjects.ChainIDBitcoin: bitcoinObserver,
+	}
+	if ethereumConfigs := loadEthereumBlockscoutConfigsFromEnv(); len(ethereumConfigs) > 0 {
+		ethereumObserver, err := ethereumadapter.NewBlockscoutReceiptObserver(ethereumConfigs)
+		if err != nil {
+			_ = db.Close()
+			return nil, err
+		}
+		observers[valueobjects.ChainIDEthereum] = ethereumObserver
+	}
 	receiptObserver, err := blockchainadapter.NewMultiChainReceiptObserver(
-		map[valueobjects.ChainID]outport.ChainReceiptObserver{
-			valueobjects.ChainIDBitcoin: bitcoinObserver,
-		},
+		observers,
 	)
 	if err != nil {
 		_ = db.Close()
@@ -122,6 +146,35 @@ func loadBitcoinEsploraConfigsFromEnv() map[valueobjects.NetworkID]*bitcoin.Bitc
 	return configs
 }
 
+func loadEthereumMainnetBlockscoutConfigFromEnv() *ethereumadapter.BlockscoutObserverConfig {
+	return loadBlockscoutConfig(blockscoutEnvKeys{
+		url:            envEthereumMainnetBlockscoutURL,
+		timeout:        envEthereumMainnetBlockscoutTimeout,
+		timeoutSeconds: envEthereumMainnetBlockscoutTimeoutSeconds,
+	})
+}
+
+func loadEthereumSepoliaBlockscoutConfigFromEnv() *ethereumadapter.BlockscoutObserverConfig {
+	return loadBlockscoutConfig(blockscoutEnvKeys{
+		url:            envEthereumSepoliaBlockscoutURL,
+		timeout:        envEthereumSepoliaBlockscoutTimeout,
+		timeoutSeconds: envEthereumSepoliaBlockscoutTimeoutSeconds,
+	})
+}
+
+func loadEthereumBlockscoutConfigsFromEnv() map[valueobjects.NetworkID]*ethereumadapter.BlockscoutObserverConfig {
+	configs := make(map[valueobjects.NetworkID]*ethereumadapter.BlockscoutObserverConfig, 2)
+
+	if mainnetConfig := loadEthereumMainnetBlockscoutConfigFromEnv(); mainnetConfig != nil {
+		configs[valueobjects.NetworkID("mainnet")] = mainnetConfig
+	}
+	if sepoliaConfig := loadEthereumSepoliaBlockscoutConfigFromEnv(); sepoliaConfig != nil {
+		configs[valueobjects.NetworkID("sepolia")] = sepoliaConfig
+	}
+
+	return configs
+}
+
 func loadBitcoinEsploraConfig(keys bitcoinEsploraEnvKeys) *bitcoin.BitcoinEsploraObserverConfig {
 	endpoint := strings.TrimSpace(os.Getenv(keys.url))
 	if endpoint == "" {
@@ -145,5 +198,29 @@ func loadBitcoinEsploraConfig(keys bitcoinEsploraEnvKeys) *bitcoin.BitcoinEsplor
 		Username: strings.TrimSpace(os.Getenv(keys.user)),
 		Password: os.Getenv(keys.password),
 		Timeout:  timeout,
+	}
+}
+
+func loadBlockscoutConfig(keys blockscoutEnvKeys) *ethereumadapter.BlockscoutObserverConfig {
+	endpoint := strings.TrimSpace(os.Getenv(keys.url))
+	if endpoint == "" {
+		return nil
+	}
+
+	timeout := 10 * time.Second
+	if rawTimeout := strings.TrimSpace(os.Getenv(keys.timeout)); rawTimeout != "" {
+		if parsed, err := time.ParseDuration(rawTimeout); err == nil && parsed > 0 {
+			timeout = parsed
+		}
+	}
+	if timeoutSecondsRaw := strings.TrimSpace(os.Getenv(keys.timeoutSeconds)); timeoutSecondsRaw != "" {
+		if parsedSeconds, err := strconv.Atoi(timeoutSecondsRaw); err == nil && parsedSeconds > 0 {
+			timeout = time.Duration(parsedSeconds) * time.Second
+		}
+	}
+
+	return &ethereumadapter.BlockscoutObserverConfig{
+		BaseURL: endpoint,
+		Timeout: timeout,
 	}
 }

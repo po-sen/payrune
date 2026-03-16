@@ -1,6 +1,8 @@
 package di
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,9 +14,11 @@ import (
 	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
 	"payrune/internal/adapters/outbound/bitcoin"
 	"payrune/internal/adapters/outbound/blockchain"
+	"payrune/internal/adapters/outbound/ethereum"
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	policyadapter "payrune/internal/adapters/outbound/policy"
 	"payrune/internal/adapters/outbound/system"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
@@ -26,8 +30,12 @@ const (
 	envBitcoinTestnet4RequiredConfirmations = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
 	envBitcoinMainnetReceiptExpiresAfter    = "BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER"
 	envBitcoinTestnet4ReceiptExpiresAfter   = "BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER"
+	envEthereumSepoliaUSDTTokenAddress      = "ETHEREUM_SEPOLIA_USDT_TOKEN_ADDRESS"
 	defaultBitcoinRequiredConfirmations     = int32(1)
 	defaultBitcoinReceiptExpiresAfter       = 7 * 24 * time.Hour
+	ethereumCreate2ForwarderScheme          = "create2_forwarder"
+	ethereumMainnetUSDTTokenAddress         = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+	evmFactoryAddressFingerprintAlgorithm   = "evm-factory-address-v1"
 )
 
 type Container struct {
@@ -54,6 +62,11 @@ func NewContainer() (*Container, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	activeEVMFactories, err := loadActiveEVMFactoriesForContainer(db)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 
 	bitcoinDeriver := bitcoin.NewHDXPubAddressDeriver(
 		bitcoin.NewLegacyAddressEncoder(),
@@ -63,6 +76,7 @@ func NewContainer() (*Container, error) {
 	)
 	chainAddressDeriver, err := blockchain.NewMultiChainAddressDeriver(
 		bitcoin.NewChainAddressDeriver(bitcoinDeriver),
+		ethereum.NewChainAddressDeriver(),
 	)
 	if err != nil {
 		_ = db.Close()
@@ -74,6 +88,8 @@ func NewContainer() (*Container, error) {
 			Chain:                valueobjects.SupportedChainBitcoin,
 			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:               string(valueobjects.BitcoinAddressSchemeLegacy),
+			AssetCode:            "btc",
+			AssetType:            "native",
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_MAINNET_LEGACY_XPUB"),
@@ -84,6 +100,8 @@ func NewContainer() (*Container, error) {
 			Chain:                valueobjects.SupportedChainBitcoin,
 			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:               string(valueobjects.BitcoinAddressSchemeSegwit),
+			AssetCode:            "btc",
+			AssetType:            "native",
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_MAINNET_SEGWIT_XPUB"),
@@ -94,6 +112,8 @@ func NewContainer() (*Container, error) {
 			Chain:                valueobjects.SupportedChainBitcoin,
 			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			AssetCode:            "btc",
+			AssetType:            "native",
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_MAINNET_NATIVE_SEGWIT_XPUB"),
@@ -104,6 +124,8 @@ func NewContainer() (*Container, error) {
 			Chain:                valueobjects.SupportedChainBitcoin,
 			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:               string(valueobjects.BitcoinAddressSchemeTaproot),
+			AssetCode:            "btc",
+			AssetType:            "native",
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_MAINNET_TAPROOT_XPUB"),
@@ -114,6 +136,8 @@ func NewContainer() (*Container, error) {
 			Chain:                valueobjects.SupportedChainBitcoin,
 			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
 			Scheme:               string(valueobjects.BitcoinAddressSchemeLegacy),
+			AssetCode:            "btc",
+			AssetType:            "native",
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_TESTNET4_LEGACY_XPUB"),
@@ -124,6 +148,8 @@ func NewContainer() (*Container, error) {
 			Chain:                valueobjects.SupportedChainBitcoin,
 			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
 			Scheme:               string(valueobjects.BitcoinAddressSchemeSegwit),
+			AssetCode:            "btc",
+			AssetType:            "native",
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_TESTNET4_SEGWIT_XPUB"),
@@ -134,6 +160,8 @@ func NewContainer() (*Container, error) {
 			Chain:                valueobjects.SupportedChainBitcoin,
 			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
 			Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			AssetCode:            "btc",
+			AssetType:            "native",
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB"),
@@ -144,10 +172,72 @@ func NewContainer() (*Container, error) {
 			Chain:                valueobjects.SupportedChainBitcoin,
 			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
 			Scheme:               string(valueobjects.BitcoinAddressSchemeTaproot),
+			AssetCode:            "btc",
+			AssetType:            "native",
 			MinorUnit:            "satoshi",
 			Decimals:             8,
 			AccountPublicKey:     os.Getenv("BITCOIN_TESTNET4_TAPROOT_XPUB"),
 			DerivationPathPrefix: "m/86'/1'/0'",
+		},
+		{
+			AddressPolicyID:          "ethereum-mainnet-eth",
+			Chain:                    valueobjects.SupportedChainEthereum,
+			Network:                  valueobjects.NetworkID("mainnet"),
+			Scheme:                   ethereumCreate2ForwarderScheme,
+			AssetCode:                "eth",
+			AssetType:                "native",
+			MinorUnit:                "wei",
+			Decimals:                 18,
+			AccountPublicKey:         activeEVMFactories[valueobjects.NetworkID("mainnet")].FactoryAddress,
+			PublicKeyFingerprintAlgo: evmFactoryAddressFingerprintAlgorithm,
+			PublicKeyFingerprint:     evmFactoryFingerprint(activeEVMFactories[valueobjects.NetworkID("mainnet")].FactoryAddress),
+		},
+		{
+			AddressPolicyID:          "ethereum-mainnet-usdt",
+			Chain:                    valueobjects.SupportedChainEthereum,
+			Network:                  valueobjects.NetworkID("mainnet"),
+			Scheme:                   ethereumCreate2ForwarderScheme,
+			AssetCode:                "usdt",
+			AssetType:                "erc20",
+			TokenAddress:             ethereumMainnetUSDTTokenAddress,
+			MinorUnit:                "microUsdt",
+			Decimals:                 6,
+			AccountPublicKey:         activeEVMFactories[valueobjects.NetworkID("mainnet")].FactoryAddress,
+			PublicKeyFingerprintAlgo: evmFactoryAddressFingerprintAlgorithm,
+			PublicKeyFingerprint:     evmFactoryFingerprint(activeEVMFactories[valueobjects.NetworkID("mainnet")].FactoryAddress),
+		},
+		{
+			AddressPolicyID:          "ethereum-sepolia-eth",
+			Chain:                    valueobjects.SupportedChainEthereum,
+			Network:                  valueobjects.NetworkID("sepolia"),
+			Scheme:                   ethereumCreate2ForwarderScheme,
+			AssetCode:                "eth",
+			AssetType:                "native",
+			MinorUnit:                "wei",
+			Decimals:                 18,
+			AccountPublicKey:         activeEVMFactories[valueobjects.NetworkID("sepolia")].FactoryAddress,
+			PublicKeyFingerprintAlgo: evmFactoryAddressFingerprintAlgorithm,
+			PublicKeyFingerprint:     evmFactoryFingerprint(activeEVMFactories[valueobjects.NetworkID("sepolia")].FactoryAddress),
+		},
+		{
+			AddressPolicyID: "ethereum-sepolia-usdt",
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkID("sepolia"),
+			Scheme:          ethereumCreate2ForwarderScheme,
+			AssetCode:       "usdt",
+			AssetType:       "erc20",
+			TokenAddress:    strings.TrimSpace(os.Getenv(envEthereumSepoliaUSDTTokenAddress)),
+			MinorUnit:       "microUsdt",
+			Decimals:        6,
+			AccountPublicKey: enabledEthereumSepoliaUSDTFactoryAddress(
+				strings.TrimSpace(os.Getenv(envEthereumSepoliaUSDTTokenAddress)),
+				activeEVMFactories[valueobjects.NetworkID("sepolia")].FactoryAddress,
+			),
+			PublicKeyFingerprintAlgo: evmFactoryAddressFingerprintAlgorithm,
+			PublicKeyFingerprint: evmFactoryFingerprint(enabledEthereumSepoliaUSDTFactoryAddress(
+				strings.TrimSpace(os.Getenv(envEthereumSepoliaUSDTTokenAddress)),
+				activeEVMFactories[valueobjects.NetworkID("sepolia")].FactoryAddress,
+			)),
 		},
 	})
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
@@ -164,10 +254,7 @@ func NewContainer() (*Container, error) {
 		allocationIssuancePolicy,
 		clock,
 	)
-	getPaymentAddressStatusUseCase := usecases.NewGetPaymentAddressStatusUseCase(
-		postgresadapter.NewPaymentAddressStatusFinder(db),
-		addressPolicyReader,
-	)
+	getPaymentAddressStatusUseCase := usecases.NewGetPaymentAddressStatusUseCase(postgresadapter.NewPaymentAddressStatusFinder(db))
 	chainAddressController := httpcontroller.NewChainAddressController(
 		listAddressPoliciesUseCase,
 		generateAddressUseCase,
@@ -265,4 +352,28 @@ func parsePositiveDurationEnvWithDefault(key string, fallback time.Duration) (ti
 		return 0, fmt.Errorf("%s must be greater than zero", key)
 	}
 	return parsed, nil
+}
+
+func loadActiveEVMFactoriesForContainer(db *sql.DB) (map[valueobjects.NetworkID]outport.EVMFactoryRecord, error) {
+	records, err := postgresadapter.NewEVMFactoryStore(db).ListActive(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[valueobjects.NetworkID]outport.EVMFactoryRecord, len(records))
+	for _, record := range records {
+		result[record.Network] = record
+	}
+	return result, nil
+}
+
+func evmFactoryFingerprint(factoryAddress string) string {
+	return strings.ToLower(strings.TrimSpace(factoryAddress))
+}
+
+func enabledEthereumSepoliaUSDTFactoryAddress(tokenAddress string, factoryAddress string) string {
+	if strings.TrimSpace(tokenAddress) == "" {
+		return ""
+	}
+	return strings.TrimSpace(factoryAddress)
 }

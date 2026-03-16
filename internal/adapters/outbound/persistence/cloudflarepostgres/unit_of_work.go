@@ -34,6 +34,7 @@ func (u *UnitOfWork) WithinTransaction(
 
 	txExecutor := newTxExecutor(u.bridgeID, txID, u.bridge)
 	txScope := outport.TxScope{
+		EVMPaymentVaults:                       nil,
 		PaymentAddressAllocation:               NewPaymentAddressAllocationStore(txExecutor),
 		PaymentAddressIdempotency:              NewPaymentAddressIdempotencyStore(txExecutor),
 		PaymentReceiptTracking:                 NewPaymentReceiptTrackingStore(txExecutor),

@@ -18,6 +18,12 @@ type PaymentAddressAllocation struct {
 	Chain               valueobjects.SupportedChain
 	Network             valueobjects.NetworkID
 	Scheme              string
+	AssetCode           string
+	AssetType           string
+	TokenAddress        string
+	MinorUnit           string
+	Decimals            uint8
+	IssuanceMethod      string
 	Address             string
 	DerivationPath      string
 	FailureReason       string
@@ -69,9 +75,13 @@ func (a PaymentAddressAllocation) MarkIssued(
 		return PaymentAddressAllocation{}, errors.New("address is required")
 	}
 
-	absolutePath, err := policy.DerivationConfig.AbsoluteDerivationPath(relativeDerivationPath)
-	if err != nil {
-		return PaymentAddressAllocation{}, err
+	absolutePath := ""
+	if policy.AddressPolicy.Chain == valueobjects.SupportedChainBitcoin {
+		var err error
+		absolutePath, err = policy.DerivationConfig.AbsoluteDerivationPath(relativeDerivationPath)
+		if err != nil {
+			return PaymentAddressAllocation{}, err
+		}
 	}
 
 	issued := a
@@ -79,6 +89,16 @@ func (a PaymentAddressAllocation) MarkIssued(
 	issued.Chain = policy.AddressPolicy.Chain
 	issued.Network = policy.AddressPolicy.Network
 	issued.Scheme = policy.AddressPolicy.Scheme
+	issued.AssetCode = policy.AddressPolicy.AssetCode
+	issued.AssetType = policy.AddressPolicy.AssetType
+	issued.TokenAddress = policy.AddressPolicy.TokenAddress
+	issued.MinorUnit = policy.AddressPolicy.MinorUnit
+	issued.Decimals = policy.AddressPolicy.Decimals
+	if policy.AddressPolicy.Chain == valueobjects.SupportedChainEthereum {
+		issued.IssuanceMethod = "create2_forwarder"
+	} else {
+		issued.IssuanceMethod = "xpub_derivation"
+	}
 	issued.Address = normalizedAddress
 	issued.DerivationPath = absolutePath
 	issued.FailureReason = ""
@@ -98,6 +118,12 @@ func (a PaymentAddressAllocation) MarkDerivationFailed(reason string) (PaymentAd
 	failed.Chain = ""
 	failed.Network = ""
 	failed.Scheme = ""
+	failed.AssetCode = ""
+	failed.AssetType = ""
+	failed.TokenAddress = ""
+	failed.MinorUnit = ""
+	failed.Decimals = 0
+	failed.IssuanceMethod = ""
 	failed.Address = ""
 	failed.DerivationPath = ""
 	return failed, nil
@@ -140,5 +166,11 @@ func (a PaymentAddressAllocation) IssueReceiptTracking(
 
 	expiresAtUTC := expiresAt.UTC()
 	tracking.ExpiresAt = &expiresAtUTC
+	tracking.AssetCode = a.AssetCode
+	tracking.AssetType = a.AssetType
+	tracking.TokenAddress = a.TokenAddress
+	tracking.MinorUnit = a.MinorUnit
+	tracking.Decimals = a.Decimals
+	tracking.IssuanceMethod = a.IssuanceMethod
 	return tracking, nil
 }

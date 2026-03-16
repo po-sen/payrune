@@ -1,8 +1,10 @@
 package usecases
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -245,6 +247,223 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	}
 	if response.IdempotencyReplayed {
 		t.Fatal("expected fresh allocation response not to be marked as replayed")
+	}
+}
+
+func TestAllocatePaymentAddressUseCaseEthereumSuccess(t *testing.T) {
+	previousSaltReader := ethereumSaltReader
+	ethereumSaltReader = bytes.NewReader(bytes.Repeat([]byte{0x11}, 32))
+	defer func() {
+		ethereumSaltReader = previousSaltReader
+	}()
+
+	allocator := &fakePaymentAddressAllocationStore{}
+	txManager := newFakeUnitOfWork(allocator)
+	txManager.evmFactoryStore = &fakeEVMFactoryStore{
+		found: true,
+		record: outport.EVMFactoryRecord{
+			ID:                    7,
+			Network:               valueobjects.NetworkID("sepolia"),
+			FactoryAddress:        "0x3333333333333333333333333333333333333333",
+			CollectorAddress:      "0x4444444444444444444444444444444444444444",
+			VaultCreationCodeHash: "0x4023b4c6529dc6ac7f0b3db124a2b8c86febf4ab1e6e491612ca4a068fae6e21",
+		},
+	}
+	txManager.evmVaultStore = &fakeEVMPaymentVaultStore{}
+
+	deriver := newFakeChainAddressDeriver()
+	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
+
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		(entities.AddressIssuancePolicy{
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "ethereum-sepolia-eth",
+				Chain:           valueobjects.SupportedChainEthereum,
+				Network:         valueobjects.NetworkID("sepolia"),
+				Scheme:          "create2_forwarder",
+				AssetCode:       "eth",
+				AssetType:       "native",
+				MinorUnit:       "wei",
+				Decimals:        18,
+			},
+			DerivationConfig: valueobjects.AddressDerivationConfig{
+				AccountPublicKey:         "0xplaceholder",
+				PublicKeyFingerprintAlgo: testPublicKeyFingerprintAlgo,
+				PublicKeyFingerprint:     "placeholder-fingerprint",
+			},
+		}).Normalize(),
+	})
+	allocator.freshReservation = entities.PaymentAddressAllocation{
+		PaymentAddressID:    77,
+		AddressPolicyID:     "ethereum-sepolia-eth",
+		DerivationIndex:     0,
+		ExpectedAmountMinor: 123,
+		CustomerReference:   "eth-order-001",
+	}
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		deriver,
+		catalog,
+		policies.NewPaymentAddressAllocationIssuancePolicy(
+			map[valueobjects.NetworkID]int32{
+				valueobjects.NetworkID("sepolia"): 12,
+			},
+			map[valueobjects.NetworkID]time.Duration{
+				valueobjects.NetworkID("sepolia"): time.Hour,
+			},
+		),
+		newAllocatePaymentAddressClock(),
+	)
+
+	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               valueobjects.SupportedChainEthereum,
+		AddressPolicyID:     "ethereum-sepolia-eth",
+		ExpectedAmountMinor: 123,
+		CustomerReference:   " eth-order-001 ",
+		IdempotencyKey:      " eth-idem-001 ",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+
+	expectedAddress := "0x5816b1fbecac478596e7436d2cee2cf37071f47b"
+	if response.Address != expectedAddress {
+		t.Fatalf("unexpected ethereum address: got %q", response.Address)
+	}
+	if response.AssetCode != "eth" {
+		t.Fatalf("unexpected asset code: got %q", response.AssetCode)
+	}
+	if response.AssetType != "native" {
+		t.Fatalf("unexpected asset type: got %q", response.AssetType)
+	}
+	if response.MinorUnit != "wei" {
+		t.Fatalf("unexpected minor unit: got %q", response.MinorUnit)
+	}
+	if response.Decimals != 18 {
+		t.Fatalf("unexpected decimals: got %d", response.Decimals)
+	}
+	if allocator.reserveFreshCalls != 1 {
+		t.Fatalf("expected reserve fresh call count 1, got %d", allocator.reserveFreshCalls)
+	}
+	if allocator.completeCalls != 1 {
+		t.Fatalf("expected complete call count 1, got %d", allocator.completeCalls)
+	}
+	if allocator.lastReserveFreshInput.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo != evmFactoryAddressFingerprintAlgorithm {
+		t.Fatalf(
+			"unexpected ethereum fingerprint algorithm: got %q",
+			allocator.lastReserveFreshInput.IssuancePolicy.DerivationConfig.PublicKeyFingerprintAlgo,
+		)
+	}
+	if allocator.lastReserveFreshInput.IssuancePolicy.DerivationConfig.PublicKeyFingerprint != strings.ToLower("0x3333333333333333333333333333333333333333") {
+		t.Fatalf(
+			"unexpected ethereum fingerprint: got %q",
+			allocator.lastReserveFreshInput.IssuancePolicy.DerivationConfig.PublicKeyFingerprint,
+		)
+	}
+	if allocator.lastCompleteInput.Address != expectedAddress {
+		t.Fatalf("unexpected complete address: got %q", allocator.lastCompleteInput.Address)
+	}
+	if allocator.lastCompleteInput.IssuanceMethod != "create2_forwarder" {
+		t.Fatalf("unexpected issuance method: got %q", allocator.lastCompleteInput.IssuanceMethod)
+	}
+	if allocator.lastCompleteInput.DerivationPath != "" {
+		t.Fatalf("unexpected derivation path: got %q", allocator.lastCompleteInput.DerivationPath)
+	}
+	if deriver.calls != 0 {
+		t.Fatalf("expected bitcoin deriver not to be called, got %d", deriver.calls)
+	}
+
+	vaultStore, ok := txManager.evmVaultStore.(*fakeEVMPaymentVaultStore)
+	if !ok {
+		t.Fatal("expected fake evm payment vault store")
+	}
+	if vaultStore.createCalls != 1 {
+		t.Fatalf("expected evm vault create call count 1, got %d", vaultStore.createCalls)
+	}
+	if vaultStore.lastCreateInput.PaymentAddressID != 77 {
+		t.Fatalf("unexpected vault payment address id: got %d", vaultStore.lastCreateInput.PaymentAddressID)
+	}
+	if vaultStore.lastCreateInput.FactoryID != 7 {
+		t.Fatalf("unexpected vault factory id: got %d", vaultStore.lastCreateInput.FactoryID)
+	}
+	if vaultStore.lastCreateInput.PredictedAddress != expectedAddress {
+		t.Fatalf("unexpected predicted address: got %q", vaultStore.lastCreateInput.PredictedAddress)
+	}
+	if vaultStore.lastCreateInput.SaltHex != "0x1111111111111111111111111111111111111111111111111111111111111111" {
+		t.Fatalf("unexpected salt hex: got %q", vaultStore.lastCreateInput.SaltHex)
+	}
+
+	trackingStore, ok := txManager.receiptTrackingStore.(*fakeAllocatePaymentReceiptTrackingStore)
+	if !ok {
+		t.Fatal("expected fake receipt tracking store")
+	}
+	if trackingStore.createCalls != 1 {
+		t.Fatalf("expected receipt tracking create call count 1, got %d", trackingStore.createCalls)
+	}
+	if trackingStore.lastCreateTracking.Address != expectedAddress {
+		t.Fatalf("unexpected tracking address: got %q", trackingStore.lastCreateTracking.Address)
+	}
+	if trackingStore.lastCreateTracking.AssetCode != "eth" {
+		t.Fatalf("unexpected tracking asset code: got %q", trackingStore.lastCreateTracking.AssetCode)
+	}
+	if trackingStore.lastCreateTracking.RequiredConfirmations != 12 {
+		t.Fatalf("unexpected tracking confirmations: got %d", trackingStore.lastCreateTracking.RequiredConfirmations)
+	}
+	if trackingStore.lastCreateTracking.ExpiresAt == nil || !trackingStore.lastCreateTracking.ExpiresAt.Equal(time.Date(2026, 3, 6, 1, 0, 0, 0, time.UTC)) {
+		t.Fatalf("unexpected tracking expiresAt: got %+v", trackingStore.lastCreateTracking.ExpiresAt)
+	}
+}
+
+func TestAllocatePaymentAddressUseCaseRejectsEthereumPolicyWithoutActiveFactory(t *testing.T) {
+	allocator := &fakePaymentAddressAllocationStore{}
+	txManager := newFakeUnitOfWork(allocator)
+	txManager.evmFactoryStore = &fakeEVMFactoryStore{found: false}
+	txManager.evmVaultStore = &fakeEVMPaymentVaultStore{}
+
+	deriver := newFakeChainAddressDeriver()
+	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
+
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		(entities.AddressIssuancePolicy{
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "ethereum-sepolia-eth",
+				Chain:           valueobjects.SupportedChainEthereum,
+				Network:         valueobjects.NetworkID("sepolia"),
+				Scheme:          "create2_forwarder",
+				AssetCode:       "eth",
+				AssetType:       "native",
+				MinorUnit:       "wei",
+				Decimals:        18,
+			},
+			DerivationConfig: valueobjects.AddressDerivationConfig{
+				AccountPublicKey:         "0xplaceholder",
+				PublicKeyFingerprintAlgo: testPublicKeyFingerprintAlgo,
+				PublicKeyFingerprint:     "placeholder-fingerprint",
+			},
+		}).Normalize(),
+	})
+
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		deriver,
+		catalog,
+		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
+		newAllocatePaymentAddressClock(),
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               valueobjects.SupportedChainEthereum,
+		AddressPolicyID:     "ethereum-sepolia-eth",
+		ExpectedAmountMinor: 123,
+	})
+	if !errors.Is(err, inport.ErrAddressPolicyNotEnabled) {
+		t.Fatalf("expected ErrAddressPolicyNotEnabled, got %v", err)
+	}
+	if allocator.reserveFreshCalls != 0 {
+		t.Fatalf("expected no reserve fresh calls, got %d", allocator.reserveFreshCalls)
+	}
+	if deriver.calls != 0 {
+		t.Fatalf("expected deriver not to be called, got %d", deriver.calls)
 	}
 }
 

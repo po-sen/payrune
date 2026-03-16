@@ -32,6 +32,8 @@ func (u *UnitOfWork) WithinTransaction(
 	}
 
 	txScope := outport.TxScope{
+		EVMFactoryRegistry:                     NewEVMFactoryStore(tx),
+		EVMPaymentVaults:                       NewEVMPaymentVaultStore(tx),
 		PaymentAddressAllocation:               NewPaymentAddressAllocationStore(tx),
 		PaymentAddressIdempotency:              NewPaymentAddressIdempotencyStore(tx),
 		PaymentReceiptTracking:                 NewPaymentReceiptTrackingStore(tx),

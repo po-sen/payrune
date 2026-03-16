@@ -16,6 +16,12 @@ type PaymentReceiptTracking struct {
 	Chain                   valueobjects.ChainID
 	Network                 valueobjects.NetworkID
 	Address                 string
+	AssetCode               string
+	AssetType               string
+	TokenAddress            string
+	MinorUnit               string
+	Decimals                uint8
+	IssuanceMethod          string
 	IssuedAt                time.Time
 	ExpectedAmountMinor     int64
 	RequiredConfirmations   int32

@@ -35,6 +35,12 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		rawChain                string
 		rawNetwork              string
 		scheme                  string
+		assetCode               string
+		assetType               string
+		tokenAddress            string
+		minorUnit               string
+		decimals                int32
+		issuanceMethod          string
 		address                 string
 		issuedAt                sql.NullTime
 		trackingID              sql.NullInt64
@@ -61,6 +67,12 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		     COALESCE(a.chain, ''),
 		     COALESCE(a.network, ''),
 		     COALESCE(a.scheme, ''),
+		     COALESCE(a.asset_code, ''),
+		     COALESCE(a.asset_type, ''),
+		     COALESCE(a.token_address, ''),
+		     COALESCE(a.minor_unit, ''),
+		     COALESCE(a.decimals, 0),
+		     COALESCE(a.issuance_method, ''),
 		     COALESCE(a.address, ''),
 		     a.issued_at,
 		     pr.id,
@@ -92,6 +104,12 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		&rawChain,
 		&rawNetwork,
 		&scheme,
+		&assetCode,
+		&assetType,
+		&tokenAddress,
+		&minorUnit,
+		&decimals,
+		&issuanceMethod,
 		&address,
 		&issuedAt,
 		&trackingID,
@@ -149,6 +167,12 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		Chain:                   chain,
 		Network:                 network,
 		Scheme:                  strings.TrimSpace(scheme),
+		AssetCode:               strings.TrimSpace(assetCode),
+		AssetType:               strings.TrimSpace(assetType),
+		TokenAddress:            strings.TrimSpace(tokenAddress),
+		MinorUnit:               strings.TrimSpace(minorUnit),
+		Decimals:                uint8(decimals),
+		IssuanceMethod:          strings.TrimSpace(issuanceMethod),
 		Address:                 strings.TrimSpace(address),
 		PaymentStatus:           status,
 		ObservedTotalMinor:      observedTotalMinor.Int64,

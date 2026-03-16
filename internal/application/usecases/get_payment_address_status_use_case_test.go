@@ -9,7 +9,6 @@ import (
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -29,6 +28,11 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 				Chain:                   valueobjects.SupportedChainBitcoin,
 				Network:                 valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 				Scheme:                  string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+				AssetCode:               "btc",
+				AssetType:               "native",
+				MinorUnit:               "satoshi",
+				Decimals:                8,
+				IssuanceMethod:          "xpub_derivation",
 				Address:                 "bc1qstatus",
 				PaymentStatus:           valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted,
 				ObservedTotalMinor:      80000,
@@ -41,20 +45,6 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 				ExpiresAt:               &expiresAt,
 			},
 		},
-		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
-			newAddressIssuancePolicy(
-				"bitcoin-mainnet-native-segwit",
-				valueobjects.SupportedChainBitcoin,
-				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-				"satoshi",
-				8,
-				"xpub",
-				testPublicKeyFingerprintAlgo,
-				"fingerprint",
-				"m/84'/0'/0'",
-			),
-		}),
 	)
 
 	response, err := useCase.Execute(context.Background(), dto.GetPaymentAddressStatusInput{
@@ -73,6 +63,12 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 	if response.Decimals != 8 {
 		t.Fatalf("unexpected decimals: got %d", response.Decimals)
 	}
+	if response.AssetCode != "btc" {
+		t.Fatalf("unexpected asset code: got %q", response.AssetCode)
+	}
+	if response.AssetType != "native" {
+		t.Fatalf("unexpected asset type: got %q", response.AssetType)
+	}
 	if response.PaymentStatus != "paid_unconfirmed_reverted" {
 		t.Fatalf("unexpected payment status: got %q", response.PaymentStatus)
 	}
@@ -85,10 +81,7 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 }
 
 func TestGetPaymentAddressStatusUseCaseNotFound(t *testing.T) {
-	useCase := NewGetPaymentAddressStatusUseCase(
-		&fakePaymentAddressStatusFinder{},
-		newInMemoryAddressPolicyReader(nil),
-	)
+	useCase := NewGetPaymentAddressStatusUseCase(&fakePaymentAddressStatusFinder{})
 
 	_, err := useCase.Execute(context.Background(), dto.GetPaymentAddressStatusInput{
 		Chain:            valueobjects.SupportedChainBitcoin,
@@ -100,10 +93,7 @@ func TestGetPaymentAddressStatusUseCaseNotFound(t *testing.T) {
 }
 
 func TestGetPaymentAddressStatusUseCaseFinderError(t *testing.T) {
-	useCase := NewGetPaymentAddressStatusUseCase(
-		&fakePaymentAddressStatusFinder{err: outport.ErrPaymentAddressStatusIncomplete},
-		newInMemoryAddressPolicyReader(nil),
-	)
+	useCase := NewGetPaymentAddressStatusUseCase(&fakePaymentAddressStatusFinder{err: outport.ErrPaymentAddressStatusIncomplete})
 
 	_, err := useCase.Execute(context.Background(), dto.GetPaymentAddressStatusInput{
 		Chain:            valueobjects.SupportedChainBitcoin,
@@ -111,32 +101,5 @@ func TestGetPaymentAddressStatusUseCaseFinderError(t *testing.T) {
 	})
 	if !errors.Is(err, outport.ErrPaymentAddressStatusIncomplete) {
 		t.Fatalf("expected ErrPaymentAddressStatusIncomplete, got %v", err)
-	}
-}
-
-func TestGetPaymentAddressStatusUseCasePolicyMissing(t *testing.T) {
-	useCase := NewGetPaymentAddressStatusUseCase(
-		&fakePaymentAddressStatusFinder{
-			found: true,
-			record: outport.PaymentAddressStatusRecord{
-				PaymentAddressID: 101,
-				AddressPolicyID:  "bitcoin-mainnet-native-segwit",
-				Chain:            valueobjects.SupportedChainBitcoin,
-				Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:           string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-				Address:          "bc1qstatus",
-				PaymentStatus:    valueobjects.PaymentReceiptStatusWatching,
-				IssuedAt:         time.Date(2026, 3, 8, 11, 0, 0, 0, time.UTC),
-			},
-		},
-		newInMemoryAddressPolicyReader(nil),
-	)
-
-	_, err := useCase.Execute(context.Background(), dto.GetPaymentAddressStatusInput{
-		Chain:            valueobjects.SupportedChainBitcoin,
-		PaymentAddressID: 101,
-	})
-	if err == nil || err.Error() != "payment address policy is not configured" {
-		t.Fatalf("unexpected error: got %v", err)
 	}
 }

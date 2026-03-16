@@ -188,6 +188,11 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup tracking: %v", err)
 	}
+	tracking.AssetCode = "btc"
+	tracking.AssetType = "native"
+	tracking.MinorUnit = "satoshi"
+	tracking.Decimals = 8
+	tracking.IssuanceMethod = "xpub_derivation"
 
 	trackingStore := &fakePaymentReceiptTrackingStore{
 		claimRows: []entities.PaymentReceiptTracking{tracking},
@@ -257,6 +262,12 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	}
 	if got := len(observer.lastInputs); got != 1 {
 		t.Fatalf("unexpected observer call count: got %d", got)
+	}
+	if observer.lastInputs[0].AssetCode != "btc" {
+		t.Fatalf("unexpected observer asset code: got %q", observer.lastInputs[0].AssetCode)
+	}
+	if observer.lastInputs[0].AssetType != "native" {
+		t.Fatalf("unexpected observer asset type: got %q", observer.lastInputs[0].AssetType)
 	}
 	if observer.lastInputs[0].IssuedAt.IsZero() {
 		t.Fatal("expected issued at in observer input")

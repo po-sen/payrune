@@ -16,18 +16,23 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	deriver := newFakeChainAddressDeriver()
 	deriver.output = dtoToDeriveOutput("1BitcoinAddressExample", "0/9")
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
-		newAddressIssuancePolicy(
-			"bitcoin-mainnet-legacy",
-			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
-			"satoshi",
-			8,
-			"xpub-main",
-			testPublicKeyFingerprintAlgo,
-			"fingerprint-main-legacy",
-			"m/44'/0'/0'",
-		),
+		func() entities.AddressIssuancePolicy {
+			policy := newAddressIssuancePolicy(
+				"bitcoin-mainnet-legacy",
+				valueobjects.SupportedChainBitcoin,
+				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+				string(valueobjects.BitcoinAddressSchemeLegacy),
+				"satoshi",
+				8,
+				"xpub-main",
+				testPublicKeyFingerprintAlgo,
+				"fingerprint-main-legacy",
+				"m/44'/0'/0'",
+			)
+			policy.AddressPolicy.AssetCode = "btc"
+			policy.AddressPolicy.AssetType = "native"
+			return policy.Normalize()
+		}(),
 	})
 	useCase := NewGenerateAddressUseCase(deriver, catalog)
 
@@ -51,6 +56,12 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	}
 	if response.Decimals != 8 {
 		t.Fatalf("unexpected decimals: got %d", response.Decimals)
+	}
+	if response.AssetCode != "btc" {
+		t.Fatalf("unexpected asset code: got %q", response.AssetCode)
+	}
+	if response.AssetType != "native" {
+		t.Fatalf("unexpected asset type: got %q", response.AssetType)
 	}
 	if deriver.lastInput.Network != valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet) {
 		t.Fatalf("unexpected network: got %q", deriver.lastInput.Network)

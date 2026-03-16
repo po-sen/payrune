@@ -40,6 +40,7 @@ paths:
             type: string
             enum:
               - bitcoin
+              - ethereum
       responses:
         "200":
           description: Address policies listed successfully.
@@ -48,7 +49,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListAddressPoliciesResponse"
               examples:
-                default:
+                bitcoin:
                   value:
                     chain: bitcoin
                     addressPolicies:
@@ -56,6 +57,8 @@ paths:
                         chain: bitcoin
                         network: mainnet
                         scheme: legacy
+                        assetCode: btc
+                        assetType: native
                         minorUnit: satoshi
                         decimals: 8
                         enabled: true
@@ -63,6 +66,8 @@ paths:
                         chain: bitcoin
                         network: mainnet
                         scheme: segwit
+                        assetCode: btc
+                        assetType: native
                         minorUnit: satoshi
                         decimals: 8
                         enabled: true
@@ -70,6 +75,8 @@ paths:
                         chain: bitcoin
                         network: mainnet
                         scheme: nativeSegwit
+                        assetCode: btc
+                        assetType: native
                         minorUnit: satoshi
                         decimals: 8
                         enabled: true
@@ -77,9 +84,53 @@ paths:
                         chain: bitcoin
                         network: mainnet
                         scheme: taproot
+                        assetCode: btc
+                        assetType: native
                         minorUnit: satoshi
                         decimals: 8
                         enabled: false
+                ethereum:
+                  value:
+                    chain: ethereum
+                    addressPolicies:
+                      - addressPolicyId: ethereum-mainnet-eth
+                        chain: ethereum
+                        network: mainnet
+                        scheme: create2_forwarder
+                        assetCode: eth
+                        assetType: native
+                        minorUnit: wei
+                        decimals: 18
+                        enabled: true
+                      - addressPolicyId: ethereum-mainnet-usdt
+                        chain: ethereum
+                        network: mainnet
+                        scheme: create2_forwarder
+                        assetCode: usdt
+                        assetType: erc20
+                        tokenAddress: 0xdAC17F958D2ee523a2206206994597C13D831ec7
+                        minorUnit: microUsdt
+                        decimals: 6
+                        enabled: true
+                      - addressPolicyId: ethereum-sepolia-eth
+                        chain: ethereum
+                        network: sepolia
+                        scheme: create2_forwarder
+                        assetCode: eth
+                        assetType: native
+                        minorUnit: wei
+                        decimals: 18
+                        enabled: true
+                      - addressPolicyId: ethereum-sepolia-usdt
+                        chain: ethereum
+                        network: sepolia
+                        scheme: create2_forwarder
+                        assetCode: usdt
+                        assetType: erc20
+                        tokenAddress: 0x9999999999999999999999999999999999999999
+                        minorUnit: microUsdt
+                        decimals: 6
+                        enabled: true
         "404":
           description: Chain not supported.
           content:
@@ -178,6 +229,15 @@ paths:
                       - nativeSegwit
                       - taproot
                     example: nativeSegwit
+                  assetCode:
+                    type: string
+                    example: btc
+                  assetType:
+                    type: string
+                    example: native
+                  tokenAddress:
+                    type: string
+                    example: 0xdAC17F958D2ee523a2206206994597C13D831ec7
                   minorUnit:
                     type: string
                     example: satoshi
@@ -287,6 +347,7 @@ paths:
             type: string
             enum:
               - bitcoin
+              - ethereum
         - name: Idempotency-Key
           in: header
           required: false
@@ -338,9 +399,26 @@ paths:
                     chain: bitcoin
                     network: mainnet
                     scheme: nativeSegwit
+                    assetCode: btc
+                    assetType: native
                     minorUnit: satoshi
                     decimals: 8
                     address: "bc1qexamplepaymentaddress"
+                ethereumSepoliaUsdt:
+                  value:
+                    paymentAddressId: "202"
+                    addressPolicyId: ethereum-sepolia-usdt
+                    expectedAmountMinor: 25000000
+                    customerReference: order-20260316-eth-001
+                    chain: ethereum
+                    network: sepolia
+                    scheme: create2_forwarder
+                    assetCode: usdt
+                    assetType: erc20
+                    tokenAddress: 0x9999999999999999999999999999999999999999
+                    minorUnit: microUsdt
+                    decimals: 6
+                    address: "0x5816b1fbecac478596e7436d2cee2cf37071f47b"
         "400":
           description: Invalid request.
           content:
@@ -441,6 +519,7 @@ paths:
             type: string
             enum:
               - bitcoin
+              - ethereum
         - name: paymentAddressId
           in: path
           required: true
@@ -466,6 +545,8 @@ paths:
                     chain: bitcoin
                     network: mainnet
                     scheme: nativeSegwit
+                    assetCode: btc
+                    assetType: native
                     minorUnit: satoshi
                     decimals: 8
                     address: bc1qexamplepaymentaddress
@@ -478,6 +559,32 @@ paths:
                     issuedAt: "2026-03-08T11:00:00Z"
                     firstObservedAt: "2026-03-08T11:05:00Z"
                     expiresAt: "2026-03-15T11:00:00Z"
+                ethereumPaidConfirmed:
+                  value:
+                    paymentAddressId: "202"
+                    addressPolicyId: ethereum-sepolia-usdt
+                    expectedAmountMinor: 25000000
+                    customerReference: order-20260316-eth-001
+                    chain: ethereum
+                    network: sepolia
+                    scheme: create2_forwarder
+                    assetCode: usdt
+                    assetType: erc20
+                    tokenAddress: 0x9999999999999999999999999999999999999999
+                    minorUnit: microUsdt
+                    decimals: 6
+                    address: 0x5816b1fbecac478596e7436d2cee2cf37071f47b
+                    paymentStatus: paid_confirmed
+                    observedTotalMinor: 25000000
+                    confirmedTotalMinor: 25000000
+                    unconfirmedTotalMinor: 0
+                    requiredConfirmations: 12
+                    lastObservedBlockHeight: 9123456
+                    issuedAt: "2026-03-16T09:00:00Z"
+                    firstObservedAt: "2026-03-16T09:01:00Z"
+                    paidAt: "2026-03-16T09:02:00Z"
+                    confirmedAt: "2026-03-16T09:05:00Z"
+                    expiresAt: "2026-03-23T09:00:00Z"
         "400":
           description: Invalid payment address id.
           content:
@@ -555,6 +662,8 @@ components:
         - chain
         - network
         - scheme
+        - assetCode
+        - assetType
         - minorUnit
         - decimals
         - enabled
@@ -570,12 +679,16 @@ components:
           example: mainnet
         scheme:
           type: string
-          enum:
-            - legacy
-            - segwit
-            - nativeSegwit
-            - taproot
           example: nativeSegwit
+        assetCode:
+          type: string
+          example: btc
+        assetType:
+          type: string
+          example: native
+        tokenAddress:
+          type: string
+          example: 0xdAC17F958D2ee523a2206206994597C13D831ec7
         minorUnit:
           type: string
           example: satoshi
@@ -609,6 +722,8 @@ components:
         - chain
         - network
         - scheme
+        - assetCode
+        - assetType
         - minorUnit
         - decimals
         - address
@@ -635,12 +750,16 @@ components:
           example: mainnet
         scheme:
           type: string
-          enum:
-            - legacy
-            - segwit
-            - nativeSegwit
-            - taproot
           example: nativeSegwit
+        assetCode:
+          type: string
+          example: btc
+        assetType:
+          type: string
+          example: native
+        tokenAddress:
+          type: string
+          example: 0xdAC17F958D2ee523a2206206994597C13D831ec7
         minorUnit:
           type: string
           example: satoshi
@@ -661,6 +780,8 @@ components:
         - chain
         - network
         - scheme
+        - assetCode
+        - assetType
         - minorUnit
         - decimals
         - address
@@ -694,12 +815,16 @@ components:
           example: mainnet
         scheme:
           type: string
-          enum:
-            - legacy
-            - segwit
-            - nativeSegwit
-            - taproot
           example: nativeSegwit
+        assetCode:
+          type: string
+          example: btc
+        assetType:
+          type: string
+          example: native
+        tokenAddress:
+          type: string
+          example: 0xdAC17F958D2ee523a2206206994597C13D831ec7
         minorUnit:
           type: string
           example: satoshi

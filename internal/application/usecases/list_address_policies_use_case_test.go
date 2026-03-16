@@ -56,6 +56,8 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 		Chain:           "bitcoin",
 		Network:         "mainnet",
 		Scheme:          "legacy",
+		AssetCode:       "btc",
+		AssetType:       "native",
 		MinorUnit:       "satoshi",
 		Decimals:        8,
 		Enabled:         true,
@@ -89,5 +91,44 @@ func TestListAddressPoliciesUseCaseValidationMissingPolicyReader(t *testing.T) {
 	_, err := useCase.Execute(context.Background(), valueobjects.SupportedChainBitcoin)
 	if err == nil || err.Error() != "address policy reader is not configured" {
 		t.Fatalf("unexpected error: got %v", err)
+	}
+}
+
+func TestListAddressPoliciesUseCaseIncludesAssetMetadata(t *testing.T) {
+	reader := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		func() entities.AddressIssuancePolicy {
+			policy := entities.AddressIssuancePolicy{
+				AddressPolicy: entities.AddressPolicy{
+					AddressPolicyID: "ethereum-mainnet-usdt",
+					Chain:           valueobjects.SupportedChainEthereum,
+					Network:         valueobjects.NetworkID("mainnet"),
+					Scheme:          "create2_forwarder",
+					AssetCode:       "usdt",
+					AssetType:       "erc20",
+					TokenAddress:    "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+					MinorUnit:       "microUsdt",
+					Decimals:        6,
+				},
+			}
+			return policy.Normalize()
+		}(),
+	})
+	useCase := NewListAddressPoliciesUseCase(reader)
+
+	response, err := useCase.Execute(context.Background(), valueobjects.SupportedChainEthereum)
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if len(response.AddressPolicies) != 1 {
+		t.Fatalf("unexpected policy count: got %d", len(response.AddressPolicies))
+	}
+	if response.AddressPolicies[0].AssetCode != "usdt" {
+		t.Fatalf("unexpected asset code: got %q", response.AddressPolicies[0].AssetCode)
+	}
+	if response.AddressPolicies[0].AssetType != "erc20" {
+		t.Fatalf("unexpected asset type: got %q", response.AddressPolicies[0].AssetType)
+	}
+	if response.AddressPolicies[0].TokenAddress != "0xdAC17F958D2ee523a2206206994597C13D831ec7" {
+		t.Fatalf("unexpected token address: got %q", response.AddressPolicies[0].TokenAddress)
 	}
 }

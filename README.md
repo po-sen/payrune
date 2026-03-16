@@ -162,6 +162,23 @@ make up
 make down
 ```
 
+Local endpoints after `make up`:
+
+- API: `http://localhost:8080`
+- Swagger UI: `http://localhost:8081`
+- DB viewer: `http://localhost:8082`
+
+Local compose does not auto-seed `evm_factories`. If you want Ethereum allocation/sweep to use a
+real factory, run `cmd/evm-factory-deploy` or the compose `evm-factory-deploy` ops service after
+startup so the chosen network is deployed and registered into the database.
+DB viewer login:
+
+- system: `PostgreSQL`
+- server: `postgres`
+- username: `payrune`
+- password: `payrune`
+- database: `payrune`
+
 Cloudflare Workers:
 
 ```bash

@@ -47,6 +47,9 @@ func (o *MultiChainReceiptObserver) ObserveAddress(
 	return observer.ObserveAddress(ctx, outport.ObservePaymentAddressInput{
 		Network:               normalizedNetwork,
 		Address:               input.Address,
+		AssetCode:             input.AssetCode,
+		AssetType:             input.AssetType,
+		TokenAddress:          input.TokenAddress,
 		IssuedAt:              input.IssuedAt,
 		RequiredConfirmations: input.RequiredConfirmations,
 		LatestBlockHeight:     input.LatestBlockHeight,

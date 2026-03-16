@@ -11,6 +11,9 @@ type AddressPolicy struct {
 	Chain           valueobjects.SupportedChain
 	Network         valueobjects.NetworkID
 	Scheme          string
+	AssetCode       string
+	AssetType       string
+	TokenAddress    string
 	MinorUnit       string
 	Decimals        uint8
 	Enabled         bool
@@ -22,6 +25,9 @@ func (p AddressPolicy) IsEnabled() bool {
 
 func (p AddressPolicy) Normalize() AddressPolicy {
 	p.AddressPolicyID = strings.TrimSpace(p.AddressPolicyID)
+	p.AssetCode = strings.TrimSpace(p.AssetCode)
+	p.AssetType = strings.TrimSpace(p.AssetType)
+	p.TokenAddress = strings.TrimSpace(p.TokenAddress)
 	p.MinorUnit = strings.TrimSpace(p.MinorUnit)
 	if normalizedNetwork, ok := valueobjects.ParseNetworkID(string(p.Network)); ok {
 		p.Network = normalizedNetwork

@@ -36,6 +36,9 @@ func TestUnitOfWorkWithinTransactionCommitsOnSuccess(t *testing.T) {
 
 	err = uow.WithinTransaction(context.Background(), func(txScope outport.TxScope) error {
 		called = true
+		if txScope.EVMFactoryRegistry == nil {
+			t.Fatal("expected evm factory store in tx scope")
+		}
 		if txScope.PaymentAddressAllocation == nil {
 			t.Fatal("expected allocation store in tx scope")
 		}
