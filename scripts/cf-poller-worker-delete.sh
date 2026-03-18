@@ -19,4 +19,4 @@ mainnet|testnet4) ;;
 esac
 
 cd "$WORKER_DIR"
-npm exec -- wrangler delete --env "$TARGET_NETWORK"
+npm exec -- wrangler delete --force --env "$TARGET_NETWORK"

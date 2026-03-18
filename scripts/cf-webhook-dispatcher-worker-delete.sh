@@ -24,5 +24,5 @@ success() {
 
 cd "$WORKER_DIR"
 step "Deleting webhook dispatcher Worker"
-npm exec -- wrangler delete "$@"
+npm exec -- wrangler delete --force "$@"
 success "Webhook dispatcher delete finished."

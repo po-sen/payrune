@@ -24,5 +24,5 @@ success() {
 
 cd "$WORKER_DIR"
 step "Deleting Worker"
-npm exec -- wrangler delete "$@"
+npm exec -- wrangler delete --force "$@"
 success "Worker delete finished."
