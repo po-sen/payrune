@@ -21,15 +21,9 @@ cf-migrate:
 
 cf-up:
 	./scripts/cf-cloudflare-migrate.sh
-	./scripts/cf-api-worker-deploy.sh
-	./scripts/cf-poller-worker-deploy.sh mainnet
-	./scripts/cf-poller-worker-deploy.sh testnet4
 	./scripts/cf-receipt-webhook-mock-worker-deploy.sh
-	./scripts/cf-webhook-dispatcher-worker-deploy.sh
+	./scripts/cf-payrune-worker-deploy.sh
 
 cf-down:
-	./scripts/cf-webhook-dispatcher-worker-delete.sh
+	./scripts/cf-payrune-worker-delete.sh
 	./scripts/cf-receipt-webhook-mock-worker-delete.sh
-	./scripts/cf-poller-worker-delete.sh testnet4
-	./scripts/cf-poller-worker-delete.sh mainnet
-	./scripts/cf-api-worker-delete.sh

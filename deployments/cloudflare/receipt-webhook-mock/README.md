@@ -1,6 +1,7 @@
 # Receipt Webhook Mock Worker
 
-This is a Cloudflare-only mock webhook target for testing `payrune-webhook-dispatcher`.
+This is a Cloudflare-only mock webhook target for testing the unified `payrune` worker dispatcher
+path.
 
 ## Behavior
 
@@ -16,7 +17,7 @@ This is a Cloudflare-only mock webhook target for testing `payrune-webhook-dispa
 
 - `make cf-up`
 
-The default Cloudflare stack deploys this worker before `payrune-webhook-dispatcher`.
+The default Cloudflare stack deploys this worker before `payrune`.
 
 ## Delete
 

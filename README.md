@@ -180,8 +180,5 @@ Cloudflare credentials:
 `make cf-up` does:
 
 1. migrate PostgreSQL
-2. deploy `payrune-api`
-3. deploy `payrune-poller-mainnet`
-4. deploy `payrune-poller-testnet4`
-5. deploy `receipt-webhook-mock`
-6. deploy `payrune-webhook-dispatcher`
+2. deploy `receipt-webhook-mock`
+3. deploy the unified `payrune` worker for API, poller, and dispatcher
