@@ -1,44 +1,23 @@
 package valueobjects
 
-import (
-	"errors"
-	"strings"
-)
+import "strings"
 
-type AddressDerivationConfig struct {
-	AccountPublicKey     string
-	DerivationPathPrefix string
+type AddressIssuanceConfig struct {
+	AddressSourceRef       string
+	AddressReferencePrefix string
 }
 
-func (c AddressDerivationConfig) Normalize() AddressDerivationConfig {
-	c.AccountPublicKey = strings.TrimSpace(c.AccountPublicKey)
-	c.DerivationPathPrefix = normalizeDerivationPathPrefix(c.DerivationPathPrefix)
+func (c AddressIssuanceConfig) Normalize() AddressIssuanceConfig {
+	c.AddressSourceRef = strings.TrimSpace(c.AddressSourceRef)
+	c.AddressReferencePrefix = normalizeAddressReferencePrefix(c.AddressReferencePrefix)
 	return c
 }
 
-func (c AddressDerivationConfig) IsEnabled() bool {
-	return strings.TrimSpace(c.AccountPublicKey) != ""
+func (c AddressIssuanceConfig) IsEnabled() bool {
+	return strings.TrimSpace(c.AddressSourceRef) != ""
 }
 
-func (c AddressDerivationConfig) AbsoluteDerivationPath(relative string) (string, error) {
-	normalizedRelative := strings.TrimSpace(relative)
-	if normalizedRelative == "" {
-		return "", errors.New("derivation path is required")
-	}
-	if strings.HasPrefix(normalizedRelative, "m/") {
-		return normalizedRelative, nil
-	}
-
-	prefix := normalizeDerivationPathPrefix(c.DerivationPathPrefix)
-	if prefix == "" {
-		return "", errors.New("derivation path prefix is required")
-	}
-
-	normalizedRelative = strings.TrimPrefix(normalizedRelative, "/")
-	return prefix + "/" + normalizedRelative, nil
-}
-
-func normalizeDerivationPathPrefix(raw string) string {
+func normalizeAddressReferencePrefix(raw string) string {
 	trimmed := strings.TrimSpace(raw)
 	trimmed = strings.TrimSuffix(trimmed, "/")
 	if trimmed == "" {

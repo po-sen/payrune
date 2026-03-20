@@ -7,21 +7,21 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-func TestAddressPolicyReaderPreservesAccountPublicKey(t *testing.T) {
+func TestAddressPolicyReaderPreservesAddressSourceRef(t *testing.T) {
 	reader := NewAddressPolicyReader([]AddressPolicyConfig{
 		{
 			AddressPolicyID:  "policy-a",
 			Chain:            valueobjects.SupportedChainBitcoin,
 			Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:           string(valueobjects.BitcoinAddressSchemeLegacy),
-			AccountPublicKey: "xpub-a",
+			AddressSourceRef: "xpub-a",
 		},
 		{
 			AddressPolicyID:  "policy-b",
 			Chain:            valueobjects.SupportedChainBitcoin,
 			Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:           string(valueobjects.BitcoinAddressSchemeLegacy),
-			AccountPublicKey: "xpub-b",
+			AddressSourceRef: "xpub-b",
 		},
 	})
 
@@ -41,34 +41,34 @@ func TestAddressPolicyReaderPreservesAccountPublicKey(t *testing.T) {
 		t.Fatalf("expected policy-b exists")
 	}
 
-	if policyA.DerivationConfig.AccountPublicKey != "xpub-a" {
-		t.Fatalf("unexpected account public key for policy-a: got %q", policyA.DerivationConfig.AccountPublicKey)
+	if policyA.IssuanceConfig.AddressSourceRef != "xpub-a" {
+		t.Fatalf("unexpected account public key for policy-a: got %q", policyA.IssuanceConfig.AddressSourceRef)
 	}
-	if policyB.DerivationConfig.AccountPublicKey != "xpub-b" {
-		t.Fatalf("unexpected account public key for policy-b: got %q", policyB.DerivationConfig.AccountPublicKey)
+	if policyB.IssuanceConfig.AddressSourceRef != "xpub-b" {
+		t.Fatalf("unexpected account public key for policy-b: got %q", policyB.IssuanceConfig.AddressSourceRef)
 	}
-	if policyA.DerivationConfig.AccountPublicKey == policyB.DerivationConfig.AccountPublicKey {
+	if policyA.IssuanceConfig.AddressSourceRef == policyB.IssuanceConfig.AddressSourceRef {
 		t.Fatalf("expected different account public keys for different policies")
 	}
 }
 
-func TestAddressPolicyReaderUsesConfiguredDerivationPathPrefix(t *testing.T) {
+func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
 	reader := NewAddressPolicyReader([]AddressPolicyConfig{
 		{
-			AddressPolicyID:      "native-mainnet",
-			Chain:                valueobjects.SupportedChainBitcoin,
-			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-			AccountPublicKey:     "xpub-a",
-			DerivationPathPrefix: "m/84'/0'/0'",
+			AddressPolicyID:        "native-mainnet",
+			Chain:                  valueobjects.SupportedChainBitcoin,
+			Network:                valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			Scheme:                 string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			AddressSourceRef:       "xpub-a",
+			AddressReferencePrefix: "m/84'/0'/0'",
 		},
 		{
-			AddressPolicyID:      "taproot-testnet4",
-			Chain:                valueobjects.SupportedChainBitcoin,
-			Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			Scheme:               string(valueobjects.BitcoinAddressSchemeTaproot),
-			AccountPublicKey:     "xpub-b",
-			DerivationPathPrefix: "m/86'/1'/0'",
+			AddressPolicyID:        "taproot-testnet4",
+			Chain:                  valueobjects.SupportedChainBitcoin,
+			Network:                valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			Scheme:                 string(valueobjects.BitcoinAddressSchemeTaproot),
+			AddressSourceRef:       "xpub-b",
+			AddressReferencePrefix: "m/86'/1'/0'",
 		},
 	})
 
@@ -79,10 +79,10 @@ func TestAddressPolicyReaderUsesConfiguredDerivationPathPrefix(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected native-mainnet exists")
 	}
-	if nativeMainnet.DerivationConfig.DerivationPathPrefix != "m/84'/0'/0'" {
+	if nativeMainnet.IssuanceConfig.AddressReferencePrefix != "m/84'/0'/0'" {
 		t.Fatalf(
 			"unexpected derivation path prefix for native-mainnet: got %q",
-			nativeMainnet.DerivationConfig.DerivationPathPrefix,
+			nativeMainnet.IssuanceConfig.AddressReferencePrefix,
 		)
 	}
 
@@ -93,10 +93,10 @@ func TestAddressPolicyReaderUsesConfiguredDerivationPathPrefix(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected taproot-testnet4 exists")
 	}
-	if taprootTestnet4.DerivationConfig.DerivationPathPrefix != "m/86'/1'/0'" {
+	if taprootTestnet4.IssuanceConfig.AddressReferencePrefix != "m/86'/1'/0'" {
 		t.Fatalf(
 			"unexpected derivation path prefix for taproot-testnet4: got %q",
-			taprootTestnet4.DerivationConfig.DerivationPathPrefix,
+			taprootTestnet4.IssuanceConfig.AddressReferencePrefix,
 		)
 	}
 }

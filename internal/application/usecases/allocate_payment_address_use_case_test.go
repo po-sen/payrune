@@ -38,8 +38,9 @@ func (f *fakeAllocatePaymentAddressClock) NowUTC() time.Time {
 
 func newAllocateDeriveOutput(address string, path string) outport.DeriveChainAddressOutput {
 	return outport.DeriveChainAddressOutput{
-		Address:                address,
-		RelativeDerivationPath: path,
+		Address:                  address,
+		AddressReference:         path,
+		RelativeAddressReference: path,
 	}
 }
 
@@ -82,7 +83,7 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
 	deriver := newFakeChainAddressDeriver()
-	deriver.output = newAllocateDeriveOutput("bc1qallocatedaddress", "0/11")
+	deriver.output = newAllocateDeriveOutput("bc1qallocatedaddress", "m/84'/0'/0'/0/11")
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-native-segwit",
@@ -132,10 +133,10 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 			allocator.lastReopenInput.IssuancePolicy.AddressPolicy.AddressPolicyID,
 		)
 	}
-	if allocator.lastReopenInput.IssuancePolicy.DerivationConfig.AccountPublicKey != "xpub-main" {
+	if allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSourceRef != "xpub-main" {
 		t.Fatalf(
 			"unexpected account public key passed to allocator reopen: got %q",
-			allocator.lastReopenInput.IssuancePolicy.DerivationConfig.AccountPublicKey,
+			allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSourceRef,
 		)
 	}
 	if allocator.lastReopenInput.CustomerReference != "order-001" {
@@ -203,8 +204,8 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.lastCompleteInput.PaymentAddressID != 44 {
 		t.Fatalf("unexpected payment address id in complete input: got %d", allocator.lastCompleteInput.PaymentAddressID)
 	}
-	if allocator.lastCompleteInput.DerivationPath != "m/84'/0'/0'/0/11" {
-		t.Fatalf("unexpected derivation path in complete input: got %q", allocator.lastCompleteInput.DerivationPath)
+	if allocator.lastCompleteInput.AddressReference != "m/84'/0'/0'/0/11" {
+		t.Fatalf("unexpected address reference in complete input: got %q", allocator.lastCompleteInput.AddressReference)
 	}
 	if deriver.lastInput.Index != 11 {
 		t.Fatalf("unexpected index passed to deriver: got %d", deriver.lastInput.Index)
@@ -215,11 +216,11 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if deriver.lastInput.Scheme != string(valueobjects.BitcoinAddressSchemeNativeSegwit) {
 		t.Fatalf("unexpected scheme passed to deriver: got %q", deriver.lastInput.Scheme)
 	}
-	if deriver.lastInput.AccountPublicKey != "xpub-main" {
-		t.Fatalf("unexpected public key passed to deriver: got %q", deriver.lastInput.AccountPublicKey)
+	if deriver.lastInput.AddressSourceRef != "xpub-main" {
+		t.Fatalf("unexpected address source ref passed to deriver: got %q", deriver.lastInput.AddressSourceRef)
 	}
-	if deriver.lastInput.DerivationPathPrefix != "m/84'/0'/0'" {
-		t.Fatalf("unexpected derivation path prefix passed to deriver: got %q", deriver.lastInput.DerivationPathPrefix)
+	if deriver.lastInput.AddressReferencePrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected address reference prefix passed to deriver: got %q", deriver.lastInput.AddressReferencePrefix)
 	}
 	if response.Address != "bc1qallocatedaddress" {
 		t.Fatalf("unexpected address: got %q", response.Address)
@@ -255,7 +256,7 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 			Network:             valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:              string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			Address:             "bc1qexistingduplicate",
-			DerivationPath:      "m/84'/0'/0'/0/9",
+			AddressReference:    "m/84'/0'/0'/0/9",
 		},
 	}
 	idempotencyStore := &fakePaymentAddressIdempotencyStore{
@@ -397,7 +398,7 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 			Network:             valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:              string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			Address:             "bc1qracewinner",
-			DerivationPath:      "m/84'/0'/0'/0/12",
+			AddressReference:    "m/84'/0'/0'/0/12",
 		},
 	}
 	idempotencyStore := &fakePaymentAddressIdempotencyStore{

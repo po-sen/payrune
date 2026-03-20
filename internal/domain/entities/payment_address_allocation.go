@@ -19,7 +19,7 @@ type PaymentAddressAllocation struct {
 	Network             valueobjects.NetworkID
 	Scheme              string
 	Address             string
-	DerivationPath      string
+	AddressReference    string
 	FailureReason       string
 }
 
@@ -54,7 +54,7 @@ func NewPaymentAddressAllocation(
 func (a PaymentAddressAllocation) MarkIssued(
 	policy AddressIssuancePolicy,
 	address string,
-	relativeDerivationPath string,
+	addressReference string,
 ) (PaymentAddressAllocation, error) {
 	policy = policy.Normalize()
 	if policy.AddressPolicy.AddressPolicyID == "" {
@@ -68,10 +68,9 @@ func (a PaymentAddressAllocation) MarkIssued(
 	if normalizedAddress == "" {
 		return PaymentAddressAllocation{}, errors.New("address is required")
 	}
-
-	absolutePath, err := policy.DerivationConfig.AbsoluteDerivationPath(relativeDerivationPath)
-	if err != nil {
-		return PaymentAddressAllocation{}, err
+	normalizedAddressReference := strings.TrimSpace(addressReference)
+	if normalizedAddressReference == "" {
+		return PaymentAddressAllocation{}, errors.New("address reference is required")
 	}
 
 	issued := a
@@ -80,7 +79,7 @@ func (a PaymentAddressAllocation) MarkIssued(
 	issued.Network = policy.AddressPolicy.Network
 	issued.Scheme = policy.AddressPolicy.Scheme
 	issued.Address = normalizedAddress
-	issued.DerivationPath = absolutePath
+	issued.AddressReference = normalizedAddressReference
 	issued.FailureReason = ""
 
 	return issued, nil
@@ -99,7 +98,7 @@ func (a PaymentAddressAllocation) MarkDerivationFailed(reason string) (PaymentAd
 	failed.Network = ""
 	failed.Scheme = ""
 	failed.Address = ""
-	failed.DerivationPath = ""
+	failed.AddressReference = ""
 	return failed, nil
 }
 

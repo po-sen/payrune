@@ -39,17 +39,17 @@ func TestPaymentAddressAllocationMarkIssued(t *testing.T) {
 			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
-		DerivationConfig: valueobjects.AddressDerivationConfig{
-			DerivationPathPrefix: "m/84'/0'/0'",
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressReferencePrefix: "m/84'/0'/0'",
 		},
 	}
 
-	issued, err := allocation.MarkIssued(issuancePolicy, "bc1qexample", "0/42")
+	issued, err := allocation.MarkIssued(issuancePolicy, "bc1qexample", "m/84'/0'/0'/0/42")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if issued.DerivationPath != "m/84'/0'/0'/0/42" {
-		t.Fatalf("unexpected derivation path: got %q", issued.DerivationPath)
+	if issued.AddressReference != "m/84'/0'/0'/0/42" {
+		t.Fatalf("unexpected address reference: got %q", issued.AddressReference)
 	}
 	if issued.Address != "bc1qexample" {
 		t.Fatalf("unexpected address: got %q", issued.Address)
@@ -69,12 +69,12 @@ func TestPaymentAddressAllocationMarkIssuedRejectPolicyMismatch(t *testing.T) {
 		AddressPolicy: AddressPolicy{
 			AddressPolicyID: "policy-b",
 		},
-		DerivationConfig: valueobjects.AddressDerivationConfig{
-			DerivationPathPrefix: "m/84'/0'/0'",
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressReferencePrefix: "m/84'/0'/0'",
 		},
 	}
 
-	if _, err := allocation.MarkIssued(issuancePolicy, "bc1qexample", "0/42"); err == nil {
+	if _, err := allocation.MarkIssued(issuancePolicy, "bc1qexample", "m/84'/0'/0'/0/42"); err == nil {
 		t.Fatalf("expected policy mismatch error")
 	}
 }
@@ -110,11 +110,11 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
 			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
-		DerivationConfig: valueobjects.AddressDerivationConfig{
-			DerivationPathPrefix: "m/84'/1'/0'",
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressReferencePrefix: "m/84'/1'/0'",
 		},
 	}
-	issued, err := allocation.MarkIssued(issuancePolicy, "tb1qexample", "0/42")
+	issued, err := allocation.MarkIssued(issuancePolicy, "tb1qexample", "m/84'/1'/0'/0/42")
 	if err != nil {
 		t.Fatalf("MarkIssued returned error: %v", err)
 	}

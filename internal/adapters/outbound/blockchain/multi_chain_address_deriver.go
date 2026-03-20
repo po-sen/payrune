@@ -81,12 +81,12 @@ func (d *MultiChainAddressDeriver) DeriveAddress(
 	}
 
 	return deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:                normalizedChain,
-		Network:              normalizedNetwork,
-		Scheme:               strings.TrimSpace(input.Scheme),
-		AccountPublicKey:     strings.TrimSpace(input.AccountPublicKey),
-		DerivationPathPrefix: strings.TrimSpace(input.DerivationPathPrefix),
-		Index:                input.Index,
+		Chain:                  normalizedChain,
+		Network:                normalizedNetwork,
+		Scheme:                 strings.TrimSpace(input.Scheme),
+		AddressSourceRef:       strings.TrimSpace(input.AddressSourceRef),
+		AddressReferencePrefix: strings.TrimSpace(input.AddressReferencePrefix),
+		Index:                  input.Index,
 	})
 }
 

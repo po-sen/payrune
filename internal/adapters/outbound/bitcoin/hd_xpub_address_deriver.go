@@ -91,7 +91,7 @@ func (d *HDXPubAddressDeriver) AbsoluteDerivationPath(
 		return "", fmt.Errorf("parse xpub: %w", err)
 	}
 
-	prefix, err := normalizedDerivationPathPrefix(derivationPathPrefix)
+	prefix, err := normalizedAddressReferencePrefix(derivationPathPrefix)
 	if err != nil {
 		return "", err
 	}
@@ -140,7 +140,7 @@ func relativeDerivationPath(extendedKey *hdkeychain.ExtendedKey, index uint32) s
 	return fmt.Sprintf("%d", index)
 }
 
-func normalizedDerivationPathPrefix(raw string) (string, error) {
+func normalizedAddressReferencePrefix(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	trimmed = strings.TrimSuffix(trimmed, "/")
 	if trimmed == "" {

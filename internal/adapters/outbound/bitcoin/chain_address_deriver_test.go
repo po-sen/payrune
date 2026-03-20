@@ -10,16 +10,16 @@ import (
 )
 
 type fakeBitcoinAddressDeriver struct {
-	address                  string
-	err                      error
-	path                     string
-	absolutePath             string
-	pathErr                  error
-	lastNetwork              valueobjects.BitcoinNetwork
-	lastScheme               valueobjects.BitcoinAddressScheme
-	lastXPub                 string
-	lastDerivationPathPrefix string
-	lastIndex                uint32
+	address                    string
+	err                        error
+	path                       string
+	absolutePath               string
+	pathErr                    error
+	lastNetwork                valueobjects.BitcoinNetwork
+	lastScheme                 valueobjects.BitcoinAddressScheme
+	lastXPub                   string
+	lastAddressReferencePrefix string
+	lastIndex                  uint32
 }
 
 func (f *fakeBitcoinAddressDeriver) DeriveAddress(
@@ -49,7 +49,7 @@ func (f *fakeBitcoinAddressDeriver) DerivationPath(_ string, _ uint32) (string, 
 }
 
 func (f *fakeBitcoinAddressDeriver) AbsoluteDerivationPath(_ string, prefix string, _ uint32) (string, error) {
-	f.lastDerivationPathPrefix = prefix
+	f.lastAddressReferencePrefix = prefix
 	if f.pathErr != nil {
 		return "", f.pathErr
 	}
@@ -85,12 +85,12 @@ func TestChainAddressDeriverDeriveAddress(t *testing.T) {
 	generator := NewChainAddressDeriver(deriver)
 
 	output, err := generator.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:                valueobjects.SupportedChainBitcoin,
-		Network:              valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-		Scheme:               string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-		AccountPublicKey:     "xpub-main",
-		DerivationPathPrefix: "m/84'/0'/0'",
-		Index:                12,
+		Chain:                  valueobjects.SupportedChainBitcoin,
+		Network:                valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Scheme:                 string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+		AddressSourceRef:       "xpub-main",
+		AddressReferencePrefix: "m/84'/0'/0'",
+		Index:                  12,
 	})
 	if err != nil {
 		t.Fatalf("DeriveAddress returned error: %v", err)
@@ -98,11 +98,11 @@ func TestChainAddressDeriverDeriveAddress(t *testing.T) {
 	if output.Address != "bc1qgenerated" {
 		t.Fatalf("unexpected address: got %q", output.Address)
 	}
-	if output.RelativeDerivationPath != "0/12" {
-		t.Fatalf("unexpected derivation path: got %q", output.RelativeDerivationPath)
+	if output.RelativeAddressReference != "0/12" {
+		t.Fatalf("unexpected relative address reference: got %q", output.RelativeAddressReference)
 	}
-	if output.DerivationPath != "m/84'/0'/5'/0/12" {
-		t.Fatalf("unexpected absolute derivation path: got %q", output.DerivationPath)
+	if output.AddressReference != "m/84'/0'/5'/0/12" {
+		t.Fatalf("unexpected address reference: got %q", output.AddressReference)
 	}
 	if deriver.lastNetwork != valueobjects.BitcoinNetworkMainnet {
 		t.Fatalf("unexpected network: got %q", deriver.lastNetwork)
@@ -111,10 +111,10 @@ func TestChainAddressDeriverDeriveAddress(t *testing.T) {
 		t.Fatalf("unexpected scheme: got %q", deriver.lastScheme)
 	}
 	if deriver.lastXPub != "xpub-main" {
-		t.Fatalf("unexpected public key: got %q", deriver.lastXPub)
+		t.Fatalf("unexpected address source ref: got %q", deriver.lastXPub)
 	}
-	if deriver.lastDerivationPathPrefix != "m/84'/0'/0'" {
-		t.Fatalf("unexpected derivation path prefix: got %q", deriver.lastDerivationPathPrefix)
+	if deriver.lastAddressReferencePrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected address reference prefix: got %q", deriver.lastAddressReferencePrefix)
 	}
 	if deriver.lastIndex != 12 {
 		t.Fatalf("unexpected index: got %d", deriver.lastIndex)
@@ -128,7 +128,7 @@ func TestChainAddressDeriverRejectUnsupportedChain(t *testing.T) {
 		Chain:            valueobjects.SupportedChain("eth"),
 		Network:          "mainnet",
 		Scheme:           "legacy",
-		AccountPublicKey: "xpub-main",
+		AddressSourceRef: "xpub-main",
 		Index:            1,
 	})
 	if err == nil {
@@ -144,7 +144,7 @@ func TestChainAddressDeriverReturnsDeriverError(t *testing.T) {
 		Chain:            valueobjects.SupportedChainBitcoin,
 		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
 		Scheme:           string(valueobjects.BitcoinAddressSchemeTaproot),
-		AccountPublicKey: "tpub-testnet4",
+		AddressSourceRef: "tpub-testnet4",
 		Index:            2,
 	})
 	if !errors.Is(err, expectedErr) {
@@ -159,7 +159,7 @@ func TestChainAddressDeriverRejectsInvalidNetwork(t *testing.T) {
 		Chain:            valueobjects.SupportedChainBitcoin,
 		Network:          "sepolia",
 		Scheme:           string(valueobjects.BitcoinAddressSchemeLegacy),
-		AccountPublicKey: "xpub-main",
+		AddressSourceRef: "xpub-main",
 		Index:            1,
 	})
 	if err == nil {
@@ -174,7 +174,7 @@ func TestChainAddressDeriverRejectsInvalidScheme(t *testing.T) {
 		Chain:            valueobjects.SupportedChainBitcoin,
 		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 		Scheme:           "eip55",
-		AccountPublicKey: "xpub-main",
+		AddressSourceRef: "xpub-main",
 		Index:            1,
 	})
 	if err == nil {

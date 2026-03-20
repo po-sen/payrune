@@ -13,19 +13,19 @@ var (
 )
 
 type AddressIssuancePolicy struct {
-	AddressPolicy    AddressPolicy
-	DerivationConfig valueobjects.AddressDerivationConfig
+	AddressPolicy  AddressPolicy
+	IssuanceConfig valueobjects.AddressIssuanceConfig
 }
 
 func (p AddressIssuancePolicy) Normalize() AddressIssuancePolicy {
 	p.AddressPolicy = p.AddressPolicy.Normalize()
-	p.DerivationConfig = p.DerivationConfig.Normalize()
-	p.AddressPolicy.Enabled = p.DerivationConfig.IsEnabled()
+	p.IssuanceConfig = p.IssuanceConfig.Normalize()
+	p.AddressPolicy.Enabled = p.IssuanceConfig.IsEnabled()
 	return p
 }
 
 func (p AddressIssuancePolicy) IsEnabled() bool {
-	return p.Normalize().DerivationConfig.IsEnabled()
+	return p.Normalize().IssuanceConfig.IsEnabled()
 }
 
 func (p AddressIssuancePolicy) ValidateForAllocationIssuance(

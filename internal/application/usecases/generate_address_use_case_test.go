@@ -56,11 +56,11 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	if deriver.lastInput.Scheme != string(valueobjects.BitcoinAddressSchemeLegacy) {
 		t.Fatalf("unexpected scheme: got %q", deriver.lastInput.Scheme)
 	}
-	if deriver.lastInput.AccountPublicKey != "xpub-main" {
-		t.Fatalf("unexpected public key: got %q", deriver.lastInput.AccountPublicKey)
+	if deriver.lastInput.AddressSourceRef != "xpub-main" {
+		t.Fatalf("unexpected address source ref: got %q", deriver.lastInput.AddressSourceRef)
 	}
-	if deriver.lastInput.DerivationPathPrefix != "m/44'/0'/0'" {
-		t.Fatalf("unexpected derivation path prefix: got %q", deriver.lastInput.DerivationPathPrefix)
+	if deriver.lastInput.AddressReferencePrefix != "m/44'/0'/0'" {
+		t.Fatalf("unexpected address reference prefix: got %q", deriver.lastInput.AddressReferencePrefix)
 	}
 	if deriver.lastInput.Index != 9 {
 		t.Fatalf("unexpected index: got %d", deriver.lastInput.Index)
@@ -231,7 +231,8 @@ func TestGenerateAddressUseCaseValidationMissingDependencies(t *testing.T) {
 
 func dtoToDeriveOutput(address string, path string) outport.DeriveChainAddressOutput {
 	return outport.DeriveChainAddressOutput{
-		Address:                address,
-		RelativeDerivationPath: path,
+		Address:                  address,
+		AddressReference:         path,
+		RelativeAddressReference: path,
 	}
 }

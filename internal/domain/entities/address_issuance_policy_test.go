@@ -17,9 +17,9 @@ func newTestAddressIssuancePolicy() AddressIssuancePolicy {
 			MinorUnit:       "satoshi",
 			Decimals:        8,
 		},
-		DerivationConfig: valueobjects.AddressDerivationConfig{
-			AccountPublicKey:     " xpub-main ",
-			DerivationPathPrefix: "m/84'/0'/0'",
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressSourceRef:       " xpub-main ",
+			AddressReferencePrefix: "m/84'/0'/0'",
 		},
 	}
 }
@@ -32,8 +32,8 @@ func TestAddressIssuancePolicyNormalize(t *testing.T) {
 	if normalized.AddressPolicy.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
 		t.Fatalf("unexpected address policy id: got %q", normalized.AddressPolicy.AddressPolicyID)
 	}
-	if normalized.DerivationConfig.AccountPublicKey != "xpub-main" {
-		t.Fatalf("unexpected account public key: got %q", normalized.DerivationConfig.AccountPublicKey)
+	if normalized.IssuanceConfig.AddressSourceRef != "xpub-main" {
+		t.Fatalf("unexpected account public key: got %q", normalized.IssuanceConfig.AddressSourceRef)
 	}
 	if !normalized.AddressPolicy.Enabled {
 		t.Fatal("expected normalized address policy enabled")

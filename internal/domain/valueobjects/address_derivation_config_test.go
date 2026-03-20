@@ -2,61 +2,27 @@ package valueobjects
 
 import "testing"
 
-func TestAddressDerivationConfigNormalize(t *testing.T) {
-	config := AddressDerivationConfig{
-		AccountPublicKey:     " xpub-main ",
-		DerivationPathPrefix: "m/84'/0'/0'/",
+func TestAddressIssuanceConfigNormalize(t *testing.T) {
+	config := AddressIssuanceConfig{
+		AddressSourceRef:       " xpub-main ",
+		AddressReferencePrefix: "m/84'/0'/0'/",
 	}
 
 	normalized := config.Normalize()
 
-	if normalized.AccountPublicKey != "xpub-main" {
-		t.Fatalf("unexpected account public key: got %q", normalized.AccountPublicKey)
+	if normalized.AddressSourceRef != "xpub-main" {
+		t.Fatalf("unexpected address source ref: got %q", normalized.AddressSourceRef)
 	}
-	if normalized.DerivationPathPrefix != "m/84'/0'/0'" {
-		t.Fatalf("unexpected derivation path prefix: got %q", normalized.DerivationPathPrefix)
-	}
-}
-
-func TestAddressDerivationConfigAbsoluteDerivationPath(t *testing.T) {
-	config := AddressDerivationConfig{
-		DerivationPathPrefix: "m/84'/0'/0'",
-	}
-
-	tests := []struct {
-		name     string
-		relative string
-		want     string
-		wantErr  bool
-	}{
-		{name: "relative", relative: "0/42", want: "m/84'/0'/0'/0/42"},
-		{name: "absolute", relative: "m/84'/0'/0'/0/99", want: "m/84'/0'/0'/0/99"},
-		{name: "empty", relative: "", wantErr: true},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := config.AbsoluteDerivationPath(tc.relative)
-			if tc.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got != tc.want {
-				t.Fatalf("unexpected path: got %q want %q", got, tc.want)
-			}
-		})
+	if normalized.AddressReferencePrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected address reference prefix: got %q", normalized.AddressReferencePrefix)
 	}
 }
 
-func TestAddressDerivationConfigAbsoluteDerivationPathRejectsMissingPrefix(t *testing.T) {
-	config := AddressDerivationConfig{}
-
-	if _, err := config.AbsoluteDerivationPath("0/1"); err == nil {
-		t.Fatal("expected error when derivation path prefix is missing")
+func TestAddressIssuanceConfigIsEnabled(t *testing.T) {
+	if !(AddressIssuanceConfig{AddressSourceRef: " xpub-main "}).IsEnabled() {
+		t.Fatal("expected config with address source ref to be enabled")
+	}
+	if (AddressIssuanceConfig{}).IsEnabled() {
+		t.Fatal("expected empty config to be disabled")
 	}
 }

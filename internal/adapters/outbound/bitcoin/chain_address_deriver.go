@@ -58,7 +58,7 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	address, err := g.deriver.DeriveAddress(
 		network,
 		scheme,
-		input.AccountPublicKey,
+		input.AddressSourceRef,
 		input.Index,
 	)
 	if err != nil {
@@ -66,22 +66,22 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	}
 
 	absoluteDerivationPath, err := g.deriver.AbsoluteDerivationPath(
-		input.AccountPublicKey,
-		input.DerivationPathPrefix,
+		input.AddressSourceRef,
+		input.AddressReferencePrefix,
 		input.Index,
 	)
 	if err != nil {
 		return outport.DeriveChainAddressOutput{}, err
 	}
 
-	relativeDerivationPath, err := g.deriver.DerivationPath(input.AccountPublicKey, input.Index)
+	relativeDerivationPath, err := g.deriver.DerivationPath(input.AddressSourceRef, input.Index)
 	if err != nil {
 		return outport.DeriveChainAddressOutput{}, err
 	}
 
 	return outport.DeriveChainAddressOutput{
-		Address:                address,
-		RelativeDerivationPath: relativeDerivationPath,
-		DerivationPath:         absoluteDerivationPath,
+		Address:                  address,
+		RelativeAddressReference: relativeDerivationPath,
+		AddressReference:         absoluteDerivationPath,
 	}, nil
 }

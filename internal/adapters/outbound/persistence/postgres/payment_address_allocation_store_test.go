@@ -23,8 +23,8 @@ func newAllocationStoreTestPolicy() entities.AddressIssuancePolicy {
 			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
-		DerivationConfig: valueobjects.AddressDerivationConfig{
-			AccountPublicKey: "xpub-main",
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressSourceRef: "xpub-main",
 		},
 	}.Normalize()
 }
@@ -67,7 +67,7 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 		Scheme:           string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		Address:          " bc1qallocated ",
-		DerivationPath:   " m/84'/0'/0'/0/11 ",
+		AddressReference: " m/84'/0'/0'/0/11 ",
 	}
 
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
@@ -147,7 +147,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"network",
 		"scheme",
 		"address",
-		"derivation_path",
+		"address_reference",
 		"failure_reason",
 	}).AddRow(
 		int64(199),
@@ -247,7 +247,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationNotFound(t *testing
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, derivation_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
+			input.IssuancePolicy.IssuanceConfig.AddressSourceRef,
 		).
 		WillReturnError(sql.ErrNoRows)
 
@@ -278,7 +278,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationRejectsOverflowInde
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, derivation_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
+			input.IssuancePolicy.IssuanceConfig.AddressSourceRef,
 		).
 		WillReturnRows(rows)
 
@@ -306,7 +306,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationSuccess(t *testing.
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, derivation_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
+			input.IssuancePolicy.IssuanceConfig.AddressSourceRef,
 		).
 		WillReturnRows(rows)
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
@@ -347,18 +347,18 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO address_policy_cursors")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
+			input.IssuancePolicy.IssuanceConfig.AddressSourceRef,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT next_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
+			input.IssuancePolicy.IssuanceConfig.AddressSourceRef,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"next_index"}).AddRow(int64(21)))
 	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO address_policy_allocations (
 			   address_policy_id,
-			   account_public_key,
+			   address_source_ref,
 			   derivation_index,
 			   expected_amount_minor,
 			   customer_reference,
@@ -368,7 +368,7 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 		 RETURNING id`)).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
+			input.IssuancePolicy.IssuanceConfig.AddressSourceRef,
 			int64(21),
 			int64(125000),
 			"order-2",
@@ -377,7 +377,7 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_cursors")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-			input.IssuancePolicy.DerivationConfig.AccountPublicKey,
+			input.IssuancePolicy.IssuanceConfig.AddressSourceRef,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 

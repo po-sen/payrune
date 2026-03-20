@@ -42,7 +42,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		rawNetwork          string
 		scheme              string
 		address             string
-		derivationPath      string
+		addressReference    string
 		failureReason       string
 	)
 
@@ -57,7 +57,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		        COALESCE(network, ''),
 		        COALESCE(scheme, ''),
 		        COALESCE(address, ''),
-		        COALESCE(derivation_path, ''),
+		        COALESCE(address_reference, ''),
 		        COALESCE(failure_reason, '')
 		   FROM address_policy_allocations
 		  WHERE id = $1
@@ -74,7 +74,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		&rawNetwork,
 		&scheme,
 		&address,
-		&derivationPath,
+		&addressReference,
 		&failureReason,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -107,7 +107,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		Network:             network,
 		Scheme:              strings.TrimSpace(scheme),
 		Address:             strings.TrimSpace(address),
-		DerivationPath:      strings.TrimSpace(derivationPath),
+		AddressReference:    strings.TrimSpace(addressReference),
 		FailureReason:       strings.TrimSpace(failureReason),
 	}, true, nil
 }
@@ -128,7 +128,7 @@ func (r *PaymentAddressAllocationStore) Complete(
 		     network = $3,
 		     scheme = $4,
 		     address = $5,
-		     derivation_path = $6,
+		     address_reference = $6,
 		     allocation_status = 'issued',
 		     issued_at = $7,
 		     failure_reason = NULL
@@ -138,7 +138,7 @@ func (r *PaymentAddressAllocationStore) Complete(
 		string(allocation.Network),
 		string(allocation.Scheme),
 		strings.TrimSpace(allocation.Address),
-		nullIfEmpty(allocation.DerivationPath),
+		nullIfEmpty(allocation.AddressReference),
 		issuedAt.UTC(),
 	)
 	if err != nil {
@@ -189,7 +189,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, bool, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
-	accountPublicKey := strings.TrimSpace(input.IssuancePolicy.DerivationConfig.AccountPublicKey)
+	addressSourceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSourceRef)
 
 	var paymentAddressID int64
 	var derivationIndex int64
@@ -198,13 +198,13 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		`SELECT id, derivation_index
 		 FROM address_policy_allocations
 		 WHERE address_policy_id = $1
-		   AND account_public_key = $2
+		   AND address_source_ref = $2
 		   AND allocation_status = 'derivation_failed'
 		 ORDER BY reserved_at ASC, id ASC
 		 LIMIT 1
 		 FOR UPDATE SKIP LOCKED`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		accountPublicKey,
+		addressSourceRef,
 	).Scan(&paymentAddressID, &derivationIndex)
 	if errors.Is(err, sql.ErrNoRows) {
 		return entities.PaymentAddressAllocation{}, false, nil
@@ -227,7 +227,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		     network = NULL,
 		     scheme = NULL,
 		     address = NULL,
-		     derivation_path = NULL,
+		     address_reference = NULL,
 		     reserved_at = NOW(),
 		     issued_at = NULL
 		 WHERE id = $1`,
@@ -253,13 +253,13 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
-	accountPublicKey := strings.TrimSpace(input.IssuancePolicy.DerivationConfig.AccountPublicKey)
+	addressSourceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSourceRef)
 
 	if _, err := r.executor.ExecContext(
 		ctx,
 		`INSERT INTO address_policy_cursors (
 				   address_policy_id,
-				   account_public_key,
+				   address_source_ref,
 				   next_index
 				 )
 			 SELECT $1,
@@ -269,13 +269,13 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 			            SELECT MAX(derivation_index) + 1
 			              FROM address_policy_allocations
 			             WHERE address_policy_id = $1
-			               AND account_public_key = $2
+			               AND address_source_ref = $2
 			          ),
 			          0
 			        )
-			 ON CONFLICT (address_policy_id, account_public_key) DO NOTHING`,
+			 ON CONFLICT (address_policy_id, address_source_ref) DO NOTHING`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		accountPublicKey,
+		addressSourceRef,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, err
 	}
@@ -286,10 +286,10 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		`SELECT next_index
 		 FROM address_policy_cursors
 		 WHERE address_policy_id = $1
-		   AND account_public_key = $2
+		   AND address_source_ref = $2
 		 FOR UPDATE`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		accountPublicKey,
+		addressSourceRef,
 	).Scan(&nextIndex)
 	if err != nil {
 		return entities.PaymentAddressAllocation{}, err
@@ -303,7 +303,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		ctx,
 		`INSERT INTO address_policy_allocations (
 			   address_policy_id,
-			   account_public_key,
+			   address_source_ref,
 			   derivation_index,
 			   expected_amount_minor,
 			   customer_reference,
@@ -312,7 +312,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		 VALUES ($1, $2, $3, $4, $5, 'reserved')
 		 RETURNING id`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		accountPublicKey,
+		addressSourceRef,
 		nextIndex,
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
@@ -327,9 +327,9 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		 SET next_index = next_index + 1,
 		     updated_at = NOW()
 		 WHERE address_policy_id = $1
-		   AND account_public_key = $2`,
+		   AND address_source_ref = $2`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		accountPublicKey,
+		addressSourceRef,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, err
 	}

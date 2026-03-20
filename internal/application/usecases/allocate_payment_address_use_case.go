@@ -280,12 +280,12 @@ func (uc *allocatePaymentAddressUseCase) deriveIssuedAllocation(
 	allocation entities.PaymentAddressAllocation,
 ) (allocatePaymentAddressDerivationOutcome, error) {
 	output, err := uc.deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:                policy.AddressPolicy.Chain,
-		Network:              policy.AddressPolicy.Network,
-		Scheme:               policy.AddressPolicy.Scheme,
-		AccountPublicKey:     policy.DerivationConfig.AccountPublicKey,
-		DerivationPathPrefix: policy.DerivationConfig.DerivationPathPrefix,
-		Index:                allocation.DerivationIndex,
+		Chain:                  policy.AddressPolicy.Chain,
+		Network:                policy.AddressPolicy.Network,
+		Scheme:                 policy.AddressPolicy.Scheme,
+		AddressSourceRef:       policy.IssuanceConfig.AddressSourceRef,
+		AddressReferencePrefix: policy.IssuanceConfig.AddressReferencePrefix,
+		Index:                  allocation.DerivationIndex,
 	})
 	if err != nil {
 		if persistErr := uc.persistDerivationFailure(ctx, allocationStore, allocation, err); persistErr != nil {
@@ -294,12 +294,12 @@ func (uc *allocatePaymentAddressUseCase) deriveIssuedAllocation(
 		return allocatePaymentAddressDerivationOutcome{persistedDerivationFailureErr: err}, nil
 	}
 
-	derivationPath := strings.TrimSpace(output.DerivationPath)
-	if derivationPath == "" {
-		derivationPath = output.RelativeDerivationPath
+	addressReference := strings.TrimSpace(output.AddressReference)
+	if addressReference == "" {
+		addressReference = output.RelativeAddressReference
 	}
 
-	issuedAllocation, err := allocation.MarkIssued(policy, output.Address, derivationPath)
+	issuedAllocation, err := allocation.MarkIssued(policy, output.Address, addressReference)
 	if err != nil {
 		if persistErr := uc.persistDerivationFailure(ctx, allocationStore, allocation, err); persistErr != nil {
 			return allocatePaymentAddressDerivationOutcome{}, persistErr

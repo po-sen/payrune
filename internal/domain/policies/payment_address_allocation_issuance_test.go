@@ -20,9 +20,9 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
 				Chain:           valueobjects.SupportedChainBitcoin,
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
-			DerivationConfig: valueobjects.AddressDerivationConfig{
-				AccountPublicKey:     "xpub-main",
-				DerivationPathPrefix: "m/84'/0'/0'",
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       "xpub-main",
+				AddressReferencePrefix: "m/84'/0'/0'",
 			},
 		},
 		valueobjects.SupportedChainBitcoin,
@@ -71,9 +71,9 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testi
 				Chain:           valueobjects.SupportedChainBitcoin,
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
-			DerivationConfig: valueobjects.AddressDerivationConfig{
-				AccountPublicKey:     "xpub-main",
-				DerivationPathPrefix: "m/84'/0'/0'",
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       "xpub-main",
+				AddressReferencePrefix: "m/84'/0'/0'",
 			},
 		},
 		valueobjects.SupportedChainBitcoin,
@@ -103,7 +103,7 @@ func TestPaymentAddressAllocationIssuancePolicyPlanRejectsDisabledPolicy(t *test
 				Chain:           valueobjects.SupportedChainBitcoin,
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
-			DerivationConfig: valueobjects.AddressDerivationConfig{},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{},
 		},
 		valueobjects.SupportedChainBitcoin,
 		1200,

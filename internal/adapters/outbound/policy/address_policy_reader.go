@@ -10,14 +10,14 @@ import (
 )
 
 type AddressPolicyConfig struct {
-	AddressPolicyID      string
-	Chain                valueobjects.SupportedChain
-	Network              valueobjects.NetworkID
-	Scheme               string
-	MinorUnit            string
-	Decimals             uint8
-	AccountPublicKey     string
-	DerivationPathPrefix string
+	AddressPolicyID        string
+	Chain                  valueobjects.SupportedChain
+	Network                valueobjects.NetworkID
+	Scheme                 string
+	MinorUnit              string
+	Decimals               uint8
+	AddressSourceRef       string
+	AddressReferencePrefix string
 }
 
 type addressPolicyReader struct {
@@ -41,9 +41,9 @@ func NewAddressPolicyReader(configs []AddressPolicyConfig) outport.AddressPolicy
 				MinorUnit:       strings.TrimSpace(cfg.MinorUnit),
 				Decimals:        cfg.Decimals,
 			},
-			DerivationConfig: valueobjects.AddressDerivationConfig{
-				AccountPublicKey:     strings.TrimSpace(cfg.AccountPublicKey),
-				DerivationPathPrefix: strings.TrimSpace(cfg.DerivationPathPrefix),
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       strings.TrimSpace(cfg.AddressSourceRef),
+				AddressReferencePrefix: strings.TrimSpace(cfg.AddressReferencePrefix),
 			},
 		}.Normalize()
 

@@ -40,9 +40,9 @@ func newAddressIssuancePolicy(
 			MinorUnit:       minorUnit,
 			Decimals:        decimals,
 		},
-		DerivationConfig: valueobjects.AddressDerivationConfig{
-			AccountPublicKey:     accountPublicKey,
-			DerivationPathPrefix: derivationPathPrefix,
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressSourceRef:       accountPublicKey,
+			AddressReferencePrefix: derivationPathPrefix,
 		},
 	}.Normalize()
 }
@@ -108,8 +108,8 @@ func newFakeChainAddressDeriver() *fakeChainAddressDeriver {
 			valueobjects.SupportedChainBitcoin: true,
 		},
 		output: outport.DeriveChainAddressOutput{
-			Address:                "bc1qdefault",
-			RelativeDerivationPath: "0/0",
+			Address:                  "bc1qdefault",
+			RelativeAddressReference: "0/0",
 		},
 	}
 }
