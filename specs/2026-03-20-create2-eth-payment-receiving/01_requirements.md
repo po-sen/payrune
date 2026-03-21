@@ -26,18 +26,24 @@ links:
   - A deterministic Ethereum address predicted off-chain from a known factory address, salt, and
     receiver init code hash before the receiver contract is deployed.
 - Factory contract:
-  - The deployed contract that creates receiver contracts with CREATE2.
+  - The deployed contract that executes CREATE2 for receiver deployment. Its address is part of the
+    CREATE2 preimage and therefore part of the deterministic payment-address space.
 - Receiver contract:
   - The payable contract that will eventually be deployed at the predicted payment address and can
     sweep ETH to the configured collector destination.
 - Collector address:
   - The operator-controlled destination wallet that receives swept ETH from funded payment
-    addresses.
+    addresses. It does not need gas unless it is also used as the operator signer.
+- Operator signer:
+  - The runtime-controlled EOA, KMS-backed account, or equivalent sender that pays gas to deploy the
+    factory and later call factory or receiver collection transactions. It is not part of the
+    CREATE2 address formula and may rotate without changing predicted addresses if contract
+    permissions allow it.
 - Address source reference:
   - A canonical internal value that identifies the issuance source configuration used to allocate
     deterministic address slots. For Bitcoin this is expected to remain xpub-like material; for
     Ethereum CREATE2 this should reflect the active factory/init-code configuration rather than a
-    fake public key.
+    fake public key and should exclude operator-signer identity.
 - Address reference:
   - The canonical internal reference needed to reconstruct or reconcile one issued address. For
     Bitcoin this is an HD derivation path; for Ethereum CREATE2 this is expected to carry the
@@ -62,13 +68,14 @@ links:
   policy.
 - Acceptance criteria:
   - [ ] `SupportedChain` accepts `ethereum`, while existing `bitcoin` behavior remains unchanged.
-  - [ ] `GET /v1/chains/ethereum/address-policies` returns at least one Ethereum policy when
-        configured, with `scheme=create2`, `minorUnit=wei`, and `decimals=18`.
+  - [ ] `GET /v1/chains/ethereum/address-policies` returns configured Ethereum policies for
+        `mainnet` and `sepolia` when enabled, each with `scheme=create2`, `minorUnit=wei`, and
+        `decimals=18`.
   - [ ] `POST /v1/chains/ethereum/payment-addresses` allocates one ETH payment address using the
         existing request body shape and returns the existing success payload shape with Ethereum
         values.
   - [ ] Disabled or incomplete Ethereum policy configuration remains discoverable as disabled and
-        is not issuable.
+        is not issuable for either network.
 - Notes:
   - The client should not need to know CREATE2 internals to request a payment address.
 
@@ -80,6 +87,8 @@ links:
   - [ ] One deterministic slot selection key yields one deterministic CREATE2 payment address.
   - [ ] Go-side prediction matches Solidity or ABI-backed `computeAddress` vectors for the same
         factory, salt, collector, and init code.
+  - [ ] Changing only the operator signer does not change the predicted payment address for an
+        already-configured factory, collector, and receiver artifact.
   - [ ] Allocation persistence stores a chain-agnostic `address_source_ref` equivalent and
         `address_reference` equivalent, rather than overloading Bitcoin-specific naming for
         Ethereum-issued rows.
@@ -98,6 +107,8 @@ links:
         before attempting deployment.
   - [ ] The deploy-and-sweep path is idempotent for the same `paymentAddressId`; retries do not
         duplicate collection.
+  - [ ] The active operator signer can be rotated without reissuing or recomputing existing payment
+        addresses as long as the same factory and receiver configuration remain active.
   - [ ] Technical process state for Ethereum CREATE2 deployment and sweep is persisted with
         addresses, tx hashes, status, and last error.
   - [ ] A successful sweep always forwards ETH to the configured collector address for the active
@@ -146,10 +157,17 @@ links:
   - Ethereum issuance, observation, and collection must start only when all required network
     configuration is present and internally consistent.
 - Acceptance criteria:
-  - [ ] Runtime configuration includes Ethereum RPC endpoint, factory address, receiver bytecode or
-        init code hash reference, collector address, signer or deployer configuration, receipt
-        confirmation threshold, and receipt expiry settings.
+  - [ ] Runtime configuration includes Ethereum RPC endpoint, collector address, operator-signer
+        configuration, receipt confirmation threshold, and receipt expiry settings.
+  - [ ] Checked-in deployment metadata provides the factory address per network, and checked-in
+        receiver contract artifacts provide bytecode or a derivable init code hash for prediction.
+  - [ ] Before T-003 lands real deployment artifacts, local API testing may rely on checked-in
+        deterministic fixture metadata so configured Ethereum policies remain issuable in non-prod
+        workflows.
   - [ ] Startup fails fast when Ethereum addresses, hashes, or config combinations are invalid.
+  - [ ] Deployment-facing config examples expose separate `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS`
+        and `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS` settings instead of hand-entered env vars
+        for factory addresses or init code hashes.
   - [ ] Local development can run the ETH payment flow against a deterministic dev chain and local
         contract deployment tooling.
   - [ ] Helper automation required for contract deployment or fixture setup lives under `scripts/`.
@@ -165,7 +183,10 @@ links:
   - [ ] No per-payment private key material is generated or stored.
   - [ ] The receiver contract forwards ETH only to the configured collector destination and does
         not expose a generic arbitrary-call surface.
-  - [ ] Unauthorized callers cannot redirect sweep proceeds to a different destination.
+  - [ ] No caller, including an unexpected or rotated operator signer, can redirect sweep proceeds
+        to a different destination.
+  - [ ] Contract caller permissions do not bind issued addresses to one hardcoded hot EOA; signer
+        rotation must remain possible without changing CREATE2 address derivation inputs.
   - [ ] The runtime verifies that Go-side prediction inputs and deployed contract bytecode
         expectations match before issuing or collecting funds on a network.
 - Notes:
@@ -200,7 +221,7 @@ links:
 - External systems:
   - Ethereum JSON-RPC provider or local dev chain.
   - CREATE2 factory and receiver contract artifacts plus deployment flow.
-  - Operator-managed signer or deployer credential source.
+  - Operator-managed signer credential source for deployment and sweep transactions.
 - Internal services:
   - Existing payment-address allocation flow.
   - Existing payment receipt polling and status API flow.

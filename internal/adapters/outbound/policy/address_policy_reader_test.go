@@ -100,3 +100,65 @@ func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
 		)
 	}
 }
+
+func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
+	reader := NewAddressPolicyReader([]AddressPolicyConfig{
+		{
+			AddressPolicyID:        "ethereum-mainnet-create2",
+			Chain:                  valueobjects.SupportedChainEthereum,
+			Network:                valueobjects.NetworkID("mainnet"),
+			Scheme:                 "create2",
+			MinorUnit:              "wei",
+			Decimals:               18,
+			AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			AddressReferencePrefix: "ethereum-mainnet-create2/",
+		},
+		{
+			AddressPolicyID:        "ethereum-sepolia-create2",
+			Chain:                  valueobjects.SupportedChainEthereum,
+			Network:                valueobjects.NetworkID("sepolia"),
+			Scheme:                 "create2",
+			MinorUnit:              "wei",
+			Decimals:               18,
+			AddressSourceRef:       "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+			AddressReferencePrefix: "ethereum-sepolia-create2/",
+		},
+	})
+
+	policy, ok, err := reader.FindIssuanceByID(context.Background(), "ethereum-mainnet-create2")
+	if err != nil {
+		t.Fatalf("FindIssuanceByID returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ethereum-mainnet-create2 exists")
+	}
+	if policy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain: got %q", policy.AddressPolicy.Chain)
+	}
+	if policy.AddressPolicy.MinorUnit != "wei" {
+		t.Fatalf("unexpected minor unit: got %q", policy.AddressPolicy.MinorUnit)
+	}
+	if policy.AddressPolicy.Decimals != 18 {
+		t.Fatalf("unexpected decimals: got %d", policy.AddressPolicy.Decimals)
+	}
+	if policy.IssuanceConfig.AddressReferencePrefix != "ethereum-mainnet-create2" {
+		t.Fatalf("unexpected address reference prefix: got %q", policy.IssuanceConfig.AddressReferencePrefix)
+	}
+	if !policy.IsEnabled() {
+		t.Fatal("expected ethereum policy enabled")
+	}
+
+	sepoliaPolicy, ok, err := reader.FindIssuanceByID(context.Background(), "ethereum-sepolia-create2")
+	if err != nil {
+		t.Fatalf("FindIssuanceByID returned error for sepolia policy: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected ethereum-sepolia-create2 exists")
+	}
+	if sepoliaPolicy.AddressPolicy.Network != valueobjects.NetworkID("sepolia") {
+		t.Fatalf("unexpected sepolia network: got %q", sepoliaPolicy.AddressPolicy.Network)
+	}
+	if sepoliaPolicy.IssuanceConfig.AddressReferencePrefix != "ethereum-sepolia-create2" {
+		t.Fatalf("unexpected sepolia address reference prefix: got %q", sepoliaPolicy.IssuanceConfig.AddressReferencePrefix)
+	}
+}

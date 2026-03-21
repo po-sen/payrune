@@ -40,8 +40,8 @@ links:
 - TC-001:
   - Linked requirements: FR-001, FR-006, NFR-006
   - Steps:
-    - Add parsing and policy-normalization tests for `ethereum`, `mainnet` or selected network,
-      and `create2` policy config.
+    - Add parsing and policy-normalization tests for `ethereum`, `mainnet`, `sepolia`, and
+      `create2` policy config.
   - Expected:
     - Chain parsing, policy enablement, and config validation behave deterministically and do not
       break existing Bitcoin cases.
@@ -75,6 +75,14 @@ links:
       and failed retry paths.
   - Expected:
     - Retries are idempotent, and collector routing cannot be changed by unexpected inputs.
+- TC-006:
+  - Linked requirements: FR-002, FR-003, FR-006, FR-007
+  - Steps:
+    - Keep factory, collector, salt rule, and receiver artifact fixed while changing only the
+      configured operator signer.
+  - Expected:
+    - Predicted payment addresses remain unchanged, and only the transaction sender for
+      deploy-and-sweep changes.
 
 ### Integration
 
@@ -82,7 +90,10 @@ links:
   - Linked requirements: FR-002, FR-006, NFR-006
   - Steps:
     - Apply the migration set to a disposable database, verify the neutralized allocation schema,
-      and ensure current Bitcoin persistence adapters still read and write correctly.
+      ensure current Bitcoin persistence adapters still read and write correctly, and validate that
+      compose/cloudflare deployment examples expose only
+      `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS` and
+      `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS` for runtime CREATE2 config.
   - Expected:
     - Migration succeeds, schema is in the expected shape, and Bitcoin adapter tests remain green.
 - TC-102:
@@ -103,10 +114,11 @@ links:
 - TC-104:
   - Linked requirements: FR-003, FR-006, FR-007, NFR-002, NFR-003
   - Steps:
-    - Run the sweeper against a funded, not-yet-deployed ETH payment address, then rerun it.
+    - Run the sweeper against a funded, not-yet-deployed ETH payment address, then rerun it,
+      including one retry after rotating the operator signer.
   - Expected:
     - The first run deploys and sweeps funds to the collector; the second run does not duplicate
-      collection and reports deterministic persisted state.
+      collection and reports deterministic persisted state without changing the predicted address.
 
 ### E2E (if applicable)
 
@@ -148,6 +160,11 @@ links:
   - Expected behavior:
     - Payment status remains queryable; deploy-and-sweep technical state records the failure and can
       retry later.
+- Case:
+  - The operator signer is rotated after payment-address issuance but before deploy-and-sweep.
+  - Expected behavior:
+    - Existing predicted addresses stay valid, and collection continues with the new signer as long
+      as factory metadata and receiver artifacts are unchanged.
 
 ## NFR verification
 
@@ -159,4 +176,5 @@ links:
     no duplicate collection or duplicate state records appear.
 - Security:
   - Review that no per-payment private key material is stored, receiver sweep target is fixed, and
-    signer secrets are consumed only through runtime config.
+    operator-signer secrets are consumed only through runtime config without becoming part of
+    address derivation.

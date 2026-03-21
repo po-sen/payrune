@@ -20,11 +20,5 @@ func (c AddressIssuanceConfig) IsEnabled() bool {
 func normalizeAddressReferencePrefix(raw string) string {
 	trimmed := strings.TrimSpace(raw)
 	trimmed = strings.TrimSuffix(trimmed, "/")
-	if trimmed == "" {
-		return ""
-	}
-	if !strings.HasPrefix(trimmed, "m/") {
-		return ""
-	}
 	return trimmed
 }

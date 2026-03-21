@@ -40,6 +40,7 @@ paths:
             type: string
             enum:
               - bitcoin
+              - ethereum
       responses:
         "200":
           description: Address policies listed successfully.
@@ -80,6 +81,24 @@ paths:
                         minorUnit: satoshi
                         decimals: 8
                         enabled: false
+                ethereum:
+                  value:
+                    chain: ethereum
+                    addressPolicies:
+                      - addressPolicyId: ethereum-mainnet-create2
+                        chain: ethereum
+                        network: mainnet
+                        scheme: create2
+                        minorUnit: wei
+                        decimals: 18
+                        enabled: true
+                      - addressPolicyId: ethereum-sepolia-create2
+                        chain: ethereum
+                        network: sepolia
+                        scheme: create2
+                        minorUnit: wei
+                        decimals: 18
+                        enabled: true
         "404":
           description: Chain not supported.
           content:
@@ -118,7 +137,7 @@ paths:
                     example: internal server error
   /v1/chains/{chain}/addresses:
     get:
-      summary: Derive payment address from address policy
+      summary: Generate deterministic address from address policy
       operationId: deriveAddress
       tags:
         - Addresses
@@ -130,6 +149,7 @@ paths:
             type: string
             enum:
               - bitcoin
+              - ethereum
         - name: addressPolicyId
           in: query
           required: true
@@ -143,7 +163,7 @@ paths:
             type: integer
             minimum: 0
             maximum: 2147483647
-          description: Non-hardened child index to derive.
+          description: Deterministic address index used by the selected policy.
       responses:
         "200":
           description: Address generated successfully.
@@ -177,6 +197,7 @@ paths:
                       - segwit
                       - nativeSegwit
                       - taproot
+                      - create2
                     example: nativeSegwit
                   minorUnit:
                     type: string
@@ -205,6 +226,16 @@ paths:
                     decimals: 8
                     index: 12
                     address: "1ExampleAddress123"
+                ethereum:
+                  value:
+                    addressPolicyId: ethereum-mainnet-create2
+                    chain: ethereum
+                    network: mainnet
+                    scheme: create2
+                    minorUnit: wei
+                    decimals: 18
+                    index: 12
+                    address: "0x1234567890abcdef1234567890abcdef12345678"
         "400":
           description: Invalid request.
           content:
@@ -287,6 +318,7 @@ paths:
             type: string
             enum:
               - bitcoin
+              - ethereum
         - name: Idempotency-Key
           in: header
           required: false
@@ -314,6 +346,17 @@ paths:
                 customerReference:
                   type: string
                   example: order-20260304-001
+            examples:
+              bitcoin:
+                value:
+                  addressPolicyId: bitcoin-mainnet-native-segwit
+                  expectedAmountMinor: 120000
+                  customerReference: order-20260304-001
+              ethereum:
+                value:
+                  addressPolicyId: ethereum-mainnet-create2
+                  expectedAmountMinor: 15000000000000000
+                  customerReference: order-20260320-eth-001
       responses:
         "201":
           description: Payment address allocated successfully.
@@ -341,6 +384,18 @@ paths:
                     minorUnit: satoshi
                     decimals: 8
                     address: "bc1qexamplepaymentaddress"
+                ethereum:
+                  value:
+                    paymentAddressId: "501"
+                    addressPolicyId: ethereum-mainnet-create2
+                    expectedAmountMinor: 15000000000000000
+                    customerReference: order-20260320-eth-001
+                    chain: ethereum
+                    network: mainnet
+                    scheme: create2
+                    minorUnit: wei
+                    decimals: 18
+                    address: "0x1234567890abcdef1234567890abcdef12345678"
         "400":
           description: Invalid request.
           content:
@@ -441,6 +496,7 @@ paths:
             type: string
             enum:
               - bitcoin
+              - ethereum
         - name: paymentAddressId
           in: path
           required: true
@@ -478,6 +534,26 @@ paths:
                     issuedAt: "2026-03-08T11:00:00Z"
                     firstObservedAt: "2026-03-08T11:05:00Z"
                     expiresAt: "2026-03-15T11:00:00Z"
+                ethereumWatching:
+                  value:
+                    paymentAddressId: "501"
+                    addressPolicyId: ethereum-mainnet-create2
+                    expectedAmountMinor: 15000000000000000
+                    customerReference: order-20260320-eth-001
+                    chain: ethereum
+                    network: mainnet
+                    scheme: create2
+                    minorUnit: wei
+                    decimals: 18
+                    address: "0x1234567890abcdef1234567890abcdef12345678"
+                    paymentStatus: watching
+                    observedTotalMinor: 0
+                    confirmedTotalMinor: 0
+                    unconfirmedTotalMinor: 0
+                    requiredConfirmations: 12
+                    lastObservedBlockHeight: 22500000
+                    issuedAt: "2026-03-20T09:00:00Z"
+                    expiresAt: "2026-03-21T09:00:00Z"
         "400":
           description: Invalid payment address id.
           content:
@@ -564,6 +640,9 @@ components:
           example: bitcoin-mainnet-native-segwit
         chain:
           type: string
+          enum:
+            - bitcoin
+            - ethereum
           example: bitcoin
         network:
           type: string
@@ -575,6 +654,7 @@ components:
             - segwit
             - nativeSegwit
             - taproot
+            - create2
           example: nativeSegwit
         minorUnit:
           type: string
@@ -595,6 +675,9 @@ components:
       properties:
         chain:
           type: string
+          enum:
+            - bitcoin
+            - ethereum
           example: bitcoin
         addressPolicies:
           type: array
@@ -629,6 +712,9 @@ components:
           example: order-20260304-001
         chain:
           type: string
+          enum:
+            - bitcoin
+            - ethereum
           example: bitcoin
         network:
           type: string
@@ -640,6 +726,7 @@ components:
             - segwit
             - nativeSegwit
             - taproot
+            - create2
           example: nativeSegwit
         minorUnit:
           type: string
@@ -688,6 +775,9 @@ components:
           example: order-20260308-001
         chain:
           type: string
+          enum:
+            - bitcoin
+            - ethereum
           example: bitcoin
         network:
           type: string
@@ -699,6 +789,7 @@ components:
             - segwit
             - nativeSegwit
             - taproot
+            - create2
           example: nativeSegwit
         minorUnit:
           type: string

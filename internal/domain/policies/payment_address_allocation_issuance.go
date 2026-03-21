@@ -38,34 +38,47 @@ type PaymentAddressAllocationIssuancePlan struct {
 	ReceiptTerms        PaymentReceiptIssuanceTerms
 }
 
+type PaymentReceiptTermsScope struct {
+	Chain   valueobjects.SupportedChain
+	Network valueobjects.NetworkID
+}
+
 type PaymentAddressAllocationIssuancePolicy struct {
-	requiredConfirmationsByNetwork map[valueobjects.NetworkID]int32
-	receiptExpiresAfterByNetwork   map[valueobjects.NetworkID]time.Duration
+	requiredConfirmationsByScope map[PaymentReceiptTermsScope]int32
+	receiptExpiresAfterByScope   map[PaymentReceiptTermsScope]time.Duration
 }
 
 func NewPaymentAddressAllocationIssuancePolicy(
-	requiredConfirmationsByNetwork map[valueobjects.NetworkID]int32,
-	receiptExpiresAfterByNetwork map[valueobjects.NetworkID]time.Duration,
+	requiredConfirmationsByScope map[PaymentReceiptTermsScope]int32,
+	receiptExpiresAfterByScope map[PaymentReceiptTermsScope]time.Duration,
 ) PaymentAddressAllocationIssuancePolicy {
-	confirmationsByNetwork := make(map[valueobjects.NetworkID]int32)
-	for network, confirmations := range requiredConfirmationsByNetwork {
+	confirmationsByScope := make(map[PaymentReceiptTermsScope]int32)
+	for scope, confirmations := range requiredConfirmationsByScope {
 		if confirmations <= 0 {
 			continue
 		}
-		confirmationsByNetwork[network] = confirmations
+		normalizedScope, ok := normalizePaymentReceiptTermsScope(scope)
+		if !ok {
+			continue
+		}
+		confirmationsByScope[normalizedScope] = confirmations
 	}
 
-	expiresAfterByNetwork := make(map[valueobjects.NetworkID]time.Duration)
-	for network, expiresAfter := range receiptExpiresAfterByNetwork {
+	expiresAfterByScope := make(map[PaymentReceiptTermsScope]time.Duration)
+	for scope, expiresAfter := range receiptExpiresAfterByScope {
 		if expiresAfter <= 0 {
 			continue
 		}
-		expiresAfterByNetwork[network] = expiresAfter
+		normalizedScope, ok := normalizePaymentReceiptTermsScope(scope)
+		if !ok {
+			continue
+		}
+		expiresAfterByScope[normalizedScope] = expiresAfter
 	}
 
 	return PaymentAddressAllocationIssuancePolicy{
-		requiredConfirmationsByNetwork: confirmationsByNetwork,
-		receiptExpiresAfterByNetwork:   expiresAfterByNetwork,
+		requiredConfirmationsByScope: confirmationsByScope,
+		receiptExpiresAfterByScope:   expiresAfterByScope,
 	}
 }
 
@@ -97,26 +110,62 @@ func (p PaymentAddressAllocationIssuancePolicy) Plan(
 			PaymentAddressAllocationReservationAttemptReserveFresh,
 		},
 		ReceiptTerms: PaymentReceiptIssuanceTerms{
-			RequiredConfirmations: p.requiredConfirmationsForNetwork(validatedPolicy.AddressPolicy.Network),
-			ExpiresAt:             issuedAtUTC.Add(p.receiptExpiresAfterForNetwork(validatedPolicy.AddressPolicy.Network)),
+			RequiredConfirmations: p.requiredConfirmationsForScope(
+				validatedPolicy.AddressPolicy.Chain,
+				validatedPolicy.AddressPolicy.Network,
+			),
+			ExpiresAt: issuedAtUTC.Add(p.receiptExpiresAfterForScope(
+				validatedPolicy.AddressPolicy.Chain,
+				validatedPolicy.AddressPolicy.Network,
+			)),
 		},
 	}, nil
 }
 
-func (p PaymentAddressAllocationIssuancePolicy) requiredConfirmationsForNetwork(
+func (p PaymentAddressAllocationIssuancePolicy) requiredConfirmationsForScope(
+	chain valueobjects.SupportedChain,
 	network valueobjects.NetworkID,
 ) int32 {
-	if configured, ok := p.requiredConfirmationsByNetwork[network]; ok && configured > 0 {
-		return configured
+	scope, ok := normalizePaymentReceiptTermsScope(PaymentReceiptTermsScope{
+		Chain:   chain,
+		Network: network,
+	})
+	if ok {
+		if configured, found := p.requiredConfirmationsByScope[scope]; found && configured > 0 {
+			return configured
+		}
 	}
 	return defaultPaymentReceiptRequiredConfirmations
 }
 
-func (p PaymentAddressAllocationIssuancePolicy) receiptExpiresAfterForNetwork(
+func (p PaymentAddressAllocationIssuancePolicy) receiptExpiresAfterForScope(
+	chain valueobjects.SupportedChain,
 	network valueobjects.NetworkID,
 ) time.Duration {
-	if configured, ok := p.receiptExpiresAfterByNetwork[network]; ok && configured > 0 {
-		return configured
+	scope, ok := normalizePaymentReceiptTermsScope(PaymentReceiptTermsScope{
+		Chain:   chain,
+		Network: network,
+	})
+	if ok {
+		if configured, found := p.receiptExpiresAfterByScope[scope]; found && configured > 0 {
+			return configured
+		}
 	}
 	return defaultPaymentReceiptExpiresAfter
+}
+
+func normalizePaymentReceiptTermsScope(scope PaymentReceiptTermsScope) (PaymentReceiptTermsScope, bool) {
+	normalizedChain, ok := valueobjects.ParseSupportedChain(string(scope.Chain))
+	if !ok {
+		return PaymentReceiptTermsScope{}, false
+	}
+	normalizedNetwork, ok := valueobjects.ParseNetworkID(string(scope.Network))
+	if !ok {
+		return PaymentReceiptTermsScope{}, false
+	}
+
+	return PaymentReceiptTermsScope{
+		Chain:   normalizedChain,
+		Network: normalizedNetwork,
+	}, true
 }

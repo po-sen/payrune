@@ -70,6 +70,55 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	}
 }
 
+func TestGenerateAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
+	deriver := newFakeChainAddressDeriver()
+	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
+	deriver.output = dtoToDeriveOutput(
+		"0x1234567890abcdef1234567890abcdef12345678",
+		"ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	)
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newEthereumCreate2IssuancePolicy(
+			"ethereum-mainnet-create2",
+			valueobjects.NetworkID("mainnet"),
+			"create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			"ethereum-mainnet-create2",
+		),
+	})
+	useCase := NewGenerateAddressUseCase(deriver, catalog)
+
+	response, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
+		Chain:           valueobjects.SupportedChainEthereum,
+		AddressPolicyID: "ethereum-mainnet-create2",
+		Index:           9,
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+
+	if response.Chain != "ethereum" {
+		t.Fatalf("unexpected chain: got %q", response.Chain)
+	}
+	if response.Network != "mainnet" {
+		t.Fatalf("unexpected network: got %q", response.Network)
+	}
+	if response.Scheme != "create2" {
+		t.Fatalf("unexpected scheme: got %q", response.Scheme)
+	}
+	if response.MinorUnit != "wei" {
+		t.Fatalf("unexpected minor unit: got %q", response.MinorUnit)
+	}
+	if response.Decimals != 18 {
+		t.Fatalf("unexpected decimals: got %d", response.Decimals)
+	}
+	if deriver.lastInput.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain passed to deriver: got %q", deriver.lastInput.Chain)
+	}
+	if deriver.lastInput.AddressReferencePrefix != "ethereum-mainnet-create2" {
+		t.Fatalf("unexpected address reference prefix: got %q", deriver.lastInput.AddressReferencePrefix)
+	}
+}
+
 func TestGenerateAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 	useCase := NewGenerateAddressUseCase(
 		newFakeChainAddressDeriver(),

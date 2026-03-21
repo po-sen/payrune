@@ -55,11 +55,17 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
 
 func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testing.T) {
 	policy := NewPaymentAddressAllocationIssuancePolicy(
-		map[valueobjects.NetworkID]int32{
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet): 6,
+		map[PaymentReceiptTermsScope]int32{
+			{
+				Chain:   valueobjects.SupportedChainBitcoin,
+				Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			}: 6,
 		},
-		map[valueobjects.NetworkID]time.Duration{
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet): 48 * time.Hour,
+		map[PaymentReceiptTermsScope]time.Duration{
+			{
+				Chain:   valueobjects.SupportedChainBitcoin,
+				Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			}: 48 * time.Hour,
 		},
 	)
 	issuedAt := time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC)
@@ -88,6 +94,63 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testi
 		t.Fatalf("unexpected required confirmations: got %d", plan.ReceiptTerms.RequiredConfirmations)
 	}
 	expectedExpiresAt := issuedAt.Add(48 * time.Hour)
+	if !plan.ReceiptTerms.ExpiresAt.Equal(expectedExpiresAt) {
+		t.Fatalf("unexpected expires at: got %s want %s", plan.ReceiptTerms.ExpiresAt, expectedExpiresAt)
+	}
+}
+
+func TestPaymentAddressAllocationIssuancePolicyPlanScopesOverridesByChainAndNetwork(t *testing.T) {
+	policy := NewPaymentAddressAllocationIssuancePolicy(
+		map[PaymentReceiptTermsScope]int32{
+			{
+				Chain:   valueobjects.SupportedChainBitcoin,
+				Network: valueobjects.NetworkID("mainnet"),
+			}: 6,
+			{
+				Chain:   valueobjects.SupportedChainEthereum,
+				Network: valueobjects.NetworkID("mainnet"),
+			}: 12,
+		},
+		map[PaymentReceiptTermsScope]time.Duration{
+			{
+				Chain:   valueobjects.SupportedChainBitcoin,
+				Network: valueobjects.NetworkID("mainnet"),
+			}: 48 * time.Hour,
+			{
+				Chain:   valueobjects.SupportedChainEthereum,
+				Network: valueobjects.NetworkID("mainnet"),
+			}: 72 * time.Hour,
+		},
+	)
+	issuedAt := time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC)
+
+	plan, err := policy.Plan(
+		entities.AddressIssuancePolicy{
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "ethereum-mainnet-create2",
+				Chain:           valueobjects.SupportedChainEthereum,
+				Network:         valueobjects.NetworkID("mainnet"),
+				Scheme:          "create2",
+				MinorUnit:       "wei",
+				Decimals:        18,
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+				AddressReferencePrefix: "ethereum-mainnet-create2",
+			},
+		},
+		valueobjects.SupportedChainEthereum,
+		1200,
+		"order-001",
+		issuedAt,
+	)
+	if err != nil {
+		t.Fatalf("Plan returned error: %v", err)
+	}
+	if plan.ReceiptTerms.RequiredConfirmations != 12 {
+		t.Fatalf("unexpected required confirmations: got %d", plan.ReceiptTerms.RequiredConfirmations)
+	}
+	expectedExpiresAt := issuedAt.Add(72 * time.Hour)
 	if !plan.ReceiptTerms.ExpiresAt.Equal(expectedExpiresAt) {
 		t.Fatalf("unexpected expires at: got %s want %s", plan.ReceiptTerms.ExpiresAt, expectedExpiresAt)
 	}

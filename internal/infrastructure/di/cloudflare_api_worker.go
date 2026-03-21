@@ -11,6 +11,7 @@ import (
 	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
 	"payrune/internal/adapters/outbound/bitcoin"
 	"payrune/internal/adapters/outbound/blockchain"
+	"payrune/internal/adapters/outbound/ethereum"
 	cloudflarepostgres "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
 	policyadapter "payrune/internal/adapters/outbound/policy"
 	"payrune/internal/adapters/outbound/system"
@@ -33,6 +34,12 @@ const (
 	cfEnvBitcoinTestnet4RequiredConfirmations = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
 	cfEnvBitcoinMainnetReceiptExpiresAfter    = "BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER"
 	cfEnvBitcoinTestnet4ReceiptExpiresAfter   = "BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER"
+	cfEnvEthereumMainnetRequiredConfirmations = "ETHEREUM_MAINNET_REQUIRED_CONFIRMATIONS"
+	cfEnvEthereumSepoliaRequiredConfirmations = "ETHEREUM_SEPOLIA_REQUIRED_CONFIRMATIONS"
+	cfEnvEthereumMainnetReceiptExpiresAfter   = "ETHEREUM_MAINNET_RECEIPT_EXPIRES_AFTER"
+	cfEnvEthereumSepoliaReceiptExpiresAfter   = "ETHEREUM_SEPOLIA_RECEIPT_EXPIRES_AFTER"
+	cfEnvEthereumMainnetCreate2Collector      = "ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS"
+	cfEnvEthereumSepoliaCreate2Collector      = "ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS"
 	cfDefaultBitcoinRequiredConfirmations     = int32(2)
 	cfDefaultBitcoinReceiptExpiresAfter       = 24 * time.Hour
 )
@@ -41,11 +48,11 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	clock := system.NewClock()
 	healthUseCase := usecases.NewCheckHealthUseCase(clock)
 
-	requiredConfirmationsByNetwork, err := loadCloudflareBitcoinRequiredConfirmations(env)
+	requiredConfirmationsByScope, err := loadCloudflareReceiptRequiredConfirmations(env)
 	if err != nil {
 		return nil, err
 	}
-	receiptExpiresAfterByNetwork, err := loadCloudflareBitcoinReceiptExpiresAfter(env)
+	receiptExpiresAfterByScope, err := loadCloudflareReceiptExpiresAfter(env)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +65,7 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	)
 	chainAddressDeriver, err := blockchain.NewMultiChainAddressDeriver(
 		bitcoin.NewChainAddressDeriver(bitcoinDeriver),
+		ethereum.NewChainAddressDeriver(),
 	)
 	if err != nil {
 		return nil, err
@@ -144,6 +152,14 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 			AddressSourceRef:       envMapValue(env, envBitcoinTestnet4TaprootXPub),
 			AddressReferencePrefix: "m/86'/1'/0'",
 		},
+		newEthereumCreate2PolicyConfig(
+			valueobjects.NetworkID("mainnet"),
+			envMapValue(env, cfEnvEthereumMainnetCreate2Collector),
+		),
+		newEthereumCreate2PolicyConfig(
+			valueobjects.NetworkID("sepolia"),
+			envMapValue(env, cfEnvEthereumSepoliaCreate2Collector),
+		),
 	})
 
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
@@ -152,8 +168,8 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	dbExecutor := cloudflarepostgres.NewExecutor(bridgeID, bridge)
 	unitOfWork := cloudflarepostgres.NewUnitOfWork(bridgeID, bridge)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
-		requiredConfirmationsByNetwork,
-		receiptExpiresAfterByNetwork,
+		requiredConfirmationsByScope,
+		receiptExpiresAfterByScope,
 	)
 	allocatePaymentAddressUseCase := usecases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
@@ -178,7 +194,9 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	}), nil
 }
 
-func loadCloudflareBitcoinRequiredConfirmations(env map[string]string) (map[valueobjects.NetworkID]int32, error) {
+func loadCloudflareReceiptRequiredConfirmations(
+	env map[string]string,
+) (map[policies.PaymentReceiptTermsScope]int32, error) {
 	mainnetConfirmations, err := parsePositiveInt32MapWithDefault(env, cfEnvBitcoinMainnetRequiredConfirmations, cfDefaultBitcoinRequiredConfirmations)
 	if err != nil {
 		return nil, err
@@ -187,14 +205,46 @@ func loadCloudflareBitcoinRequiredConfirmations(env map[string]string) (map[valu
 	if err != nil {
 		return nil, err
 	}
+	ethereumMainnetConfirmations, err := parsePositiveInt32MapWithDefault(
+		env,
+		cfEnvEthereumMainnetRequiredConfirmations,
+		cfDefaultBitcoinRequiredConfirmations,
+	)
+	if err != nil {
+		return nil, err
+	}
+	ethereumSepoliaConfirmations, err := parsePositiveInt32MapWithDefault(
+		env,
+		cfEnvEthereumSepoliaRequiredConfirmations,
+		cfDefaultBitcoinRequiredConfirmations,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	return map[valueobjects.NetworkID]int32{
-		valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet):  mainnetConfirmations,
-		valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): testnet4Confirmations,
+	return map[policies.PaymentReceiptTermsScope]int32{
+		newPaymentReceiptTermsScope(
+			valueobjects.SupportedChainBitcoin,
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		): mainnetConfirmations,
+		newPaymentReceiptTermsScope(
+			valueobjects.SupportedChainBitcoin,
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+		): testnet4Confirmations,
+		newPaymentReceiptTermsScope(
+			valueobjects.SupportedChainEthereum,
+			valueobjects.NetworkID("mainnet"),
+		): ethereumMainnetConfirmations,
+		newPaymentReceiptTermsScope(
+			valueobjects.SupportedChainEthereum,
+			valueobjects.NetworkID("sepolia"),
+		): ethereumSepoliaConfirmations,
 	}, nil
 }
 
-func loadCloudflareBitcoinReceiptExpiresAfter(env map[string]string) (map[valueobjects.NetworkID]time.Duration, error) {
+func loadCloudflareReceiptExpiresAfter(
+	env map[string]string,
+) (map[policies.PaymentReceiptTermsScope]time.Duration, error) {
 	mainnetExpiresAfter, err := parseDurationMapWithDefault(env, cfEnvBitcoinMainnetReceiptExpiresAfter, cfDefaultBitcoinReceiptExpiresAfter)
 	if err != nil {
 		return nil, err
@@ -203,10 +253,40 @@ func loadCloudflareBitcoinReceiptExpiresAfter(env map[string]string) (map[valueo
 	if err != nil {
 		return nil, err
 	}
+	ethereumMainnetExpiresAfter, err := parseDurationMapWithDefault(
+		env,
+		cfEnvEthereumMainnetReceiptExpiresAfter,
+		cfDefaultBitcoinReceiptExpiresAfter,
+	)
+	if err != nil {
+		return nil, err
+	}
+	ethereumSepoliaExpiresAfter, err := parseDurationMapWithDefault(
+		env,
+		cfEnvEthereumSepoliaReceiptExpiresAfter,
+		cfDefaultBitcoinReceiptExpiresAfter,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	return map[valueobjects.NetworkID]time.Duration{
-		valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet):  mainnetExpiresAfter,
-		valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): testnet4ExpiresAfter,
+	return map[policies.PaymentReceiptTermsScope]time.Duration{
+		newPaymentReceiptTermsScope(
+			valueobjects.SupportedChainBitcoin,
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		): mainnetExpiresAfter,
+		newPaymentReceiptTermsScope(
+			valueobjects.SupportedChainBitcoin,
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+		): testnet4ExpiresAfter,
+		newPaymentReceiptTermsScope(
+			valueobjects.SupportedChainEthereum,
+			valueobjects.NetworkID("mainnet"),
+		): ethereumMainnetExpiresAfter,
+		newPaymentReceiptTermsScope(
+			valueobjects.SupportedChainEthereum,
+			valueobjects.NetworkID("sepolia"),
+		): ethereumSepoliaExpiresAfter,
 	}, nil
 }
 

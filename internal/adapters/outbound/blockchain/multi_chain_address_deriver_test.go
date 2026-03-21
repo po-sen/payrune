@@ -51,6 +51,13 @@ func TestNewMultiChainAddressDeriverValidation(t *testing.T) {
 		t.Fatal("expected error for invalid chain key")
 	}
 
+	_, err = NewMultiChainAddressDeriver(&fakeChainSpecificAddressDeriver{
+		chain: valueobjects.SupportedChain("eth"),
+	})
+	if err == nil {
+		t.Fatal("expected error for unsupported chain key")
+	}
+
 	_, err = NewMultiChainAddressDeriver(
 		&fakeChainSpecificAddressDeriver{chain: valueobjects.SupportedChainBitcoin},
 		&fakeChainSpecificAddressDeriver{chain: valueobjects.SupportedChain("bitcoin")},
@@ -61,9 +68,10 @@ func TestNewMultiChainAddressDeriverValidation(t *testing.T) {
 }
 
 func TestMultiChainAddressDeriverSupportsChain(t *testing.T) {
-	deriver, err := NewMultiChainAddressDeriver(&fakeChainSpecificAddressDeriver{
-		chain: valueobjects.SupportedChainBitcoin,
-	})
+	deriver, err := NewMultiChainAddressDeriver(
+		&fakeChainSpecificAddressDeriver{chain: valueobjects.SupportedChainBitcoin},
+		&fakeChainSpecificAddressDeriver{chain: valueobjects.SupportedChainEthereum},
+	)
 	if err != nil {
 		t.Fatalf("setup deriver: %v", err)
 	}
@@ -71,8 +79,11 @@ func TestMultiChainAddressDeriverSupportsChain(t *testing.T) {
 	if !deriver.SupportsChain(valueobjects.SupportedChain("BitCoin")) {
 		t.Fatal("expected bitcoin support")
 	}
+	if !deriver.SupportsChain(valueobjects.SupportedChain("ethereum")) {
+		t.Fatal("expected ethereum support")
+	}
 	if deriver.SupportsChain(valueobjects.SupportedChain("eth")) {
-		t.Fatal("expected ethereum unsupported")
+		t.Fatal("expected eth alias unsupported")
 	}
 	if deriver.SupportsChain(valueobjects.SupportedChain("eth/mainnet")) {
 		t.Fatal("expected invalid chain unsupported")
@@ -156,6 +167,14 @@ func TestMultiChainAddressDeriverDeriveAddressValidation(t *testing.T) {
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
 		Chain:   valueobjects.SupportedChain("eth"),
+		Network: valueobjects.NetworkID("mainnet"),
+	})
+	if err == nil {
+		t.Fatal("expected invalid chain error")
+	}
+
+	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
+		Chain:   valueobjects.SupportedChainEthereum,
 		Network: valueobjects.NetworkID("mainnet"),
 	})
 	if err == nil {

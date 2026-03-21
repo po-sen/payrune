@@ -31,7 +31,8 @@ links:
 - Users or stakeholders:
   - Merchant backends that need one payment address per checkout or invoice.
   - Backend developers extending `payrune` to support non-Bitcoin chains.
-  - Operators who must safely manage collection wallets, deployer keys, and settlement flows.
+  - Operators who must safely manage collection wallets, operator-signer keys, and settlement
+    flows.
 - Why now:
   - The next planned payment rail is native ETH.
   - CREATE2 allows deterministic deposit addresses without generating or storing one private key per
@@ -54,7 +55,7 @@ links:
     payment system.
 - Compliance/security constraints:
   - No per-payment private key material may be generated or persisted.
-  - Deployer/signer credentials must stay operator-managed.
+  - Operator-signer credentials must stay operator-managed.
   - The collection path must prevent sweeping ETH to arbitrary destinations.
 
 ## Problem statement
@@ -103,7 +104,8 @@ links:
   - The first delivery targets native ETH only and uses `wei` as the persisted minor unit with
     `18` decimals.
 - A2:
-  - One CREATE2 factory contract and one collector destination are configured per Ethereum network.
+  - One fixed CREATE2 factory contract and one collector destination are configured per Ethereum
+    network before issuance begins for that address space.
 - A3:
   - A payment address may receive ETH before code is deployed at that address; deployment and
     sweep happen after payment detection or settlement selection.
@@ -113,19 +115,25 @@ links:
 - A5:
   - In v1, “unconfirmed” for Ethereum means mined but below the configured confirmation threshold;
     unmined mempool transfers are not required.
+- A6:
+  - T-002 should expose both `ethereum/mainnet` and `ethereum/sepolia` as first-class configurable
+    issuance networks, while keeping each policy disabled until its collector runtime config and
+    checked-in CREATE2 deployment metadata are both present.
+- A7:
+  - An operator signer with gas is required to bootstrap the factory and later submit deploy/sweep
+    transactions, but that signer is not part of CREATE2 address derivation and may rotate without
+    changing previously issued addresses as long as the same factory and receiver configuration stay
+    active.
 
 ## Open questions
 
 - Q1:
-  - Should the first production scope be `ethereum/mainnet` only, or should `sepolia` also be
-    supported as a first-class configured network?
-- Q2:
   - Should deploy-and-sweep run in a dedicated worker, be triggered from the existing poller
     lifecycle, or remain a manual operator command in the first rollout?
-- Q3:
+- Q2:
   - Should overpayment above `expectedAmountMinor` be swept automatically in the first version or
     be left for manual review when it exceeds a threshold?
-- Q4:
+- Q3:
   - Do we want the sweeper to run after `paid_unconfirmed` or only after `paid_confirmed`?
 
 ## Success metrics

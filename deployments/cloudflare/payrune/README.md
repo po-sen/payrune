@@ -48,6 +48,8 @@ All other `fetch()` paths return `404`.
 - `BITCOIN_TESTNET4_SEGWIT_XPUB`
 - `BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB`
 - `BITCOIN_TESTNET4_TAPROOT_XPUB`
+- `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS`
+- `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS`
 - `BITCOIN_MAINNET_ESPLORA_USER`
 - `BITCOIN_MAINNET_ESPLORA_PASSWORD`
 - `BITCOIN_TESTNET4_ESPLORA_USER`
@@ -58,9 +60,13 @@ All other `fetch()` paths return `404`.
 These live in `wrangler.toml`:
 
 - API confirmation / receipt-expiry defaults
+- Ethereum CREATE2 confirmation / receipt-expiry defaults
 - poller cadence and batch defaults
 - network-specific Esplora endpoint defaults
 - webhook dispatcher timeout and retry defaults
+
+Factory addresses and receiver init-code hashes are not Worker secrets. They are expected to come
+from checked-in deployment metadata and contract artifacts once the CREATE2 contracts land.
 
 ## Deploy
 

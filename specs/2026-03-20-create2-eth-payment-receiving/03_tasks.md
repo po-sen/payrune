@@ -76,12 +76,18 @@ links:
 2. T-002 - Add Ethereum CREATE2 address derivation and API wiring
    - Scope:
      - Add `ethereum` support to chain parsing and policy configuration.
+     - Expose both `ethereum/mainnet` and `ethereum/sepolia` CREATE2 policies through explicit
+       collector runtime config, while keeping deployment-derived factory and init-code inputs out
+       of env wiring.
+     - Keep local issuance testable before T-003 by using checked-in deterministic fixture metadata
+       instead of operator-supplied deployment env vars.
      - Implement an Ethereum CREATE2 deriver adapter and wire it through the existing
        allocate-address and generate-address flow.
      - Add or update controller and use-case tests so Ethereum policy listing and address issuance
        work through the existing chain-scoped HTTP routes.
    - Output:
-     - `payrune` can issue deterministic ETH payment addresses through the current API contract.
+     - `payrune` can issue deterministic ETH payment addresses for configured `mainnet` and
+       `sepolia` policies through the current API contract.
    - Linked requirements: FR-001, FR-002, FR-005, NFR-001, NFR-003, NFR-006
    - Validation:
      - [ ] How to verify (manual steps or command): run
@@ -94,13 +100,18 @@ links:
    - Scope:
      - Add the contract source or generated artifacts required for CREATE2 prediction and
        deployment.
+     - Add checked-in deployment metadata so runtime policy wiring can resolve factory addresses
+       without operator-supplied env vars.
+     - Define the contract caller model explicitly so factory identity stays fixed per address
+       space while operator-signer credentials remain rotatable runtime configuration.
      - Add helper automation under `scripts/` for local deployment, fixture setup, and prediction
        verification.
      - Add or update local dev chain support so the ETH flow can be exercised end-to-end in
        development.
    - Output:
      - Local tooling can deploy the factory, compute expected addresses, and fund predicted payment
-       addresses on a deterministic dev chain.
+       addresses on a deterministic dev chain, and the resulting metadata clearly separates fixed
+       factory inputs from rotatable operator-signer inputs.
    - Linked requirements: FR-002, FR-006, FR-007, NFR-003
    - Validation:
      - [ ] How to verify (manual steps or command): run the local contract deploy and prediction

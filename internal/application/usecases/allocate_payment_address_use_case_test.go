@@ -242,6 +242,88 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	}
 }
 
+func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
+	allocator := &fakePaymentAddressAllocationStore{}
+	txManager := newFakeUnitOfWork(allocator)
+	deriver := newFakeChainAddressDeriver()
+	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
+	deriver.output = newAllocateDeriveOutput(
+		"0x1234567890abcdef1234567890abcdef12345678",
+		"ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	)
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newEthereumCreate2IssuancePolicy(
+			"ethereum-mainnet-create2",
+			valueobjects.NetworkID("mainnet"),
+			"create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			"ethereum-mainnet-create2",
+		),
+	})
+	allocator.freshReservation = entities.PaymentAddressAllocation{
+		PaymentAddressID:    145,
+		AddressPolicyID:     "ethereum-mainnet-create2",
+		DerivationIndex:     11,
+		ExpectedAmountMinor: 15000000000000000,
+		CustomerReference:   "order-eth-001",
+	}
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		deriver,
+		catalog,
+		policies.NewPaymentAddressAllocationIssuancePolicy(
+			map[policies.PaymentReceiptTermsScope]int32{
+				{
+					Chain:   valueobjects.SupportedChainEthereum,
+					Network: valueobjects.NetworkID("mainnet"),
+				}: 12,
+			},
+			nil,
+		),
+		newAllocatePaymentAddressClock(),
+	)
+
+	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               valueobjects.SupportedChainEthereum,
+		AddressPolicyID:     "ethereum-mainnet-create2",
+		ExpectedAmountMinor: 15000000000000000,
+		CustomerReference:   "order-eth-001",
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if allocator.lastCompleteInput.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain persisted on allocation: got %q", allocator.lastCompleteInput.Chain)
+	}
+	if allocator.lastCompleteInput.Scheme != "create2" {
+		t.Fatalf("unexpected scheme persisted on allocation: got %q", allocator.lastCompleteInput.Scheme)
+	}
+	if allocator.lastCompleteInput.AddressReference != "ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Fatalf("unexpected address reference persisted on allocation: got %q", allocator.lastCompleteInput.AddressReference)
+	}
+	if deriver.lastInput.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain passed to deriver: got %q", deriver.lastInput.Chain)
+	}
+	if deriver.lastInput.AddressReferencePrefix != "ethereum-mainnet-create2" {
+		t.Fatalf("unexpected address reference prefix passed to deriver: got %q", deriver.lastInput.AddressReferencePrefix)
+	}
+	trackingStore, ok := txManager.receiptTrackingStore.(*fakeAllocatePaymentReceiptTrackingStore)
+	if !ok {
+		t.Fatal("expected fake receipt tracking store")
+	}
+	if trackingStore.lastCreateTracking.RequiredConfirmations != 12 {
+		t.Fatalf("unexpected required confirmations for ethereum: got %d", trackingStore.lastCreateTracking.RequiredConfirmations)
+	}
+	if response.Chain != "ethereum" {
+		t.Fatalf("unexpected response chain: got %q", response.Chain)
+	}
+	if response.MinorUnit != "wei" {
+		t.Fatalf("unexpected response minor unit: got %q", response.MinorUnit)
+	}
+	if response.Decimals != 18 {
+		t.Fatalf("unexpected response decimals: got %d", response.Decimals)
+	}
+}
+
 func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicateIdempotencyKey(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{
 		issuedByIDFound: true,
@@ -508,9 +590,15 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 		deriver,
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(
-			map[valueobjects.NetworkID]int32{
-				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet):  6,
-				valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): 2,
+			map[policies.PaymentReceiptTermsScope]int32{
+				{
+					Chain:   valueobjects.SupportedChainBitcoin,
+					Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+				}: 6,
+				{
+					Chain:   valueobjects.SupportedChainBitcoin,
+					Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+				}: 2,
 			},
 			nil,
 		),
@@ -574,9 +662,15 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testin
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(
 			nil,
-			map[valueobjects.NetworkID]time.Duration{
-				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet):  48 * time.Hour,
-				valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): 24 * time.Hour,
+			map[policies.PaymentReceiptTermsScope]time.Duration{
+				{
+					Chain:   valueobjects.SupportedChainBitcoin,
+					Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+				}: 48 * time.Hour,
+				{
+					Chain:   valueobjects.SupportedChainBitcoin,
+					Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+				}: 24 * time.Hour,
 			},
 		),
 		clock,

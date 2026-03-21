@@ -91,11 +91,11 @@ func (d *MultiChainAddressDeriver) DeriveAddress(
 }
 
 func normalizeSupportedChain(chain valueobjects.SupportedChain) (valueobjects.SupportedChain, bool) {
-	normalizedChainID, ok := valueobjects.ParseChainID(string(chain))
+	normalizedChainID, ok := valueobjects.ParseSupportedChain(string(chain))
 	if !ok {
 		return "", false
 	}
-	return valueobjects.SupportedChain(normalizedChainID), true
+	return normalizedChainID, true
 }
 
 func isNilChainSpecificAddressDeriver(deriver chainSpecificAddressDeriver) bool {

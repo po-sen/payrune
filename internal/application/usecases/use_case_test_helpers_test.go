@@ -47,6 +47,24 @@ func newAddressIssuancePolicy(
 	}.Normalize()
 }
 
+func newEthereumCreate2IssuancePolicy(
+	addressPolicyID string,
+	network valueobjects.NetworkID,
+	addressSourceRef string,
+	addressReferencePrefix string,
+) entities.AddressIssuancePolicy {
+	return newAddressIssuancePolicy(
+		addressPolicyID,
+		valueobjects.SupportedChainEthereum,
+		network,
+		"create2",
+		"wei",
+		18,
+		addressSourceRef,
+		addressReferencePrefix,
+	)
+}
+
 func newInMemoryAddressPolicyReader(policies []entities.AddressIssuancePolicy) *inMemoryAddressPolicyReader {
 	ordered := make([]entities.AddressPolicy, 0, len(policies))
 	issuanceByID := make(map[string]entities.AddressIssuancePolicy, len(policies))

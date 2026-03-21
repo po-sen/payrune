@@ -142,6 +142,42 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 	}
 }
 
+func TestChainAddressControllerListEthereumSuccess(t *testing.T) {
+	listUC := &fakeListAddressPoliciesUseCase{
+		response: dto.ListAddressPoliciesResponse{
+			Chain: "ethereum",
+			AddressPolicies: []dto.AddressPolicy{{
+				AddressPolicyID: "ethereum-mainnet-create2",
+				Chain:           "ethereum",
+				Network:         "mainnet",
+				Scheme:          "create2",
+				MinorUnit:       "wei",
+				Decimals:        18,
+				Enabled:         true,
+			}},
+		},
+	}
+	controller := NewChainAddressController(
+		listUC,
+		&fakeGenerateAddressUseCase{},
+		&fakeAllocatePaymentAddressUseCase{},
+		&fakeGetPaymentAddressStatusUseCase{},
+	)
+
+	mux := newChainAddressTestMux(controller)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/chains/ethereum/address-policies", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d", rr.Code)
+	}
+	if listUC.lastChain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain passed to use case: got %q", listUC.lastChain)
+	}
+}
+
 func TestChainAddressControllerGenerateSuccess(t *testing.T) {
 	generateUC := &fakeGenerateAddressUseCase{
 		response: dto.GenerateAddressResponse{
@@ -386,6 +422,48 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 	}
 	if response.ExpectedAmountMinor != 120000 {
 		t.Fatalf("unexpected expected amount minor: got %d", response.ExpectedAmountMinor)
+	}
+}
+
+func TestChainAddressControllerAllocateEthereumPaymentAddressSuccess(t *testing.T) {
+	allocateUC := &fakeAllocatePaymentAddressUseCase{
+		response: dto.AllocatePaymentAddressResponse{
+			PaymentAddressID:    "201",
+			AddressPolicyID:     "ethereum-mainnet-create2",
+			ExpectedAmountMinor: 15000000000000000,
+			Chain:               "ethereum",
+			Network:             "mainnet",
+			Scheme:              "create2",
+			MinorUnit:           "wei",
+			Decimals:            18,
+			Address:             "0x1234567890abcdef1234567890abcdef12345678",
+		},
+	}
+	controller := NewChainAddressController(
+		&fakeListAddressPoliciesUseCase{},
+		&fakeGenerateAddressUseCase{},
+		allocateUC,
+		&fakeGetPaymentAddressStatusUseCase{},
+	)
+
+	mux := newChainAddressTestMux(controller)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/chains/ethereum/payment-addresses",
+		strings.NewReader(`{"addressPolicyId":"ethereum-mainnet-create2","expectedAmountMinor":15000000000000000}`),
+	)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("unexpected status code: got %d", rr.Code)
+	}
+	if allocateUC.lastInput.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain in input: got %q", allocateUC.lastInput.Chain)
+	}
+	if allocateUC.lastInput.AddressPolicyID != "ethereum-mainnet-create2" {
+		t.Fatalf("unexpected address policy id in input: got %q", allocateUC.lastInput.AddressPolicyID)
 	}
 }
 

@@ -1,0 +1,174 @@
+package ethereum
+
+import (
+	"context"
+	"testing"
+
+	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
+)
+
+func TestBuildCreate2AddressSourceRef(t *testing.T) {
+	sourceRef, err := BuildCreate2AddressSourceRef(
+		"0x1111111111111111111111111111111111111111",
+		"0x2222222222222222222222222222222222222222",
+		"0x3333333333333333333333333333333333333333333333333333333333333333",
+	)
+	if err != nil {
+		t.Fatalf("BuildCreate2AddressSourceRef returned error: %v", err)
+	}
+	if sourceRef != "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333" {
+		t.Fatalf("unexpected source ref: got %q", sourceRef)
+	}
+}
+
+func TestBuildCreate2AddressSourceRefRejectsInvalidHex(t *testing.T) {
+	_, err := BuildCreate2AddressSourceRef(
+		"0x1234",
+		"0x2222222222222222222222222222222222222222",
+		"0x3333333333333333333333333333333333333333333333333333333333333333",
+	)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
+func TestPredictCreate2AddressMatchesEIP1014Examples(t *testing.T) {
+	tests := []struct {
+		name           string
+		factoryAddress string
+		salt           string
+		initCode       string
+		wantAddress    string
+	}{
+		{
+			name:           "example 0",
+			factoryAddress: "0x0000000000000000000000000000000000000000",
+			salt:           "0x0000000000000000000000000000000000000000000000000000000000000000",
+			initCode:       "0x00",
+			wantAddress:    "0x4d1a2e2bb4f88f0250f26ffff098b0b30b26bf38",
+		},
+		{
+			name:           "example 4",
+			factoryAddress: "0x00000000000000000000000000000000deadbeef",
+			salt:           "0x00000000000000000000000000000000000000000000000000000000cafebabe",
+			initCode:       "0xdeadbeef",
+			wantAddress:    "0x60f3f640a8508fc6a86d45df051962668e1e8ac7",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, factoryAddress, err := normalizeFixedHex(tc.factoryAddress, 20, "factory address")
+			if err != nil {
+				t.Fatalf("normalize factory address: %v", err)
+			}
+			_, saltBytes, err := normalizeFixedHex(tc.salt, 32, "salt")
+			if err != nil {
+				t.Fatalf("normalize salt: %v", err)
+			}
+			_, initCode, err := normalizeFixedHex(tc.initCode, len(tc.initCode[2:])/2, "init code")
+			if err != nil {
+				t.Fatalf("normalize init code: %v", err)
+			}
+
+			var salt [32]byte
+			copy(salt[:], saltBytes)
+			initCodeHash := keccak256Hash(initCode)
+			got := predictCreate2Address(factoryAddress, salt, initCodeHash[:])
+			if got != tc.wantAddress {
+				t.Fatalf("unexpected predicted address: got %q want %q", got, tc.wantAddress)
+			}
+		})
+	}
+}
+
+func TestChainAddressDeriverDeriveAddressDeterministically(t *testing.T) {
+	deriver := NewChainAddressDeriver()
+	input := outport.DeriveChainAddressInput{
+		Chain:                  valueobjects.SupportedChainEthereum,
+		Network:                valueobjects.NetworkID("mainnet"),
+		Scheme:                 "create2",
+		AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+		AddressReferencePrefix: "ethereum-mainnet-create2",
+		Index:                  7,
+	}
+
+	first, err := deriver.DeriveAddress(context.Background(), input)
+	if err != nil {
+		t.Fatalf("DeriveAddress returned error: %v", err)
+	}
+	second, err := deriver.DeriveAddress(context.Background(), input)
+	if err != nil {
+		t.Fatalf("DeriveAddress returned error on second call: %v", err)
+	}
+
+	if first.Address == "" {
+		t.Fatal("expected predicted address")
+	}
+	if first.Address != second.Address {
+		t.Fatalf("expected deterministic address, got %q and %q", first.Address, second.Address)
+	}
+	if first.RelativeAddressReference == "" {
+		t.Fatal("expected relative address reference")
+	}
+	if first.AddressReference != "ethereum-mainnet-create2/"+first.RelativeAddressReference {
+		t.Fatalf("unexpected address reference: got %q", first.AddressReference)
+	}
+
+	other, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
+		Chain:                  input.Chain,
+		Network:                input.Network,
+		Scheme:                 input.Scheme,
+		AddressSourceRef:       input.AddressSourceRef,
+		AddressReferencePrefix: input.AddressReferencePrefix,
+		Index:                  8,
+	})
+	if err != nil {
+		t.Fatalf("DeriveAddress returned error for different index: %v", err)
+	}
+	if other.Address == first.Address {
+		t.Fatalf("expected different address for different index, got %q", other.Address)
+	}
+}
+
+func TestChainAddressDeriverRejectsInvalidInput(t *testing.T) {
+	deriver := NewChainAddressDeriver()
+
+	tests := []outport.DeriveChainAddressInput{
+		{
+			Chain:                  valueobjects.SupportedChainBitcoin,
+			Network:                valueobjects.NetworkID("mainnet"),
+			Scheme:                 "create2",
+			AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			AddressReferencePrefix: "ethereum-mainnet-create2",
+		},
+		{
+			Chain:                  valueobjects.SupportedChainEthereum,
+			Network:                valueobjects.NetworkID("mainnet"),
+			Scheme:                 "legacy",
+			AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			AddressReferencePrefix: "ethereum-mainnet-create2",
+		},
+		{
+			Chain:                  valueobjects.SupportedChainEthereum,
+			Network:                valueobjects.NetworkID("mainnet"),
+			Scheme:                 "create2",
+			AddressSourceRef:       "",
+			AddressReferencePrefix: "ethereum-mainnet-create2",
+		},
+		{
+			Chain:                  valueobjects.SupportedChainEthereum,
+			Network:                valueobjects.NetworkID("mainnet"),
+			Scheme:                 "create2",
+			AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			AddressReferencePrefix: "",
+		},
+	}
+
+	for _, input := range tests {
+		if _, err := deriver.DeriveAddress(context.Background(), input); err == nil {
+			t.Fatalf("expected validation error for input: %+v", input)
+		}
+	}
+}
