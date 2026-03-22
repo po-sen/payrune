@@ -40,6 +40,8 @@ const (
 	cfEnvEthereumSepoliaReceiptExpiresAfter   = "ETHEREUM_SEPOLIA_RECEIPT_EXPIRES_AFTER"
 	cfEnvEthereumMainnetCreate2Collector      = "ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS"
 	cfEnvEthereumSepoliaCreate2Collector      = "ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS"
+	cfEnvEthereumMainnetCreate2DerivationKey  = "ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY"
+	cfEnvEthereumSepoliaCreate2DerivationKey  = "ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY"
 	cfDefaultBitcoinRequiredConfirmations     = int32(2)
 	cfDefaultBitcoinReceiptExpiresAfter       = 24 * time.Hour
 )
@@ -70,6 +72,12 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	if err != nil {
 		return nil, err
 	}
+	ethereumCreate2SaltDeriver := ethereum.NewCreate2SaltDeriver(
+		buildEthereumCreate2DerivationKeys(
+			envMapValue(env, cfEnvEthereumMainnetCreate2DerivationKey),
+			envMapValue(env, cfEnvEthereumSepoliaCreate2DerivationKey),
+		),
+	)
 
 	addressPolicyReader := policyadapter.NewAddressPolicyReader([]policyadapter.AddressPolicyConfig{
 		{
@@ -155,10 +163,12 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		newEthereumCreate2PolicyConfig(
 			valueobjects.NetworkID("mainnet"),
 			envMapValue(env, cfEnvEthereumMainnetCreate2Collector),
+			ethereumCreate2SaltDeriver,
 		),
 		newEthereumCreate2PolicyConfig(
 			valueobjects.NetworkID("sepolia"),
 			envMapValue(env, cfEnvEthereumSepoliaCreate2Collector),
+			ethereumCreate2SaltDeriver,
 		),
 	})
 
@@ -174,6 +184,7 @@ func BuildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	allocatePaymentAddressUseCase := usecases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
 		chainAddressDeriver,
+		ethereumCreate2SaltDeriver,
 		addressPolicyReader,
 		allocationIssuancePolicy,
 		clock,

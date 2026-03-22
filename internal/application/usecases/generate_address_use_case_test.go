@@ -70,13 +70,9 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	}
 }
 
-func TestGenerateAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
+func TestGenerateAddressUseCaseRejectsEthereumCreate2Preview(t *testing.T) {
 	deriver := newFakeChainAddressDeriver()
 	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
-	deriver.output = dtoToDeriveOutput(
-		"0x1234567890abcdef1234567890abcdef12345678",
-		"ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-	)
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newEthereumCreate2IssuancePolicy(
 			"ethereum-mainnet-create2",
@@ -92,30 +88,14 @@ func TestGenerateAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 		AddressPolicyID: "ethereum-mainnet-create2",
 		Index:           9,
 	})
-	if err != nil {
-		t.Fatalf("Execute returned error: %v", err)
+	if err == nil {
+		t.Fatalf("expected preview not supported error, got response %+v", response)
 	}
-
-	if response.Chain != "ethereum" {
-		t.Fatalf("unexpected chain: got %q", response.Chain)
+	if !errors.Is(err, inport.ErrAddressPreviewNotSupported) {
+		t.Fatalf("expected preview not supported error, got %v", err)
 	}
-	if response.Network != "mainnet" {
-		t.Fatalf("unexpected network: got %q", response.Network)
-	}
-	if response.Scheme != "create2" {
-		t.Fatalf("unexpected scheme: got %q", response.Scheme)
-	}
-	if response.MinorUnit != "wei" {
-		t.Fatalf("unexpected minor unit: got %q", response.MinorUnit)
-	}
-	if response.Decimals != 18 {
-		t.Fatalf("unexpected decimals: got %d", response.Decimals)
-	}
-	if deriver.lastInput.Chain != valueobjects.SupportedChainEthereum {
-		t.Fatalf("unexpected chain passed to deriver: got %q", deriver.lastInput.Chain)
-	}
-	if deriver.lastInput.AddressReferencePrefix != "ethereum-mainnet-create2" {
-		t.Fatalf("unexpected address reference prefix: got %q", deriver.lastInput.AddressReferencePrefix)
+	if deriver.calls != 0 {
+		t.Fatalf("expected ethereum preview rejection before deriver call, got %d calls", deriver.calls)
 	}
 }
 

@@ -86,12 +86,12 @@ func TestPredictCreate2AddressMatchesEIP1014Examples(t *testing.T) {
 func TestChainAddressDeriverDeriveAddressDeterministically(t *testing.T) {
 	deriver := NewChainAddressDeriver()
 	input := outport.DeriveChainAddressInput{
-		Chain:                  valueobjects.SupportedChainEthereum,
-		Network:                valueobjects.NetworkID("mainnet"),
-		Scheme:                 "create2",
-		AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-		AddressReferencePrefix: "ethereum-mainnet-create2",
-		Index:                  7,
+		Chain:                    valueobjects.SupportedChainEthereum,
+		Network:                  valueobjects.NetworkID("mainnet"),
+		Scheme:                   "create2",
+		AddressSourceRef:         "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+		AddressReferencePrefix:   "ethereum-mainnet-create2",
+		RelativeAddressReference: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	}
 
 	first, err := deriver.DeriveAddress(context.Background(), input)
@@ -117,18 +117,18 @@ func TestChainAddressDeriverDeriveAddressDeterministically(t *testing.T) {
 	}
 
 	other, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:                  input.Chain,
-		Network:                input.Network,
-		Scheme:                 input.Scheme,
-		AddressSourceRef:       input.AddressSourceRef,
-		AddressReferencePrefix: input.AddressReferencePrefix,
-		Index:                  8,
+		Chain:                    input.Chain,
+		Network:                  input.Network,
+		Scheme:                   input.Scheme,
+		AddressSourceRef:         input.AddressSourceRef,
+		AddressReferencePrefix:   input.AddressReferencePrefix,
+		RelativeAddressReference: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	})
 	if err != nil {
-		t.Fatalf("DeriveAddress returned error for different index: %v", err)
+		t.Fatalf("DeriveAddress returned error for different salt: %v", err)
 	}
 	if other.Address == first.Address {
-		t.Fatalf("expected different address for different index, got %q", other.Address)
+		t.Fatalf("expected different address for different salt, got %q", other.Address)
 	}
 }
 
@@ -137,32 +137,44 @@ func TestChainAddressDeriverRejectsInvalidInput(t *testing.T) {
 
 	tests := []outport.DeriveChainAddressInput{
 		{
-			Chain:                  valueobjects.SupportedChainBitcoin,
-			Network:                valueobjects.NetworkID("mainnet"),
-			Scheme:                 "create2",
-			AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-			AddressReferencePrefix: "ethereum-mainnet-create2",
+			Chain:                    valueobjects.SupportedChainBitcoin,
+			Network:                  valueobjects.NetworkID("mainnet"),
+			Scheme:                   "create2",
+			AddressSourceRef:         "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			AddressReferencePrefix:   "ethereum-mainnet-create2",
+			RelativeAddressReference: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
-			Chain:                  valueobjects.SupportedChainEthereum,
-			Network:                valueobjects.NetworkID("mainnet"),
-			Scheme:                 "legacy",
-			AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-			AddressReferencePrefix: "ethereum-mainnet-create2",
+			Chain:                    valueobjects.SupportedChainEthereum,
+			Network:                  valueobjects.NetworkID("mainnet"),
+			Scheme:                   "legacy",
+			AddressSourceRef:         "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			AddressReferencePrefix:   "ethereum-mainnet-create2",
+			RelativeAddressReference: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
-			Chain:                  valueobjects.SupportedChainEthereum,
-			Network:                valueobjects.NetworkID("mainnet"),
-			Scheme:                 "create2",
-			AddressSourceRef:       "",
-			AddressReferencePrefix: "ethereum-mainnet-create2",
+			Chain:                    valueobjects.SupportedChainEthereum,
+			Network:                  valueobjects.NetworkID("mainnet"),
+			Scheme:                   "create2",
+			AddressSourceRef:         "",
+			AddressReferencePrefix:   "ethereum-mainnet-create2",
+			RelativeAddressReference: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
-			Chain:                  valueobjects.SupportedChainEthereum,
-			Network:                valueobjects.NetworkID("mainnet"),
-			Scheme:                 "create2",
-			AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-			AddressReferencePrefix: "",
+			Chain:                    valueobjects.SupportedChainEthereum,
+			Network:                  valueobjects.NetworkID("mainnet"),
+			Scheme:                   "create2",
+			AddressSourceRef:         "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			AddressReferencePrefix:   "",
+			RelativeAddressReference: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+		{
+			Chain:                    valueobjects.SupportedChainEthereum,
+			Network:                  valueobjects.NetworkID("mainnet"),
+			Scheme:                   "create2",
+			AddressSourceRef:         "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			AddressReferencePrefix:   "ethereum-mainnet-create2",
+			RelativeAddressReference: "",
 		},
 	}
 

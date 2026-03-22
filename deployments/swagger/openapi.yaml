@@ -138,6 +138,7 @@ paths:
   /v1/chains/{chain}/addresses:
     get:
       summary: Generate deterministic address from address policy
+      description: Public deterministic preview is available for Bitcoin address policies. Ethereum CREATE2 payment policies return 404 from this endpoint to avoid future address enumeration.
       operationId: deriveAddress
       tags:
         - Addresses
@@ -226,16 +227,6 @@ paths:
                     decimals: 8
                     index: 12
                     address: "1ExampleAddress123"
-                ethereum:
-                  value:
-                    addressPolicyId: ethereum-mainnet-create2
-                    chain: ethereum
-                    network: mainnet
-                    scheme: create2
-                    minorUnit: wei
-                    decimals: 18
-                    index: 12
-                    address: "0x1234567890abcdef1234567890abcdef12345678"
         "400":
           description: Invalid request.
           content:
@@ -253,7 +244,7 @@ paths:
                   value:
                     error: address policy is not supported
         "404":
-          description: Chain not supported.
+          description: Chain not supported or preview is unavailable for the selected address policy.
           content:
             application/json:
               schema:
@@ -263,7 +254,14 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: chain is not supported
+                    example: address preview is not supported for this address policy
+              examples:
+                unsupportedChain:
+                  value:
+                    error: chain is not supported
+                ethereumPreviewDisabled:
+                  value:
+                    error: address preview is not supported for this address policy
         "405":
           description: Method not allowed.
           content:

@@ -57,6 +57,8 @@ links:
   - No per-payment private key material may be generated or persisted.
   - Operator-signer credentials must stay operator-managed.
   - The collection path must prevent sweeping ETH to arbitrary destinations.
+  - Checked-in deployment metadata may remain public, but public metadata plus public API surfaces
+    must not make future Ethereum payment addresses enumerable by third parties.
 
 ## Problem statement
 
@@ -85,6 +87,10 @@ links:
 - G4:
   - Clean up the issuance model so Bitcoin HD derivation and Ethereum CREATE2 issuance can coexist
     without misusing Bitcoin-specific field names.
+- G5:
+  - Preserve merchant privacy by preventing third parties from enumerating future Ethereum payment
+    addresses from the combination of checked-in metadata, public policy ids, and public
+    index-based preview routes.
 
 ## Non-goals (out of scope)
 
@@ -97,6 +103,9 @@ links:
 - NG4:
   - Merchant payout settlement, treasury accounting, or fiat reconciliation beyond confirming and
     collecting ETH into the configured collector address.
+- NG5:
+  - Perfect on-chain anonymity after receiver deployment or final sweep into a known treasury
+    address.
 
 ## Assumptions
 
@@ -124,6 +133,10 @@ links:
     transactions, but that signer is not part of CREATE2 address derivation and may rotate without
     changing previously issued addresses as long as the same factory and receiver configuration stay
     active.
+- A8:
+  - Privacy scope in v1 means future payment addresses are not publicly enumerable from public
+    metadata plus sequential guesses or public preview routes; it does not guarantee that a fully
+    settled on-chain flow is impossible to analyze after receiver deployment and sweep.
 
 ## Open questions
 
@@ -158,3 +171,9 @@ links:
   - Target:
     - Re-running deploy/sweep for the same funded address does not duplicate collection and
       produces a deterministic already-complete or already-in-progress result.
+- Metric:
+  - Address-space privacy.
+  - Target:
+    - A third party with checked-in factory metadata, public API access, and sequential index
+      guesses still cannot derive future issued Ethereum payment addresses without internal
+      allocation-only salt material.

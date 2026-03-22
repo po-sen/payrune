@@ -120,6 +120,31 @@ type fakeChainAddressDeriver struct {
 	calls           int
 }
 
+type fakeEthereumCreate2SaltDeriver struct {
+	output    string
+	err       error
+	lastInput outport.DeriveEthereumCreate2SaltInput
+	calls     int
+}
+
+func newFakeEthereumCreate2SaltDeriver() *fakeEthereumCreate2SaltDeriver {
+	return &fakeEthereumCreate2SaltDeriver{
+		output: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	}
+}
+
+func (f *fakeEthereumCreate2SaltDeriver) DeriveAllocationSalt(
+	_ context.Context,
+	input outport.DeriveEthereumCreate2SaltInput,
+) (string, error) {
+	f.calls++
+	f.lastInput = input
+	if f.err != nil {
+		return "", f.err
+	}
+	return f.output, nil
+}
+
 func newFakeChainAddressDeriver() *fakeChainAddressDeriver {
 	return &fakeChainAddressDeriver{
 		supportedChains: map[valueobjects.SupportedChain]bool{

@@ -218,6 +218,25 @@ func TestChainAddressControllerGenerateSuccess(t *testing.T) {
 	}
 }
 
+func TestChainAddressControllerRejectsEthereumPreview(t *testing.T) {
+	controller := NewChainAddressController(
+		&fakeListAddressPoliciesUseCase{},
+		&fakeGenerateAddressUseCase{err: inport.ErrAddressPreviewNotSupported},
+		&fakeAllocatePaymentAddressUseCase{},
+		&fakeGetPaymentAddressStatusUseCase{},
+	)
+
+	mux := newChainAddressTestMux(controller)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/chains/ethereum/addresses?addressPolicyId=ethereum-mainnet-create2&index=0", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("unexpected status code: got %d", rr.Code)
+	}
+}
+
 func TestChainAddressControllerRejectMethod(t *testing.T) {
 	controller := NewChainAddressController(
 		&fakeListAddressPoliciesUseCase{},
@@ -327,6 +346,7 @@ func TestChainAddressControllerGenerateErrorMapping(t *testing.T) {
 	}{
 		{name: "policy not found", err: inport.ErrAddressPolicyNotFound, statusCode: http.StatusBadRequest},
 		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented},
+		{name: "preview not supported", err: inport.ErrAddressPreviewNotSupported, statusCode: http.StatusNotFound},
 		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound},
 		{name: "internal", err: errors.New("boom"), statusCode: http.StatusInternalServerError},
 	}

@@ -1,15 +1,12 @@
 package di
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/crypto/sha3"
 
 	httpadapter "payrune/internal/adapters/inbound/http"
 	httpcontroller "payrune/internal/adapters/inbound/http/controllers"
@@ -23,6 +20,7 @@ import (
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 	postgresdriver "payrune/internal/infrastructure/drivers/postgres"
+	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
 
 const (
@@ -36,40 +34,15 @@ const (
 	envEthereumSepoliaReceiptExpiresAfter   = "ETHEREUM_SEPOLIA_RECEIPT_EXPIRES_AFTER"
 	envEthereumMainnetCreate2Collector      = "ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS"
 	envEthereumSepoliaCreate2Collector      = "ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS"
+	envEthereumMainnetCreate2DerivationKey  = "ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY"
+	envEthereumSepoliaCreate2DerivationKey  = "ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY"
 	defaultBitcoinRequiredConfirmations     = int32(1)
 	defaultBitcoinReceiptExpiresAfter       = 7 * 24 * time.Hour
-	ethereumCreate2FixtureReceiverInitCode  = "0x60006000556001600055"
 )
 
 type Container struct {
 	APIHandler http.Handler
 	closeFn    func() error
-}
-
-type ethereumCreate2DeploymentMetadata struct {
-	FactoryAddress string
-	Receiver       ethereumCreate2ReceiverArtifact
-}
-
-type ethereumCreate2ReceiverArtifact struct {
-	InitCodeHex string
-}
-
-var ethereumCreate2DeploymentMetadataByNetwork = map[valueobjects.NetworkID]ethereumCreate2DeploymentMetadata{
-	// T-003 will replace these deterministic fixtures with checked-in deployment
-	// metadata and receiver artifacts from the actual CREATE2 contracts.
-	valueobjects.NetworkID("mainnet"): {
-		FactoryAddress: "0x1111111111111111111111111111111111111111",
-		Receiver: ethereumCreate2ReceiverArtifact{
-			InitCodeHex: ethereumCreate2FixtureReceiverInitCode,
-		},
-	},
-	valueobjects.NetworkID("sepolia"): {
-		FactoryAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		Receiver: ethereumCreate2ReceiverArtifact{
-			InitCodeHex: ethereumCreate2FixtureReceiverInitCode,
-		},
-	},
 }
 
 func NewContainer() (*Container, error) {
@@ -106,7 +79,15 @@ func NewContainer() (*Container, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	addressPolicyReader := policyadapter.NewAddressPolicyReader(buildAddressPolicyConfigsFromEnv())
+	ethereumCreate2SaltDeriver := ethereum.NewCreate2SaltDeriver(
+		buildEthereumCreate2DerivationKeys(
+			os.Getenv(envEthereumMainnetCreate2DerivationKey),
+			os.Getenv(envEthereumSepoliaCreate2DerivationKey),
+		),
+	)
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(
+		buildAddressPolicyConfigsFromEnv(ethereumCreate2SaltDeriver),
+	)
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	generateAddressUseCase := usecases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
@@ -117,6 +98,7 @@ func NewContainer() (*Container, error) {
 	allocatePaymentAddressUseCase := usecases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
 		chainAddressDeriver,
+		ethereumCreate2SaltDeriver,
 		addressPolicyReader,
 		allocationIssuancePolicy,
 		clock,
@@ -280,7 +262,9 @@ func parsePositiveDurationEnvWithDefault(key string, fallback time.Duration) (ti
 	return parsed, nil
 }
 
-func buildAddressPolicyConfigsFromEnv() []policyadapter.AddressPolicyConfig {
+func buildAddressPolicyConfigsFromEnv(
+	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
+) []policyadapter.AddressPolicyConfig {
 	return []policyadapter.AddressPolicyConfig{
 		newBitcoinAddressPolicyConfig(
 			"bitcoin-mainnet-legacy",
@@ -341,10 +325,12 @@ func buildAddressPolicyConfigsFromEnv() []policyadapter.AddressPolicyConfig {
 		newEthereumCreate2PolicyConfig(
 			valueobjects.NetworkID("mainnet"),
 			os.Getenv(envEthereumMainnetCreate2Collector),
+			ethereumCreate2SaltDeriver,
 		),
 		newEthereumCreate2PolicyConfig(
 			valueobjects.NetworkID("sepolia"),
 			os.Getenv(envEthereumSepoliaCreate2Collector),
+			ethereumCreate2SaltDeriver,
 		),
 	}
 }
@@ -371,7 +357,13 @@ func newBitcoinAddressPolicyConfig(
 func newEthereumCreate2PolicyConfig(
 	network valueobjects.NetworkID,
 	collectorAddress string,
+	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
 ) policyadapter.AddressPolicyConfig {
+	addressSourceRef := ""
+	if ethereumCreate2SaltDeriver != nil && ethereumCreate2SaltDeriver.HasNetwork(network) {
+		addressSourceRef = ethereumcreate2assets.BuildAddressSourceRef(network, collectorAddress)
+	}
+
 	return policyadapter.AddressPolicyConfig{
 		AddressPolicyID:        fmt.Sprintf("ethereum-%s-create2", network),
 		Chain:                  valueobjects.SupportedChainEthereum,
@@ -379,67 +371,19 @@ func newEthereumCreate2PolicyConfig(
 		Scheme:                 "create2",
 		MinorUnit:              "wei",
 		Decimals:               18,
-		AddressSourceRef:       buildEthereumCreate2AddressSourceRef(network, collectorAddress),
+		AddressSourceRef:       addressSourceRef,
 		AddressReferencePrefix: fmt.Sprintf("ethereum-%s-create2", network),
 	}
 }
 
-func buildEthereumCreate2AddressSourceRef(
-	network valueobjects.NetworkID,
-	collectorAddress string,
-) string {
-	metadata, ok := ethereumCreate2DeploymentMetadataByNetwork[network]
-	if !ok {
-		return ""
+func buildEthereumCreate2DerivationKeys(
+	mainnetKey string,
+	sepoliaKey string,
+) map[valueobjects.NetworkID]string {
+	return map[valueobjects.NetworkID]string{
+		valueobjects.NetworkID("mainnet"): strings.TrimSpace(mainnetKey),
+		valueobjects.NetworkID("sepolia"): strings.TrimSpace(sepoliaKey),
 	}
-	return buildEthereumCreate2AddressSourceRefFromMetadata(metadata, collectorAddress)
-}
-
-func buildEthereumCreate2AddressSourceRefFromMetadata(
-	metadata ethereumCreate2DeploymentMetadata,
-	collectorAddress string,
-) string {
-	collectorAddress = strings.TrimSpace(collectorAddress)
-	if collectorAddress == "" {
-		return ""
-	}
-
-	initCodeHash, ok := metadata.Receiver.InitCodeHashHex()
-	if !ok {
-		return ""
-	}
-
-	// Factory metadata and collector define the issuance address space here.
-	// The operator signer that will later submit deploy/sweep transactions is
-	// a separate runtime concern and must not affect prediction inputs.
-	sourceRef, err := ethereum.BuildCreate2AddressSourceRef(
-		strings.TrimSpace(metadata.FactoryAddress),
-		collectorAddress,
-		initCodeHash,
-	)
-	if err != nil {
-		return ""
-	}
-	return sourceRef
-}
-
-func (a ethereumCreate2ReceiverArtifact) InitCodeHashHex() (string, bool) {
-	initCodeHex := strings.TrimSpace(a.InitCodeHex)
-	if initCodeHex == "" {
-		return "", false
-	}
-	if !strings.HasPrefix(initCodeHex, "0x") && !strings.HasPrefix(initCodeHex, "0X") {
-		return "", false
-	}
-
-	initCode, err := hex.DecodeString(initCodeHex[2:])
-	if err != nil || len(initCode) == 0 {
-		return "", false
-	}
-
-	hasher := sha3.NewLegacyKeccak256()
-	_, _ = hasher.Write(initCode)
-	return "0x" + hex.EncodeToString(hasher.Sum(nil)), true
 }
 
 func newPaymentReceiptTermsScope(

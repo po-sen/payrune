@@ -105,12 +105,13 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	}
 
 	output, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:                  valueobjects.SupportedChain(" BitCoin "),
-		Network:                valueobjects.NetworkID(" MainNet "),
-		Scheme:                 " nativeSegwit ",
-		AddressSourceRef:       " xpub-main ",
-		AddressReferencePrefix: " m/84'/0'/0' ",
-		Index:                  12,
+		Chain:                    valueobjects.SupportedChain(" BitCoin "),
+		Network:                  valueobjects.NetworkID(" MainNet "),
+		Scheme:                   " nativeSegwit ",
+		AddressSourceRef:         " xpub-main ",
+		AddressReferencePrefix:   " m/84'/0'/0' ",
+		RelativeAddressReference: " 0/12 ",
+		Index:                    12,
 	})
 	if err != nil {
 		t.Fatalf("DeriveAddress returned error: %v", err)
@@ -138,6 +139,9 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	}
 	if bitcoin.lastInput.AddressReferencePrefix != "m/84'/0'/0'" {
 		t.Fatalf("unexpected normalized address reference prefix: got %q", bitcoin.lastInput.AddressReferencePrefix)
+	}
+	if bitcoin.lastInput.RelativeAddressReference != "0/12" {
+		t.Fatalf("unexpected normalized relative address reference: got %q", bitcoin.lastInput.RelativeAddressReference)
 	}
 }
 

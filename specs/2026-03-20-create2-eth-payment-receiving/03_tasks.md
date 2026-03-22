@@ -81,20 +81,24 @@ links:
        of env wiring.
      - Keep local issuance testable before T-003 by using checked-in deterministic fixture metadata
        instead of operator-supplied deployment env vars.
-     - Implement an Ethereum CREATE2 deriver adapter and wire it through the existing
-       allocate-address and generate-address flow.
+     - Implement an Ethereum CREATE2 deriver adapter and wire it through allocation flow using
+       non-public per-allocation salt material derived from runtime-managed secret input rather
+       than a publicly enumerable index-only salt rule.
+     - Keep `GET /v1/chains/{chain}/addresses` available for Bitcoin, but reject or disable
+       Ethereum CREATE2 policies so the public route cannot enumerate future payment addresses.
      - Add or update controller and use-case tests so Ethereum policy listing and address issuance
        work through the existing chain-scoped HTTP routes.
    - Output:
      - `payrune` can issue deterministic ETH payment addresses for configured `mainnet` and
        `sepolia` policies through the current API contract.
-   - Linked requirements: FR-001, FR-002, FR-005, NFR-001, NFR-003, NFR-006
+   - Linked requirements: FR-001, FR-002, FR-005, FR-008, NFR-001, NFR-003, NFR-006
    - Validation:
      - [ ] How to verify (manual steps or command): run
            `go test ./internal/application/usecases ./internal/adapters/inbound/http/controllers ./internal/adapters/outbound/blockchain`
            plus CREATE2 prediction vector tests.
      - [ ] Expected result: Ethereum policy list and allocation tests pass, and the same input
-           produces the same predicted ETH address in Go and contract vectors.
+           produces the same predicted ETH address in Go and contract vectors without leaving a
+           public index-based enumeration path enabled for Ethereum.
      - [ ] Logs/metrics to check (if applicable): none
 3. T-003 - Add factory and receiver contract artifacts plus local Ethereum tooling
    - Scope:
@@ -104,18 +108,20 @@ links:
        without operator-supplied env vars.
      - Define the contract caller model explicitly so factory identity stays fixed per address
        space while operator-signer credentials remain rotatable runtime configuration.
-     - Add helper automation under `scripts/` for local deployment, fixture setup, and prediction
-       verification.
-     - Add or update local dev chain support so the ETH flow can be exercised end-to-end in
-       development.
+     - Update prediction tooling to work from explicit stored salt material or operator-supplied
+       verification inputs, not from a public sequential index that would reveal future addresses.
+     - Add Go CLI tooling under `cmd/` for contract build, prediction, and explicit chain
+       verification, with only thin wrappers left under `scripts/`.
+     - Keep verification network-driven so CREATE2 tooling can exercise a configured Ethereum RPC
+       endpoint without repo-managed devnet infrastructure.
    - Output:
      - Local tooling can deploy the factory, compute expected addresses, and fund predicted payment
-       addresses on a deterministic dev chain, and the resulting metadata clearly separates fixed
-       factory inputs from rotatable operator-signer inputs.
-   - Linked requirements: FR-002, FR-006, FR-007, NFR-003
+       addresses against a configured verification chain, and the resulting metadata clearly
+       separates fixed factory inputs from rotatable operator-signer inputs.
+   - Linked requirements: FR-002, FR-006, FR-007, FR-008, NFR-003
    - Validation:
-     - [ ] How to verify (manual steps or command): run the local contract deploy and prediction
-           verification script against the configured dev chain.
+     - [ ] How to verify (manual steps or command): run the contract deploy and prediction
+           verification script against the configured Ethereum RPC network.
      - [ ] Expected result: deployed factory metadata matches the Go-side predictor and one funded
            predicted address can later be deployed at the expected address.
      - [ ] Logs/metrics to check (if applicable): capture factory address, init code hash, and
@@ -132,12 +138,12 @@ links:
    - Validation:
      - [ ] How to verify (manual steps or command): run
            `go test ./internal/application/usecases ./internal/adapters/outbound/blockchain`
-           and a local dev-chain smoke that funds one issued ETH payment address, then runs one
-           poller cycle.
+           and a verification-network smoke that funds one issued ETH payment address, then runs
+           one poller cycle.
      - [ ] Expected result: the Ethereum receipt row moves from `watching` to the expected paid
            state with correct ETH totals in `wei`.
      - [ ] Logs/metrics to check (if applicable): poller summary logs include Ethereum chain,
-           address, scan range, and observed totals
+           address, scan range, and observed totals without raw salt leakage
 5. T-005 - Implement deploy-and-sweep technical state and worker
    - Scope:
      - Add explicit Ethereum CREATE2 technical persistence for deployment and sweep progress.
@@ -149,7 +155,8 @@ links:
        address without duplicate collection on retry.
    - Linked requirements: FR-003, FR-006, FR-007, NFR-002, NFR-003, NFR-005
    - Validation:
-     - [ ] How to verify (manual steps or command): execute a local end-to-end smoke:
+     - [ ] How to verify (manual steps or command): execute an end-to-end smoke on the configured
+           verification network:
            allocate ETH address -> fund predicted address -> poll payment -> run sweeper twice.
      - [ ] Expected result: first sweep deploys and collects ETH to the collector; second sweep is
            a deterministic no-op or already-complete outcome; persisted technical state includes tx
@@ -159,12 +166,14 @@ links:
 6. T-006 - Update docs, contracts, and verification evidence for rollout
    - Scope:
      - Update OpenAPI or API docs, operator env examples, and Ethereum runtime documentation.
+     - Document the privacy boundary explicitly: public Ethereum preview-by-index is disabled, and
+       v1 privacy covers future-address enumeration resistance rather than post-sweep anonymity.
      - Capture spec, migration, and local smoke verification evidence before implementation is
        marked complete.
    - Output:
      - Documentation and validation evidence reflect the final ETH CREATE2 flow and rollout
        constraints.
-   - Linked requirements: FR-005, FR-006, NFR-001, NFR-004, NFR-006
+   - Linked requirements: FR-005, FR-006, FR-008, NFR-001, NFR-004, NFR-006
    - Validation:
      - [ ] How to verify (manual steps or command): run
            `SPEC_DIR="specs/2026-03-20-create2-eth-payment-receiving" bash scripts/spec-lint.sh`,
@@ -182,6 +191,7 @@ links:
 - FR-005 -> T-002, T-004, T-006
 - FR-006 -> T-001, T-003, T-004, T-005, T-006
 - FR-007 -> T-001, T-003, T-005
+- FR-008 -> T-002, T-003, T-006
 - NFR-001 -> T-002, T-006
 - NFR-002 -> T-004, T-005
 - NFR-003 -> T-002, T-003, T-005

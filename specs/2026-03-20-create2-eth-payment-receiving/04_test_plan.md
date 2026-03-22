@@ -53,13 +53,14 @@ links:
   - Expected:
     - Predicted address matches the known vector exactly for every case.
 - TC-003:
-  - Linked requirements: FR-001, FR-002, FR-005, NFR-001
+  - Linked requirements: FR-001, FR-002, FR-005, FR-008, NFR-001
   - Steps:
     - Unit-test `AllocatePaymentAddressUseCase` and `GenerateAddressUseCase` with an Ethereum
       CREATE2 policy and a deterministic fake or real predictor.
   - Expected:
-    - The use cases return Ethereum-specific metadata and persist the correct source and reference
-      values.
+    - Allocation persists the correct Ethereum-specific internal source and reference values, while
+      public preview-by-index is unavailable or rejected for Ethereum CREATE2 policies, and one
+      issued address remains reconstructible from allocation metadata plus runtime secret input.
 - TC-004:
   - Linked requirements: FR-004, NFR-002, NFR-005
   - Steps:
@@ -83,6 +84,14 @@ links:
   - Expected:
     - Predicted payment addresses remain unchanged, and only the transaction sender for
       deploy-and-sweep changes.
+- TC-007:
+  - Linked requirements: FR-001, FR-002, FR-008, NFR-003
+  - Steps:
+    - Attempt to derive or preview Ethereum payment addresses using only public policy metadata
+      plus sequential `index` guesses through the public address-preview route.
+  - Expected:
+    - The public route rejects Ethereum CREATE2 policies, and no public response reveals raw salt,
+      full source-ref, or enough data to enumerate future Ethereum payment addresses.
 
 ### Integration
 
@@ -91,34 +100,46 @@ links:
   - Steps:
     - Apply the migration set to a disposable database, verify the neutralized allocation schema,
       ensure current Bitcoin persistence adapters still read and write correctly, and validate that
-      compose/cloudflare deployment examples expose only
+      compose/cloudflare deployment examples expose
       `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS` and
-      `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS` for runtime CREATE2 config.
+      `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS` plus per-network
+      `ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY` and
+      `ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY` runtime config.
   - Expected:
     - Migration succeeds, schema is in the expected shape, and Bitcoin adapter tests remain green.
 - TC-102:
-  - Linked requirements: FR-001, FR-002, FR-006, FR-007
+  - Linked requirements: FR-001, FR-002, FR-006, FR-007, FR-008
   - Steps:
-    - Deploy the CREATE2 factory to a deterministic local dev chain, compute one predicted address
-      in Go, then deploy the receiver with the same inputs.
+    - Deploy the CREATE2 factory to a configured Ethereum verification network, compute one
+      predicted address in Go from explicit stored salt inputs, then deploy the receiver with the
+      same inputs.
   - Expected:
     - The deployed receiver address matches the predicted payment address exactly.
 - TC-103:
   - Linked requirements: FR-004, FR-005, NFR-002, NFR-005
   - Steps:
-    - Allocate one Ethereum payment address against a local database, fund it on the dev chain,
-      then run one or more poller cycles.
+    - Allocate one Ethereum payment address against a local database, fund it on the configured
+      Ethereum verification network, then run one or more poller cycles.
   - Expected:
     - The payment receipt row updates to the expected status and the payment-status API returns the
       new totals.
 - TC-104:
-  - Linked requirements: FR-003, FR-006, FR-007, NFR-002, NFR-003
+  - Linked requirements: FR-003, FR-006, FR-007, FR-008, NFR-002, NFR-003
   - Steps:
     - Run the sweeper against a funded, not-yet-deployed ETH payment address, then rerun it,
       including one retry after rotating the operator signer.
   - Expected:
     - The first run deploys and sweeps funds to the collector; the second run does not duplicate
       collection and reports deterministic persisted state without changing the predicted address.
+- TC-105:
+  - Linked requirements: FR-002, FR-008, NFR-003
+  - Steps:
+    - Issue multiple Ethereum payment addresses under one policy, then verify that checked-in
+      factory metadata plus public API outputs remain insufficient to derive the next issued
+      address without access to internal allocation salt material.
+  - Expected:
+    - Future Ethereum payment addresses are not reproducible from public metadata and sequential
+      guesses alone.
 
 ### E2E (if applicable)
 
@@ -177,4 +198,5 @@ links:
 - Security:
   - Review that no per-payment private key material is stored, receiver sweep target is fixed, and
     operator-signer secrets are consumed only through runtime config without becoming part of
-    address derivation.
+    address derivation. Also verify default logs and public APIs do not expose raw CREATE2 salts or
+    full source references.

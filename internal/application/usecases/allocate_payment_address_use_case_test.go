@@ -69,10 +69,16 @@ func newAllocatePaymentAddressUseCaseForTest(
 	policyReader outport.AddressPolicyReader,
 	issuancePolicy policies.PaymentAddressAllocationIssuancePolicy,
 	clock outport.Clock,
+	saltDeriver ...outport.EthereumCreate2SaltDeriver,
 ) inport.AllocatePaymentAddressUseCase {
+	var resolvedSaltDeriver outport.EthereumCreate2SaltDeriver
+	if len(saltDeriver) > 0 {
+		resolvedSaltDeriver = saltDeriver[0]
+	}
 	return NewAllocatePaymentAddressUseCase(
 		txManager,
 		deriver,
+		resolvedSaltDeriver,
 		policyReader,
 		issuancePolicy,
 		clock,
@@ -247,6 +253,7 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	deriver := newFakeChainAddressDeriver()
 	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
+	saltDeriver := newFakeEthereumCreate2SaltDeriver()
 	deriver.output = newAllocateDeriveOutput(
 		"0x1234567890abcdef1234567890abcdef12345678",
 		"ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -280,6 +287,7 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 			nil,
 		),
 		newAllocatePaymentAddressClock(),
+		saltDeriver,
 	)
 
 	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
@@ -306,6 +314,21 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	if deriver.lastInput.AddressReferencePrefix != "ethereum-mainnet-create2" {
 		t.Fatalf("unexpected address reference prefix passed to deriver: got %q", deriver.lastInput.AddressReferencePrefix)
 	}
+	if deriver.lastInput.RelativeAddressReference != "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Fatalf(
+			"unexpected relative address reference passed to deriver: got %q",
+			deriver.lastInput.RelativeAddressReference,
+		)
+	}
+	if saltDeriver.calls != 1 {
+		t.Fatalf("expected ethereum salt deriver call count 1, got %d", saltDeriver.calls)
+	}
+	if saltDeriver.lastInput.PaymentAddressID != 145 {
+		t.Fatalf("unexpected payment address id passed to salt deriver: got %d", saltDeriver.lastInput.PaymentAddressID)
+	}
+	if saltDeriver.lastInput.DerivationIndex != 11 {
+		t.Fatalf("unexpected derivation index passed to salt deriver: got %d", saltDeriver.lastInput.DerivationIndex)
+	}
 	trackingStore, ok := txManager.receiptTrackingStore.(*fakeAllocatePaymentReceiptTrackingStore)
 	if !ok {
 		t.Fatal("expected fake receipt tracking store")
@@ -321,6 +344,66 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	}
 	if response.Decimals != 18 {
 		t.Fatalf("unexpected response decimals: got %d", response.Decimals)
+	}
+}
+
+func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenEthereumSaltDerivationFails(t *testing.T) {
+	expectedErr := errors.New("salt derivation failed")
+	allocator := &fakePaymentAddressAllocationStore{}
+	txManager := newFakeUnitOfWork(allocator)
+	deriver := newFakeChainAddressDeriver()
+	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
+	saltDeriver := newFakeEthereumCreate2SaltDeriver()
+	saltDeriver.err = expectedErr
+	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newEthereumCreate2IssuancePolicy(
+			"ethereum-mainnet-create2",
+			valueobjects.NetworkID("mainnet"),
+			"create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+			"ethereum-mainnet-create2",
+		),
+	})
+	allocator.freshReservation = entities.PaymentAddressAllocation{
+		PaymentAddressID:    246,
+		AddressPolicyID:     "ethereum-mainnet-create2",
+		DerivationIndex:     12,
+		ExpectedAmountMinor: 15000000000000000,
+		CustomerReference:   "order-eth-salt-error",
+	}
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		deriver,
+		catalog,
+		policies.NewPaymentAddressAllocationIssuancePolicy(
+			map[policies.PaymentReceiptTermsScope]int32{
+				{
+					Chain:   valueobjects.SupportedChainEthereum,
+					Network: valueobjects.NetworkID("mainnet"),
+				}: 12,
+			},
+			nil,
+		),
+		newAllocatePaymentAddressClock(),
+		saltDeriver,
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               valueobjects.SupportedChainEthereum,
+		AddressPolicyID:     "ethereum-mainnet-create2",
+		ExpectedAmountMinor: 15000000000000000,
+		CustomerReference:   "order-eth-salt-error",
+	})
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected salt derivation error, got %v", err)
+	}
+	if deriver.calls != 0 {
+		t.Fatalf("expected deriver not called when salt derivation fails, got %d calls", deriver.calls)
+	}
+	if allocator.markFailedCalls != 1 {
+		t.Fatalf("expected derivation failure persisted once, got %d", allocator.markFailedCalls)
+	}
+	if allocator.lastFailedInput.FailureReason != expectedErr.Error() {
+		t.Fatalf("unexpected persisted failure reason: got %q", allocator.lastFailedInput.FailureReason)
 	}
 }
 

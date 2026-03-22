@@ -1,15 +1,13 @@
 package di
 
 import (
-	"encoding/hex"
 	"testing"
 	"time"
-
-	"golang.org/x/crypto/sha3"
 
 	"payrune/internal/adapters/outbound/ethereum"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
+	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
 
 func TestLoadReceiptRequiredConfirmationsFromEnvDefaults(t *testing.T) {
@@ -208,67 +206,18 @@ func TestLoadReceiptExpiresAfterByScopeFromEnvNonPositive(t *testing.T) {
 	}
 }
 
-func TestBuildEthereumCreate2AddressSourceRefFromMetadataRequiresCompleteInputs(t *testing.T) {
-	collectorAddress := "0x2222222222222222222222222222222222222222"
-
-	if got := buildEthereumCreate2AddressSourceRefFromMetadata(
-		ethereumCreate2DeploymentMetadata{},
-		collectorAddress,
-	); got != "" {
-		t.Fatalf("expected empty source ref for missing metadata, got %q", got)
-	}
-
-	if got := buildEthereumCreate2AddressSourceRefFromMetadata(
-		ethereumCreate2DeploymentMetadata{
-			FactoryAddress: "0x1111111111111111111111111111111111111111",
-		},
-		collectorAddress,
-	); got != "" {
-		t.Fatalf("expected empty source ref for missing receiver artifact, got %q", got)
-	}
-
-	if got := buildEthereumCreate2AddressSourceRefFromMetadata(
-		ethereumCreate2DeploymentMetadata{
-			FactoryAddress: "0x1111111111111111111111111111111111111111",
-			Receiver: ethereumCreate2ReceiverArtifact{
-				InitCodeHex: ethereumCreate2FixtureReceiverInitCode,
-			},
-		},
-		"",
-	); got != "" {
-		t.Fatalf("expected empty source ref for missing collector, got %q", got)
-	}
-}
-
-func TestEthereumCreate2ReceiverArtifactInitCodeHashHex(t *testing.T) {
-	artifact := ethereumCreate2ReceiverArtifact{
-		InitCodeHex: ethereumCreate2FixtureReceiverInitCode,
-	}
-
-	got, ok := artifact.InitCodeHashHex()
-	if !ok {
-		t.Fatal("expected init code hash available")
-	}
-
-	initCode, err := hex.DecodeString(ethereumCreate2FixtureReceiverInitCode[2:])
-	if err != nil {
-		t.Fatalf("DecodeString returned error: %v", err)
-	}
-	hasher := sha3.NewLegacyKeccak256()
-	_, _ = hasher.Write(initCode)
-	expected := "0x" + hex.EncodeToString(hasher.Sum(nil))
-
-	if got != expected {
-		t.Fatalf("unexpected init code hash: got %q want %q", got, expected)
-	}
-}
-
 func TestNewEthereumCreate2PolicyConfigBuildsSourceRefFromFixtureMetadata(t *testing.T) {
 	network := valueobjects.NetworkID("sepolia")
 	collectorAddress := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	metadata := ethereumCreate2DeploymentMetadataByNetwork[network]
+	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
+		network: "0x1111111111111111111111111111111111111111111111111111111111111111",
+	})
+	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(network)
+	if !ok {
+		t.Fatalf("expected embedded metadata for %s", network)
+	}
 
-	initCodeHash, ok := metadata.Receiver.InitCodeHashHex()
+	initCodeHash, ok := metadata.Receiver.InitCodeHashHex(collectorAddress)
 	if !ok {
 		t.Fatal("expected init code hash available")
 	}
@@ -281,7 +230,7 @@ func TestNewEthereumCreate2PolicyConfigBuildsSourceRefFromFixtureMetadata(t *tes
 		t.Fatalf("BuildCreate2AddressSourceRef returned error: %v", err)
 	}
 
-	config := newEthereumCreate2PolicyConfig(network, collectorAddress)
+	config := newEthereumCreate2PolicyConfig(network, collectorAddress, saltDeriver)
 
 	if config.AddressPolicyID != "ethereum-sepolia-create2" {
 		t.Fatalf("unexpected address policy id: got %q", config.AddressPolicyID)
@@ -295,8 +244,18 @@ func TestNewEthereumCreate2PolicyConfigBuildsSourceRefFromFixtureMetadata(t *tes
 }
 
 func TestNewEthereumCreate2PolicyConfigRequiresCollectorAddress(t *testing.T) {
-	config := newEthereumCreate2PolicyConfig(valueobjects.NetworkID("mainnet"), "")
+	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
+		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
+	})
+	config := newEthereumCreate2PolicyConfig(valueobjects.NetworkID("mainnet"), "", saltDeriver)
 	if config.AddressSourceRef != "" {
 		t.Fatalf("expected disabled config when collector is missing, got %q", config.AddressSourceRef)
+	}
+}
+
+func TestNewEthereumCreate2PolicyConfigRequiresSaltSecret(t *testing.T) {
+	config := newEthereumCreate2PolicyConfig(valueobjects.NetworkID("mainnet"), "0x2222222222222222222222222222222222222222", ethereum.NewCreate2SaltDeriver(nil))
+	if config.AddressSourceRef != "" {
+		t.Fatalf("expected disabled config when derivation key is missing, got %q", config.AddressSourceRef)
 	}
 }

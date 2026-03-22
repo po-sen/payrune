@@ -7,6 +7,7 @@ import (
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type generateAddressUseCase struct {
@@ -47,6 +48,10 @@ func (uc *generateAddressUseCase) Execute(
 	}
 	if !policy.IsEnabled() {
 		return dto.GenerateAddressResponse{}, inport.ErrAddressPolicyNotEnabled
+	}
+	if policy.AddressPolicy.Chain == valueobjects.SupportedChainEthereum &&
+		policy.AddressPolicy.Scheme == "create2" {
+		return dto.GenerateAddressResponse{}, inport.ErrAddressPreviewNotSupported
 	}
 
 	output, err := uc.deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{

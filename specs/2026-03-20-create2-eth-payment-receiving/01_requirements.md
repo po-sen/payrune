@@ -74,6 +74,9 @@ links:
   - [ ] `POST /v1/chains/ethereum/payment-addresses` allocates one ETH payment address using the
         existing request body shape and returns the existing success payload shape with Ethereum
         values.
+  - [ ] Public index-based address preview via `GET /v1/chains/ethereum/addresses` is rejected,
+        disabled, or otherwise unavailable for privacy-preserving Ethereum CREATE2 policies, while
+        the existing Bitcoin behavior remains unchanged.
   - [ ] Disabled or incomplete Ethereum policy configuration remains discoverable as disabled and
         is not issuable for either network.
 - Notes:
@@ -84,18 +87,25 @@ links:
 - The system must derive the same ETH payment address off-chain that the on-chain factory will
   produce later.
 - Acceptance criteria:
-  - [ ] One deterministic slot selection key yields one deterministic CREATE2 payment address.
+  - [ ] One allocation-specific CREATE2 salt or equivalent internal-only reference yields one
+        deterministic CREATE2 payment address.
   - [ ] Go-side prediction matches Solidity or ABI-backed `computeAddress` vectors for the same
-        factory, salt, collector, and init code.
+        factory, salt, collector behavior, and init code.
   - [ ] Changing only the operator signer does not change the predicted payment address for an
         already-configured factory, collector, and receiver artifact.
+  - [ ] Ethereum CREATE2 salt derivation must not rely only on public metadata plus a sequential
+        public index; the derivation input must include a runtime-managed non-public secret plus
+        stable allocation identity so one issued address can be reconstructed without persisting a
+        random one-off salt blob as the sole source of truth.
   - [ ] Allocation persistence stores a chain-agnostic `address_source_ref` equivalent and
         `address_reference` equivalent, rather than overloading Bitcoin-specific naming for
         Ethereum-issued rows.
   - [ ] The persisted metadata is sufficient to reconcile one issued ETH address, verify the
         expected CREATE2 preimage inputs, and retry deployment later.
 - Notes:
-  - The exact salt formula is a design decision, but it must stay stable and testable.
+  - The exact salt strategy is a design decision, but it must stay stable for one allocation,
+    testable, recoverable from runtime-managed secret material plus allocation metadata, and not
+    make future addresses enumerable from public inputs alone.
 
 ### FR-003 - Deploy and sweep funded CREATE2 payment addresses idempotently
 
@@ -168,9 +178,11 @@ links:
   - [ ] Deployment-facing config examples expose separate `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS`
         and `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS` settings instead of hand-entered env vars
         for factory addresses or init code hashes.
-  - [ ] Local development can run the ETH payment flow against a deterministic dev chain and local
-        contract deployment tooling.
-  - [ ] Helper automation required for contract deployment or fixture setup lives under `scripts/`.
+  - [ ] Contract verification tooling can run against an explicitly configured Ethereum RPC
+        network using operator-provided signer credentials, without requiring repo-managed devnet
+        infrastructure.
+  - [ ] Important CREATE2 contract tooling is maintained as Go CLI entry points under `cmd/`,
+        while any helper shell wrappers used for setup or orchestration live under `scripts/`.
 - Notes:
   - Configuration should be explicit and network-scoped rather than hidden behind indirect prefix
     logic.
@@ -192,6 +204,28 @@ links:
 - Notes:
   - The goal is operational safety, not a generic wallet contract platform.
 
+### FR-008 - Preserve privacy of future Ethereum payment-address issuance
+
+- Description:
+  - Ethereum CREATE2 issuance must avoid exposing enough public information for third parties to
+    precompute or enumerate future payment addresses for one active address space. Checked-in
+    factory metadata may remain public; the privacy requirement applies to the full combination of
+    public metadata, public API behavior, and salt derivation rules.
+- Acceptance criteria:
+  - [ ] Checked-in factory metadata plus public API inputs are insufficient to derive future
+        payment addresses without internal allocation-only salt material.
+  - [ ] Public customer-facing APIs, webhooks, and OpenAPI examples do not expose raw CREATE2
+        salts, full `address_source_ref`, or collector-derived preimage inputs.
+  - [ ] Default operational logs avoid emitting raw CREATE2 salts or full source references; use
+        `paymentAddressId`, `chain`, `network`, and payment address instead.
+  - [ ] The design explicitly documents that v1 privacy protects against address-space enumeration
+        before settlement, not guaranteed anonymity after final on-chain collection to a known
+        treasury address.
+- Notes:
+  - Privacy here is about preventing easy precomputation and mass linkage of future addresses, not
+    about hiding publicly visible blockchain transactions after settlement. Public metadata alone is
+    acceptable if it is not sufficient to enumerate future addresses.
+
 ## Non-functional requirements
 
 - Performance (NFR-001):
@@ -204,14 +238,17 @@ links:
     collection.
 - Security/Privacy (NFR-003):
   - No per-payment secret keys may be persisted. Signer credentials must remain runtime-managed
-    operator secrets only.
+    operator secrets only. For privacy-preserving Ethereum issuance, each allocation must use at
+    least 128 bits of non-public salt entropy or an equivalent non-public derivation secret so
+    future addresses are not enumerable from public inputs alone.
 - Compliance (NFR-004):
   - No additional compliance controls are introduced in this iteration beyond existing payment
     auditability and deterministic state persistence.
 - Observability (NFR-005):
   - Logs and persisted technical state must let an operator diagnose prediction mismatch,
     observation failure, deployment failure, and sweep failure using `paymentAddressId`, chain,
-    network, address, and tx hash context.
+    network, address, and tx hash context, without requiring raw CREATE2 salt or full source-ref
+    material in default logs.
 - Maintainability (NFR-006):
   - EVM-specific RPC, ABI, and contract details must stay confined to adapters or infrastructure,
     and the existing Bitcoin tests and flows must remain green after the Ethereum changes.
@@ -219,7 +256,7 @@ links:
 ## Dependencies and integrations
 
 - External systems:
-  - Ethereum JSON-RPC provider or local dev chain.
+  - Ethereum JSON-RPC provider.
   - CREATE2 factory and receiver contract artifacts plus deployment flow.
   - Operator-managed signer credential source for deployment and sweep transactions.
 - Internal services:

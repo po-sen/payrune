@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/sha3"
@@ -98,14 +97,16 @@ func (g *ChainAddressDeriver) DeriveAddress(
 		return outport.DeriveChainAddressOutput{}, err
 	}
 
-	salt := deriveCreate2Salt(addressReferencePrefix, input.AddressSourceRef, input.Index)
+	normalizedSaltHex, salt, err := normalizeCreate2Salt(input.RelativeAddressReference)
+	if err != nil {
+		return outport.DeriveChainAddressOutput{}, err
+	}
 	predictedAddress := predictCreate2Address(factoryAddress, salt, initCodeHash)
-	saltHex := "0x" + hex.EncodeToString(salt[:])
 
 	return outport.DeriveChainAddressOutput{
 		Address:                  predictedAddress,
-		RelativeAddressReference: saltHex,
-		AddressReference:         addressReferencePrefix + "/" + saltHex,
+		RelativeAddressReference: normalizedSaltHex,
+		AddressReference:         addressReferencePrefix + "/" + normalizedSaltHex,
 	}, nil
 }
 
@@ -161,12 +162,15 @@ func parseCreate2SourceRef(raw string) (create2SourceRef, error) {
 	}, nil
 }
 
-func deriveCreate2Salt(prefix string, sourceRef string, index uint32) [32]byte {
-	// The deterministic slot is derived from the address space plus the
-	// allocated index, not from the runtime caller that will later pay gas.
-	return keccak256Hash([]byte(
-		prefix + "\n" + strings.TrimSpace(sourceRef) + "\n" + strconv.FormatUint(uint64(index), 10),
-	))
+func normalizeCreate2Salt(raw string) (string, [32]byte, error) {
+	normalizedSalt, saltBytes, err := normalizeFixedHex(raw, 32, "ethereum relative address reference")
+	if err != nil {
+		return "", [32]byte{}, err
+	}
+
+	var salt [32]byte
+	copy(salt[:], saltBytes)
+	return normalizedSalt, salt, nil
 }
 
 func predictCreate2Address(factoryAddress []byte, salt [32]byte, initCodeHash []byte) string {

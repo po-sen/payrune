@@ -9,13 +9,14 @@ import (
 )
 
 var (
-	ErrChainNotSupported       = errors.New("chain is not supported")
-	ErrAddressPolicyNotFound   = errors.New("address policy is not supported")
-	ErrAddressPolicyNotEnabled = errors.New("address policy is not enabled")
-	ErrAddressPoolExhausted    = errors.New("address pool is exhausted")
-	ErrInvalidExpectedAmount   = errors.New("expected amount is invalid")
-	ErrIdempotencyKeyConflict  = errors.New("idempotency key conflicts with existing payment address")
-	ErrPaymentAddressNotFound  = errors.New("payment address is not found")
+	ErrChainNotSupported          = errors.New("chain is not supported")
+	ErrAddressPolicyNotFound      = errors.New("address policy is not supported")
+	ErrAddressPolicyNotEnabled    = errors.New("address policy is not enabled")
+	ErrAddressPreviewNotSupported = errors.New("address preview is not supported for this address policy")
+	ErrAddressPoolExhausted       = errors.New("address pool is exhausted")
+	ErrInvalidExpectedAmount      = errors.New("expected amount is invalid")
+	ErrIdempotencyKeyConflict     = errors.New("idempotency key conflicts with existing payment address")
+	ErrPaymentAddressNotFound     = errors.New("payment address is not found")
 )
 
 type ListAddressPoliciesUseCase interface {

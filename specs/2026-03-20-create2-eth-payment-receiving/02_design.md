@@ -34,19 +34,28 @@ links:
   - Public chain id should be `ethereum`, not `eth`, to stay consistent with the explicit style of
     `bitcoin`.
   - The first configured Ethereum networks should be `mainnet` and `sepolia`, each with explicit
-    CREATE2 policy ids and collector env keys rather than one implicit shared EVM config.
+    CREATE2 policy ids plus per-network collector and derivation-key runtime config rather than one
+    implicit shared EVM config.
   - Factory addresses should come from checked-in deployment metadata, and receiver init code
     hashes should be derived from checked-in contract artifacts instead of hand-entered runtime
     env vars.
+  - Checked-in deployment metadata may stay public and reviewable. The privacy boundary is that
+    public metadata, public API behavior, and public sequential guesses together still must not be
+    enough to enumerate future payment addresses.
   - Distinguish the fixed CREATE2 `factory` contract from the rotatable operator signer that pays
     gas to call it. Factory address changes create a new issuance address space; operator-signer
     changes do not.
   - Until T-003 replaces them with deployed values, checked-in deterministic fixture metadata may
     be used to keep local API and Swagger testing paths enabled for configured Ethereum policies.
   - Policy `scheme` for this flow should be `create2`.
-  - Address slot allocation should continue to use the existing deterministic sequence model.
-    CREATE2 salt is derived from server-side allocation state such as `addressPolicyId` plus
-    `derivationIndex`, not from a database row id discovered after the fact.
+  - Allocation cursoring may continue to use the existing deterministic sequence model for internal
+    reservation and uniqueness, but Ethereum CREATE2 salt must not be derived only from public
+    policy metadata plus `derivationIndex`. Each allocation must derive non-public salt material
+    from a runtime-managed secret plus stable allocation identity, so operators can reconstruct one
+    issued address without relying on a persisted random salt as the only recovery path.
+  - Public `GET /v1/chains/{chain}/addresses?addressPolicyId=...&index=...` preview semantics do
+    not fit privacy-preserving Ethereum issuance and should remain Bitcoin-only or reject Ethereum
+    CREATE2 policies.
   - Do not rely on `SELFDESTRUCT` for fund collection. Use an explicit receiver contract with a
     restricted `sweep()` path or a factory `deployAndSweep(...)` path that forwards only to the
     configured collector.
@@ -56,6 +65,8 @@ links:
     address formula.
   - Replace xpub-biased persistence and config naming with neutral equivalents such as
     `address_source_ref` and `address_reference`.
+  - Treat privacy scope honestly: v1 aims to prevent public enumeration of future Ethereum payment
+    addresses before settlement, not to provide complete anonymity after funds are swept on-chain.
   - Keep Ethereum technical process state explicit and chain-specific rather than hiding it inside
     a generic untyped blob.
 
@@ -80,10 +91,11 @@ links:
   - Infrastructure:
     - Ethereum JSON-RPC client
     - Operator-signer integration
-    - Local dev chain and contract deployment scripts under `scripts/`
+    - Thin verification shell wrappers under `scripts/`
+    - Go contract tooling under `cmd/` for build, prediction, and explicit chain verification
     - Deployment config under `deployments/compose/` and `deployments/cloudflare/payrune/` with
-      separate `mainnet` and `sepolia` collector envs plus checked-in CREATE2 deployment metadata
-      and receiver artifacts
+      separate `mainnet` and `sepolia` collector and derivation-key envs plus checked-in CREATE2
+      deployment metadata and receiver artifacts
 - Interfaces:
   - Existing public API:
     - `GET /v1/chains/ethereum/address-policies`
@@ -103,15 +115,18 @@ links:
   - Client calls `POST /v1/chains/ethereum/payment-addresses`.
   - Controller validates the existing request payload and chain path.
   - Allocation use case loads the Ethereum CREATE2 policy, reserves the next deterministic slot,
-    and derives a predicted ETH address in-process using the configured factory and init code
+    derives one allocation-specific non-public salt from runtime-managed secret material, and
+    derives a predicted ETH address in-process using the configured factory and init code
     semantics.
   - Allocation persistence stores:
     - public payment address
     - neutral source-reference metadata
-    - neutral address-reference metadata that includes the CREATE2 salt or equivalent deterministic
-      locator
+    - neutral address-reference metadata that includes the derived CREATE2 salt or equivalent
+      deterministic locator
   - Receipt tracking row is created using the existing lifecycle with `chain=ethereum`,
     `network=<configured network>`, `address=<predicted address>`, and ETH amount metadata.
+  - Public preview-by-index endpoints do not expose the same issuance path for Ethereum because the
+    address is no longer derivable from public index inputs alone.
 
 - Flow 2: observe an ETH payment
 
@@ -141,6 +156,8 @@ links:
 - Flow 4: startup preflight
   - Bootstrap validates Ethereum addresses, init-code expectations, confirmation settings, fixed
     factory metadata, and operator-signer configuration.
+  - Checked-in CREATE2 contract artifacts and deployment metadata should be loaded through a
+    dedicated infrastructure asset package instead of living inside the DI wiring package.
   - If configured, the runtime compares Go-side prediction vectors against the active contract
     metadata and fails fast on mismatch before issuing payment addresses.
 
@@ -161,7 +178,7 @@ sequenceDiagram
 
     U->>C: POST /v1/chains/ethereum/payment-addresses
     C->>A: allocate(chain=ethereum, policy, amount)
-    A->>D: derive(factory, collector, derivationIndex)
+    A->>D: derive(factory, collector behavior, stored salt)
     D-->>A: predicted payment address + salt
     A-->>C: issued payment address
     C-->>U: 201 Created
@@ -207,6 +224,8 @@ sequenceDiagram
 - Consistency and idempotency:
   - Allocation uniqueness remains enforced by `(address_policy_id, address_source_ref,
 derivation_index)`.
+  - For Ethereum, `derivation_index` remains an internal allocation cursor; the actual CREATE2
+    address prediction additionally depends on the persisted non-public salt.
   - Public address uniqueness remains enforced by `(chain, address)`.
   - One `payment_address_id` maps to at most one Ethereum CREATE2 technical row.
   - Sweeper claims work items using explicit persisted process state and row-level locking to avoid
@@ -219,6 +238,10 @@ derivation_index)`.
     - `GET /v1/chains/ethereum/address-policies`
     - `POST /v1/chains/ethereum/payment-addresses`
     - `GET /v1/chains/ethereum/payment-addresses/{paymentAddressId}`
+  - Public preview-by-index endpoint behavior differs by chain:
+    - Bitcoin may keep `GET /v1/chains/{chain}/addresses`
+    - Ethereum CREATE2 policies should reject or disable this route to avoid making future payment
+      addresses enumerable
   - Existing payment receipt status webhook events remain unchanged in shape.
   - Contract caller model should satisfy:
     - caller identity is not part of CREATE2 address derivation
@@ -284,12 +307,15 @@ Content-Type: application/json
     continue through explicit technical process state.
   - If Go-side prediction cannot be trusted for the active contract metadata, Ethereum issuance
     should fail closed rather than issuing unverifiable addresses.
+  - If privacy-preserving salt generation or persistence is unavailable, Ethereum issuance should
+    fail closed rather than falling back to a publicly enumerable index-based derivation path.
 
 ## Observability
 
 - Logs:
   - Allocation logs for Ethereum should include `paymentAddressId`, `addressPolicyId`, `chain`,
-    `network`, `address`, and salt or reference identifier.
+    `network`, and `address`, but should avoid raw salt or full source-ref material outside
+    explicit debug-only workflows.
   - Receipt polling logs should include chain, network, address, scan range, and totals.
   - Sweeper logs should include payment address id, receiver address, deploy tx hash, sweep tx
     hash, and error reason.
@@ -310,12 +336,16 @@ Content-Type: application/json
     on-chain factory or receiver entry points are caller-agnostic.
 - Secrets:
   - Operator-signer credentials are runtime secrets only and must not be persisted in the database.
+  - Allocation-specific CREATE2 salt material is internal-only operational data and must not be
+    exposed through customer-facing APIs, webhooks, or default logs.
 - Abuse cases:
   - Anyone can send dust ETH to a predicted address; the system must tolerate unexpected inbound
     value.
   - A misconfigured collector address would route funds incorrectly, so startup validation and
     operator review are mandatory.
   - The receiver contract must not expose arbitrary target selection for sweeps.
+  - A public preview or index-derived issuance path would leak future payment-address space and is
+    therefore not acceptable for Ethereum privacy mode.
 
 ## Alternatives considered
 
@@ -337,10 +367,17 @@ Content-Type: application/json
   - Mitigation:
     - Clean up naming first and keep Ethereum technical records explicit.
 - Risk:
+  - A publicly enumerable salt rule or public preview endpoint would let third parties derive
+    future payment addresses for one Ethereum policy.
+  - Mitigation:
+    - Persist non-public allocation salts, keep preview-by-index disabled for Ethereum, and avoid
+      exposing raw source-ref material in public surfaces.
+- Risk:
   - Native ETH observation is harder than token log scanning because plain ETH transfers are not
     emitted as ERC-20 logs.
   - Mitigation:
-    - Use block or transaction scanning with bounded ranges and contract tests on local dev chains.
+    - Use block or transaction scanning with bounded ranges and contract tests against an explicit
+      verification network.
 - Risk:
   - A contract or prediction mismatch could strand funds at an address the runtime cannot deploy or
     sweep correctly.

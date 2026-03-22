@@ -202,6 +202,8 @@ func (c *ChainAddressController) handleGenerateAddress(
 			writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		case errors.Is(err, inport.ErrAddressPolicyNotEnabled):
 			writeJSON(w, http.StatusNotImplemented, dto.ErrorResponse{Error: err.Error()})
+		case errors.Is(err, inport.ErrAddressPreviewNotSupported):
+			writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: err.Error()})
 		default:
 			writeJSON(w, http.StatusInternalServerError, dto.ErrorResponse{Error: "internal server error"})
 		}

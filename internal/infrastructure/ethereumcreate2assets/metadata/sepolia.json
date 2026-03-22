@@ -1,0 +1,6 @@
+{
+  "network": "sepolia",
+  "factoryAddress": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "receiverArtifact": "FixedCollectorReceiverV1.json",
+  "mode": "fixture"
+}

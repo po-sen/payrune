@@ -12,14 +12,16 @@ import (
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/policies"
+	"payrune/internal/domain/valueobjects"
 )
 
 type allocatePaymentAddressUseCase struct {
-	unitOfWork     outport.UnitOfWork
-	deriver        outport.ChainAddressDeriver
-	policyReader   outport.AddressPolicyReader
-	issuancePolicy policies.PaymentAddressAllocationIssuancePolicy
-	clock          outport.Clock
+	unitOfWork                 outport.UnitOfWork
+	deriver                    outport.ChainAddressDeriver
+	ethereumCreate2SaltDeriver outport.EthereumCreate2SaltDeriver
+	policyReader               outport.AddressPolicyReader
+	issuancePolicy             policies.PaymentAddressAllocationIssuancePolicy
+	clock                      outport.Clock
 }
 
 type allocatePaymentAddressTxOutcome struct {
@@ -51,16 +53,18 @@ type allocatePaymentAddressReplayTxScope struct {
 func NewAllocatePaymentAddressUseCase(
 	unitOfWork outport.UnitOfWork,
 	deriver outport.ChainAddressDeriver,
+	ethereumCreate2SaltDeriver outport.EthereumCreate2SaltDeriver,
 	policyReader outport.AddressPolicyReader,
 	issuancePolicy policies.PaymentAddressAllocationIssuancePolicy,
 	clock outport.Clock,
 ) inport.AllocatePaymentAddressUseCase {
 	return &allocatePaymentAddressUseCase{
-		unitOfWork:     unitOfWork,
-		deriver:        deriver,
-		policyReader:   policyReader,
-		issuancePolicy: issuancePolicy,
-		clock:          clock,
+		unitOfWork:                 unitOfWork,
+		deriver:                    deriver,
+		ethereumCreate2SaltDeriver: ethereumCreate2SaltDeriver,
+		policyReader:               policyReader,
+		issuancePolicy:             issuancePolicy,
+		clock:                      clock,
 	}
 }
 
@@ -279,13 +283,22 @@ func (uc *allocatePaymentAddressUseCase) deriveIssuedAllocation(
 	policy entities.AddressIssuancePolicy,
 	allocation entities.PaymentAddressAllocation,
 ) (allocatePaymentAddressDerivationOutcome, error) {
+	relativeAddressReference, err := uc.buildRelativeAddressReference(ctx, policy.AddressPolicy, allocation)
+	if err != nil {
+		if persistErr := uc.persistDerivationFailure(ctx, allocationStore, allocation, err); persistErr != nil {
+			return allocatePaymentAddressDerivationOutcome{}, persistErr
+		}
+		return allocatePaymentAddressDerivationOutcome{persistedDerivationFailureErr: err}, nil
+	}
+
 	output, err := uc.deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:                  policy.AddressPolicy.Chain,
-		Network:                policy.AddressPolicy.Network,
-		Scheme:                 policy.AddressPolicy.Scheme,
-		AddressSourceRef:       policy.IssuanceConfig.AddressSourceRef,
-		AddressReferencePrefix: policy.IssuanceConfig.AddressReferencePrefix,
-		Index:                  allocation.DerivationIndex,
+		Chain:                    policy.AddressPolicy.Chain,
+		Network:                  policy.AddressPolicy.Network,
+		Scheme:                   policy.AddressPolicy.Scheme,
+		AddressSourceRef:         policy.IssuanceConfig.AddressSourceRef,
+		AddressReferencePrefix:   policy.IssuanceConfig.AddressReferencePrefix,
+		RelativeAddressReference: relativeAddressReference,
+		Index:                    allocation.DerivationIndex,
 	})
 	if err != nil {
 		if persistErr := uc.persistDerivationFailure(ctx, allocationStore, allocation, err); persistErr != nil {
@@ -308,6 +321,28 @@ func (uc *allocatePaymentAddressUseCase) deriveIssuedAllocation(
 	}
 
 	return allocatePaymentAddressDerivationOutcome{issuedAllocation: issuedAllocation}, nil
+}
+
+func (uc *allocatePaymentAddressUseCase) buildRelativeAddressReference(
+	ctx context.Context,
+	addressPolicy entities.AddressPolicy,
+	allocation entities.PaymentAddressAllocation,
+) (string, error) {
+	if addressPolicy.Chain == valueobjects.SupportedChainEthereum && addressPolicy.Scheme == "create2" {
+		if uc.ethereumCreate2SaltDeriver == nil {
+			return "", errors.New("ethereum create2 salt deriver is not configured")
+		}
+		return uc.ethereumCreate2SaltDeriver.DeriveAllocationSalt(
+			ctx,
+			outport.DeriveEthereumCreate2SaltInput{
+				Network:          addressPolicy.Network,
+				AddressPolicyID:  addressPolicy.AddressPolicyID,
+				PaymentAddressID: allocation.PaymentAddressID,
+				DerivationIndex:  allocation.DerivationIndex,
+			},
+		)
+	}
+	return "", nil
 }
 
 func (uc *allocatePaymentAddressUseCase) persistDerivationFailure(
