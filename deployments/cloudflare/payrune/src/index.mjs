@@ -6,12 +6,28 @@ import { registerWebhookNotifierBridge, unregisterWebhookNotifierBridge } from '
 const publicPrefix = '/v1/';
 
 export const scheduledJobs = Object.freeze({
+  '2,17,32,47 * * * *': Object.freeze({
+    type: 'poller',
+    operation: 'poller',
+    envOverrides: Object.freeze({
+      POLL_CHAIN: 'ethereum',
+      POLL_NETWORK: 'mainnet',
+    }),
+  }),
   '5,20,35,50 * * * *': Object.freeze({
     type: 'poller',
     operation: 'poller',
     envOverrides: Object.freeze({
       POLL_CHAIN: 'bitcoin',
       POLL_NETWORK: 'mainnet',
+    }),
+  }),
+  '8,23,38,53 * * * *': Object.freeze({
+    type: 'poller',
+    operation: 'poller',
+    envOverrides: Object.freeze({
+      POLL_CHAIN: 'ethereum',
+      POLL_NETWORK: 'sepolia',
     }),
   }),
   '*/15 * * * *': Object.freeze({
@@ -151,7 +167,9 @@ async function handleAPIRequest(request, env, ctx) {
 async function runPollerJob(controller, env, ctx, job) {
   const scopedEnv = buildScheduledEnv(env, job.envOverrides);
   const postgresBridgeId = registerPostgresBridge(env);
-  const bitcoinBridgeId = registerBitcoinObserverBridge(env);
+  const bitcoinBridgeId = scopedEnv.POLL_CHAIN === 'bitcoin'
+    ? registerBitcoinObserverBridge(scopedEnv)
+    : '';
 
   try {
     const runtime = await getGoWasmRuntime();

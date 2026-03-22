@@ -104,7 +104,9 @@ links:
       `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS` and
       `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS` plus per-network
       `ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY` and
-      `ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY` runtime config.
+      `ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY` runtime config, plus overrideable default
+      Ethereum RPC endpoints for `mainnet` and `sepolia`, with scope-explicit poller service
+      names per `(chain, network)` and `sepolia` living in the local/test Compose override.
   - Expected:
     - Migration succeeds, schema is in the expected shape, and Bitcoin adapter tests remain green.
 - TC-102:
@@ -119,7 +121,8 @@ links:
   - Linked requirements: FR-004, FR-005, NFR-002, NFR-005
   - Steps:
     - Allocate one Ethereum payment address against a local database, fund it on the configured
-      Ethereum verification network, then run one or more poller cycles.
+      Ethereum verification network, then run one or more poller cycles from the matching
+      chain-network poller scope.
   - Expected:
     - The payment receipt row updates to the expected status and the payment-status API returns the
       new totals.

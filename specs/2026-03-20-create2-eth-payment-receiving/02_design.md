@@ -47,6 +47,17 @@ links:
     changes do not.
   - Until T-003 replaces them with deployed values, checked-in deterministic fixture metadata may
     be used to keep local API and Swagger testing paths enabled for configured Ethereum policies.
+  - Public default Ethereum RPC endpoints, when provided for local bootstrap convenience, should
+    live in deployment config (`compose`, `wrangler`) rather than inside Go loader code so
+    operators can override them without changing runtime wiring semantics.
+  - Poller deployment should stay scope-specific: one runtime or scheduled job per
+    `(chain, network)` pair, even if one binary can construct multiple chain observers.
+  - Compose-level poller service names should also stay scope-explicit, for example
+    `poller-bitcoin-mainnet`, `poller-bitcoin-testnet4`, `poller-ethereum-mainnet`, and
+    `poller-ethereum-sepolia`, so local operations do not mix chain and network identity.
+  - The production-like base Compose file should keep mainnet-scoped pollers, while
+    `compose.test.yaml` may add test or verification scopes such as Bitcoin `testnet4` and
+    Ethereum `sepolia` for local development.
   - Policy `scheme` for this flow should be `create2`.
   - Allocation cursoring may continue to use the existing deterministic sequence model for internal
     reservation and uniqueness, but Ethereum CREATE2 salt must not be derived only from public
@@ -135,6 +146,10 @@ links:
     `latest_block_height`.
   - Observer loads blocks or transactions from the configured RPC source and sums native ETH value
     transferred to the tracked payment address.
+  - For v1, the observer may scan canonical block transactions with `to == payment address`
+    semantics rather than provider-specific execution traces; this keeps the implementation
+    portable across standard JSON-RPC providers at the cost of excluding trace-only internal ETH
+    transfers from the initial scope.
   - Observer returns `observed_total_minor`, `confirmed_total_minor`,
     `unconfirmed_total_minor`, and `latest_block_height`.
   - Existing receipt-tracking domain logic updates status and drives webhook-outbox behavior.

@@ -93,7 +93,9 @@ test('buildScheduledEnv applies overrides on top of string snapshot', () => {
 });
 
 test('resolveScheduledJob returns poller and dispatcher mappings', () => {
+  assert.deepEqual(resolveScheduledJob({ cron: '2,17,32,47 * * * *' }), scheduledJobs['2,17,32,47 * * * *']);
   assert.deepEqual(resolveScheduledJob({ cron: '5,20,35,50 * * * *' }), scheduledJobs['5,20,35,50 * * * *']);
+  assert.deepEqual(resolveScheduledJob({ cron: '8,23,38,53 * * * *' }), scheduledJobs['8,23,38,53 * * * *']);
   assert.deepEqual(resolveScheduledJob({ cron: '*/15 * * * *' }), scheduledJobs['*/15 * * * *']);
   assert.deepEqual(resolveScheduledJob({ cron: '10,25,40,55 * * * *' }), scheduledJobs['10,25,40,55 * * * *']);
   assert.equal(resolveScheduledJob({ cron: '0 * * * *' }), null);

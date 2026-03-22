@@ -134,6 +134,8 @@ links:
 - Acceptance criteria:
   - [ ] The poller can claim and process `ethereum` receipt-tracking rows without affecting the
         existing Bitcoin flows.
+  - [ ] Deployment wiring can run one poller scope per `(chain, network)` so `ethereum/mainnet`
+        and `ethereum/sepolia` do not rely on one mixed scheduled scope.
   - [ ] The Ethereum observer scans a bounded block range based on `issued_at`,
         `last_observed_block_height`, or both, rather than scanning the full chain every cycle.
   - [ ] The observer aggregates inbound native ETH value to the payment address in `wei`.
@@ -144,6 +146,9 @@ links:
 - Notes:
   - In this iteration, “unconfirmed” may be limited to mined transfers below the confirmation
     threshold rather than mempool observations.
+  - In this iteration, the observer may limit itself to canonical block transactions whose
+    destination address matches the issued payment address; trace-based internal ETH transfers are
+    out of scope unless the configured provider and implementation explicitly support them.
 
 ### FR-005 - Keep payment status retrieval and webhook behavior chain-consistent for Ethereum
 
@@ -169,6 +174,9 @@ links:
 - Acceptance criteria:
   - [ ] Runtime configuration includes Ethereum RPC endpoint, collector address, operator-signer
         configuration, receipt confirmation threshold, and receipt expiry settings.
+  - [ ] Deployment-facing Compose and Cloudflare defaults may provide overrideable public
+        Ethereum JSON-RPC endpoints per network for local or bootstrap convenience, while still
+        allowing operators to replace them explicitly in production.
   - [ ] Checked-in deployment metadata provides the factory address per network, and checked-in
         receiver contract artifacts provide bytecode or a derivable init code hash for prediction.
   - [ ] Before T-003 lands real deployment artifacts, local API testing may rely on checked-in

@@ -29,7 +29,9 @@ All other `fetch()` paths return `404`.
 
 ## Scheduled jobs
 
+- Ethereum mainnet poller: `2,17,32,47 * * * *`
 - Bitcoin mainnet poller: `5,20,35,50 * * * *`
+- Ethereum sepolia poller: `8,23,38,53 * * * *`
 - Bitcoin testnet4 poller: `*/15 * * * *`
 - Receipt webhook dispatcher: `10,25,40,55 * * * *`
 
@@ -38,7 +40,10 @@ All other `fetch()` paths return `404`.
 - `POSTGRES_CONNECTION_STRING`
 - `PAYMENT_RECEIPT_WEBHOOK_SECRET`
 
-## Optional Worker secrets
+## Optional env-backed Worker values
+
+These are the optional values currently supported by `make cf-up`. When non-empty, the deploy
+script syncs them as Wrangler secrets.
 
 - `BITCOIN_MAINNET_LEGACY_XPUB`
 - `BITCOIN_MAINNET_SEGWIT_XPUB`
@@ -52,14 +57,17 @@ All other `fetch()` paths return `404`.
 - `ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY`
 - `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS`
 - `ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY`
-
-CREATE2 derivation keys must be 32-byte hex strings such as
-`0x1111111111111111111111111111111111111111111111111111111111111111`.
-
 - `BITCOIN_MAINNET_ESPLORA_USER`
 - `BITCOIN_MAINNET_ESPLORA_PASSWORD`
 - `BITCOIN_TESTNET4_ESPLORA_USER`
 - `BITCOIN_TESTNET4_ESPLORA_PASSWORD`
+- `ETHEREUM_MAINNET_RPC_USER`
+- `ETHEREUM_MAINNET_RPC_PASSWORD`
+- `ETHEREUM_SEPOLIA_RPC_USER`
+- `ETHEREUM_SEPOLIA_RPC_PASSWORD`
+
+CREATE2 derivation keys must be 32-byte hex strings such as
+`0x1111111111111111111111111111111111111111111111111111111111111111`.
 
 ## Non-secret Worker defaults
 
@@ -69,7 +77,16 @@ These live in `wrangler.toml`:
 - Ethereum CREATE2 confirmation / receipt-expiry defaults
 - poller cadence and batch defaults
 - network-specific Esplora endpoint defaults
+- network-specific Ethereum JSON-RPC endpoint defaults
 - webhook dispatcher timeout and retry defaults
+
+Current public RPC defaults:
+
+- Ethereum mainnet: `https://ethereum-rpc.publicnode.com`
+- Ethereum sepolia: `https://ethereum-sepolia-rpc.publicnode.com`
+
+These URL values come from checked-in Worker config in `wrangler.toml`, not from Wrangler secrets.
+RPC usernames and passwords remain Wrangler secrets.
 
 Factory addresses and receiver init-code hashes are not Worker secrets. They are expected to come
 from checked-in deployment metadata and contract artifacts once the CREATE2 contracts land.

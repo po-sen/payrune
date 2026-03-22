@@ -8,6 +8,7 @@ import (
 	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	"payrune/internal/adapters/outbound/bitcoin"
 	blockchainadapter "payrune/internal/adapters/outbound/blockchain"
+	"payrune/internal/adapters/outbound/ethereum"
 	cloudflarepostgres "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
 	"payrune/internal/adapters/outbound/system"
 	outport "payrune/internal/application/ports/outbound"
@@ -41,15 +42,25 @@ func BuildCloudflarePollerRuntime(
 
 	clock := system.NewClock()
 	unitOfWork := cloudflarepostgres.NewUnitOfWork(postgresBridgeID, cloudflarepostgresdriver.NewJSBridge())
-	bitcoinObserver := bitcoin.NewCloudflareBitcoinEsploraReceiptObserver(
-		bitcoinBridgeID,
-		bitcoin.NewCloudflareEsploraBridge(),
-	)
-	receiptObserver, err := blockchainadapter.NewMultiChainReceiptObserver(
-		map[valueobjects.ChainID]outport.ChainReceiptObserver{
-			valueobjects.ChainIDBitcoin: bitcoinObserver,
-		},
-	)
+	chainObservers := make(map[valueobjects.ChainID]outport.ChainReceiptObserver, 2)
+	if request.Chain == "" || request.Chain == string(valueobjects.ChainIDBitcoin) {
+		chainObservers[valueobjects.ChainIDBitcoin] = bitcoin.NewCloudflareBitcoinEsploraReceiptObserver(
+			bitcoinBridgeID,
+			bitcoin.NewCloudflareEsploraBridge(),
+		)
+	}
+	if request.Chain == "" || request.Chain == string(valueobjects.ChainIDEthereum) {
+		if ethereumConfigs := loadEthereumRPCConfigsFromLookup(func(key string) string {
+			return envMapValue(env, key)
+		}); len(ethereumConfigs) > 0 {
+			ethereumObserver, err := ethereum.NewEthereumRPCReceiptObserver(ethereumConfigs)
+			if err != nil {
+				return nil, scheduleradapter.PollerRequest{}, err
+			}
+			chainObservers[valueobjects.ChainIDEthereum] = ethereumObserver
+		}
+	}
+	receiptObserver, err := blockchainadapter.NewMultiChainReceiptObserver(chainObservers)
 	if err != nil {
 		return nil, scheduleradapter.PollerRequest{}, err
 	}

@@ -131,6 +131,9 @@ links:
      - Add an Ethereum observer adapter that scans bounded block ranges for native ETH transfers to
        issued payment addresses.
      - Wire the observer into the existing chain-routed receipt poller and DI setup.
+     - Extend deployment wiring so `ethereum/mainnet` and `ethereum/sepolia` run as distinct poller
+       scopes in Compose and scheduled-worker config instead of sharing one mixed poller runtime
+       scope.
      - Preserve current payment status transitions and row-level retry behavior.
    - Output:
      - Receipt polling updates Ethereum payment status through the existing receipt-tracking model.
