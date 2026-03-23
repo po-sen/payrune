@@ -3,7 +3,7 @@ doc: 02_design
 spec_date: 2026-03-20
 slug: create2-eth-payment-receiving
 mode: Full
-status: READY
+status: DONE
 owners:
   - payrune-team
 depends_on:
@@ -27,7 +27,7 @@ links:
   - Add a first-class Ethereum issuance path that predicts native ETH payment addresses with
     CREATE2 instead of generating EOAs.
   - Extend the current allocation and receipt-tracking flow with explicit Ethereum adapters for
-    CREATE2 prediction, native ETH observation, and funded-address deploy-and-sweep.
+    CREATE2 prediction and native ETH observation.
   - Clean up issuance naming so Bitcoin HD derivation and Ethereum CREATE2 no longer share
     misleading field names.
 - Key decisions:
@@ -42,9 +42,6 @@ links:
   - Checked-in deployment metadata may stay public and reviewable. The privacy boundary is that
     public metadata, public API behavior, and public sequential guesses together still must not be
     enough to enumerate future payment addresses.
-  - Distinguish the fixed CREATE2 `factory` contract from the rotatable operator signer that pays
-    gas to call it. Factory address changes create a new issuance address space; operator-signer
-    changes do not.
   - Until T-003 replaces them with deployed values, checked-in deterministic fixture metadata may
     be used to keep local API and Swagger testing paths enabled for configured Ethereum policies.
   - Public default Ethereum RPC endpoints, when provided for local bootstrap convenience, should
@@ -67,13 +64,6 @@ links:
   - Public `GET /v1/chains/{chain}/addresses?addressPolicyId=...&index=...` preview semantics do
     not fit privacy-preserving Ethereum issuance and should remain Bitcoin-only or reject Ethereum
     CREATE2 policies.
-  - Do not rely on `SELFDESTRUCT` for fund collection. Use an explicit receiver contract with a
-    restricted `sweep()` path or a factory `deployAndSweep(...)` path that forwards only to the
-    configured collector.
-  - Prefer a caller model where deploy and sweep entry points are either permissionless or governed
-    by rotatable operator auth that is not part of the CREATE2 preimage. Safety should come from
-    fixed collector routing and restricted call surfaces, not from baking one hot signer into the
-    address formula.
   - Replace xpub-biased persistence and config naming with neutral equivalents such as
     `address_source_ref` and `address_reference`.
   - Treat privacy scope honestly: v1 aims to prevent public enumeration of future Ethereum payment
@@ -93,15 +83,12 @@ links:
     - Existing `AllocatePaymentAddressUseCase`
     - Existing `GetPaymentAddressStatusUseCase`
     - Existing `RunReceiptPollingCycleUseCase`
-    - New `RunEthereumCreate2SweepCycleUseCase` or equivalent internal worker use case
   - Outbound adapters:
     - Existing Bitcoin address deriver and receipt observer
     - New `ethereum` CREATE2 address deriver
     - New `ethereum` native ETH receipt observer
-    - New `ethereum` CREATE2 deployment or sweep store plus operator-signer transaction adapter
   - Infrastructure:
     - Ethereum JSON-RPC client
-    - Operator-signer integration
     - Thin verification shell wrappers under `scripts/`
     - Go contract tooling under `cmd/` for build, prediction, and explicit chain verification
     - Deployment config under `deployments/compose/` and `deployments/cloudflare/payrune/` with
@@ -114,10 +101,8 @@ links:
     - `GET /v1/chains/ethereum/payment-addresses/{paymentAddressId}`
   - Internal runtime:
     - Receipt poller cycle for Ethereum rows
-    - Dedicated sweeper cycle or equivalent internal settlement trigger
   - Contract-side:
     - CREATE2 factory deployment method
-    - Receiver sweep method or factory-assisted deploy-and-sweep method
 
 ## Key flows
 
@@ -154,23 +139,9 @@ links:
     `unconfirmed_total_minor`, and `latest_block_height`.
   - Existing receipt-tracking domain logic updates status and drives webhook-outbox behavior.
 
-- Flow 3: deploy and sweep a funded CREATE2 payment address
-
-  - Sweeper selects eligible funded Ethereum payment addresses that are ready for collection.
-  - Sweeper uses the configured operator signer to pay gas for collection transactions.
-  - Sweeper checks whether receiver code already exists at the predicted address.
-  - If not deployed, the sweeper submits the deterministic factory deployment using the stored salt
-    and active policy config.
-  - After deployment, the sweeper executes the restricted sweep path to forward ETH to the
-    configured collector address.
-  - Rotating the operator signer does not change predicted addresses because caller identity is not
-    part of the CREATE2 derivation inputs.
-  - Technical process state is updated with deployment status, tx hashes, and last error so the
-    cycle can retry safely.
-
-- Flow 4: startup preflight
+- Flow 3: startup preflight
   - Bootstrap validates Ethereum addresses, init-code expectations, confirmation settings, fixed
-    factory metadata, and operator-signer configuration.
+    factory metadata, collector configuration, and derivation-key configuration.
   - Checked-in CREATE2 contract artifacts and deployment metadata should be loaded through a
     dedicated infrastructure asset package instead of living inside the DI wiring package.
   - If configured, the runtime compares Go-side prediction vectors against the active contract
@@ -188,7 +159,6 @@ sequenceDiagram
     participant D as EthereumCreate2Deriver
     participant P as Receipt Poller
     participant O as EthereumReceiptObserver
-    participant S as Ethereum Sweeper
     participant F as CREATE2 Factory
 
     U->>C: POST /v1/chains/ethereum/payment-addresses
@@ -201,11 +171,6 @@ sequenceDiagram
     P->>O: observe(address, issuedAt, sinceBlockHeight)
     O-->>P: observed/confirmed totals
     P-->>P: update receipt status
-
-    S->>F: deploy(receiver, salt)
-    F-->>S: deployed receiver
-    S->>F: sweep or receiver.sweep()
-    F-->>S: collector funded
 ```
 
 ## Data model
@@ -217,24 +182,10 @@ sequenceDiagram
   - No new Ethereum-specific domain aggregate is required for deployment or sweep; that state is a
     technical process record.
 - Technical records:
-  - Add an explicit Ethereum CREATE2 technical table such as `ethereum_create2_receivers` keyed by
-    `payment_address_id` to persist:
-    - `payment_address_id`
-    - `network`
-    - `factory_address`
-    - `collector_address`
-    - `receiver_address`
-    - `salt`
-    - `init_code_hash`
-    - `deployment_status`
-    - `deploy_tx_hash`
-    - `sweep_tx_hash`
-    - `last_error`
-    - timestamps
+  - No Ethereum-specific deploy-and-sweep technical table is introduced in the first rollout.
 - Schema changes or migrations:
   - Add a migration that renames or replaces generic allocation columns so the active schema uses
     neutral naming instead of `account_public_key` and `derivation_path`.
-  - Add the Ethereum CREATE2 technical process table.
   - Keep existing Bitcoin rows readable and migratable.
 - Consistency and idempotency:
   - Allocation uniqueness remains enforced by `(address_policy_id, address_source_ref,
@@ -242,9 +193,7 @@ derivation_index)`.
   - For Ethereum, `derivation_index` remains an internal allocation cursor; the actual CREATE2
     address prediction additionally depends on the persisted non-public salt.
   - Public address uniqueness remains enforced by `(chain, address)`.
-  - One `payment_address_id` maps to at most one Ethereum CREATE2 technical row.
-  - Sweeper claims work items using explicit persisted process state and row-level locking to avoid
-    duplicate collection.
+  - No separate Ethereum collection task or sweeper-claim state exists in the first rollout.
 
 ## API or contracts
 
@@ -259,13 +208,10 @@ derivation_index)`.
       addresses enumerable
   - Existing payment receipt status webhook events remain unchanged in shape.
   - Contract caller model should satisfy:
-    - caller identity is not part of CREATE2 address derivation
     - caller cannot override the collector destination
-    - operator-signer rotation does not require reissuing addresses
   - Internal contract methods should expose at least:
     - address computation semantics that match Go-side prediction
     - deterministic deployment
-    - restricted sweep
 - Request/response examples:
 
 ```http
@@ -308,18 +254,15 @@ Content-Type: application/json
 ## Failure modes and resiliency
 
 - Retries/timeouts:
-  - Receipt observation and sweeper execution must be retriable without duplicate side effects.
-  - JSON-RPC timeouts or transient deploy failures should update row-level error state and retry
+  - Receipt observation must be retriable without duplicate side effects.
+  - JSON-RPC timeouts or transient scan failures should update row-level error state and retry
     later.
 - Backpressure/limits:
   - Ethereum observation must use bounded block ranges and chunking rather than unbounded full-chain
     scans.
-  - Sweeper concurrency must be limited so signer nonce management and RPC throughput stay stable.
 - Degradation strategy:
   - If Ethereum config is disabled or invalid, Ethereum policies remain non-issuable while Bitcoin
     behavior stays available.
-  - If sweeping fails, the payment may still remain marked as paid while collection retries
-    continue through explicit technical process state.
   - If Go-side prediction cannot be trusted for the active contract metadata, Ethereum issuance
     should fail closed rather than issuing unverifiable addresses.
   - If privacy-preserving salt generation or persistence is unavailable, Ethereum issuance should
@@ -332,25 +275,19 @@ Content-Type: application/json
     `network`, and `address`, but should avoid raw salt or full source-ref material outside
     explicit debug-only workflows.
   - Receipt polling logs should include chain, network, address, scan range, and totals.
-  - Sweeper logs should include payment address id, receiver address, deploy tx hash, sweep tx
-    hash, and error reason.
 - Metrics:
-  - Count issued Ethereum addresses, payment observation successes and failures, deploy attempts,
-    deploy failures, sweep attempts, and sweep failures.
+  - Count issued Ethereum addresses and payment observation successes and failures.
 - Traces:
-  - Keep public API request traces separate from poller and sweeper internal traces or cycle logs.
+  - Keep public API request traces separate from poller internal traces or cycle logs.
 - Alerts:
-  - Alert on repeated prediction mismatch, repeated deploy failure, repeated sweep failure, or ETH
-    receipts older than the expected collection window.
+  - Alert on repeated prediction mismatch, repeated observation failure, or ETH receipts older than
+    the expected polling window.
 
 ## Security
 
 - Authentication/authorization:
   - No public auth changes are required for customer-facing issuance or status APIs in this scope.
-  - Internal deploy or sweep orchestration remains operator-controlled runtime behavior even if the
-    on-chain factory or receiver entry points are caller-agnostic.
 - Secrets:
-  - Operator-signer credentials are runtime secrets only and must not be persisted in the database.
   - Allocation-specific CREATE2 salt material is internal-only operational data and must not be
     exposed through customer-facing APIs, webhooks, or default logs.
 - Abuse cases:
@@ -369,7 +306,8 @@ Content-Type: application/json
 - Option B:
   - Use an HD-wallet-like Ethereum derivation scheme and keep sweeping from EOAs.
 - Option C:
-  - Use CREATE2-predicted payable receiver addresses with post-funding deployment and sweep.
+  - Use CREATE2-predicted payable receiver addresses even though post-funding deployment and sweep
+    are deferred from the first rollout.
 - Why chosen:
   - Option C preserves one-address-per-payment semantics without per-payment private-key custody and
     fits the current deterministic-address issuance model better than EOA management.
@@ -380,7 +318,7 @@ Content-Type: application/json
   - Current issuance and persistence naming is still Bitcoin-biased, so a naive implementation can
     easily hide Ethereum behavior behind misleading field semantics.
   - Mitigation:
-    - Clean up naming first and keep Ethereum technical records explicit.
+    - Clean up naming first and keep Ethereum issuance metadata explicit.
 - Risk:
   - A publicly enumerable salt rule or public preview endpoint would let third parties derive
     future payment addresses for one Ethereum policy.

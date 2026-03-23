@@ -3,7 +3,7 @@ doc: 01_requirements
 spec_date: 2026-03-20
 slug: create2-eth-payment-receiving
 mode: Full
-status: READY
+status: DONE
 owners:
   - payrune-team
 depends_on:
@@ -32,13 +32,12 @@ links:
   - The payable contract that will eventually be deployed at the predicted payment address and can
     sweep ETH to the configured collector destination.
 - Collector address:
-  - The operator-controlled destination wallet that receives swept ETH from funded payment
-    addresses. It does not need gas unless it is also used as the operator signer.
+  - The operator-controlled destination wallet encoded into the receiver init code for this address
+    space. It does not participate in first-rollout receipt polling.
 - Operator signer:
-  - The runtime-controlled EOA, KMS-backed account, or equivalent sender that pays gas to deploy the
-    factory and later call factory or receiver collection transactions. It is not part of the
-    CREATE2 address formula and may rotate without changing predicted addresses if contract
-    permissions allow it.
+  - A future runtime-controlled EOA, KMS-backed account, or equivalent sender that would pay gas to
+    deploy the factory and later call factory or receiver collection transactions. It is not part
+    of the CREATE2 address formula.
 - Address source reference:
   - A canonical internal value that identifies the issuance source configuration used to allocate
     deterministic address slots. For Bitcoin this is expected to remain xpub-like material; for
@@ -91,8 +90,6 @@ links:
         deterministic CREATE2 payment address.
   - [ ] Go-side prediction matches Solidity or ABI-backed `computeAddress` vectors for the same
         factory, salt, collector behavior, and init code.
-  - [ ] Changing only the operator signer does not change the predicted payment address for an
-        already-configured factory, collector, and receiver artifact.
   - [ ] Ethereum CREATE2 salt derivation must not rely only on public metadata plus a sequential
         public index; the derivation input must include a runtime-managed non-public secret plus
         stable allocation identity so one issued address can be reconstructed without persisting a
@@ -100,33 +97,14 @@ links:
   - [ ] Allocation persistence stores a chain-agnostic `address_source_ref` equivalent and
         `address_reference` equivalent, rather than overloading Bitcoin-specific naming for
         Ethereum-issued rows.
-  - [ ] The persisted metadata is sufficient to reconcile one issued ETH address, verify the
-        expected CREATE2 preimage inputs, and retry deployment later.
+  - [ ] The persisted metadata is sufficient to reconcile one issued ETH address and verify the
+        expected CREATE2 preimage inputs later.
 - Notes:
   - The exact salt strategy is a design decision, but it must stay stable for one allocation,
     testable, recoverable from runtime-managed secret material plus allocation metadata, and not
     make future addresses enumerable from public inputs alone.
 
-### FR-003 - Deploy and sweep funded CREATE2 payment addresses idempotently
-
-- Description:
-  - After ETH is sent to a predicted payment address, the system must support deploying the
-    receiver contract and forwarding funds to the configured collector destination.
-- Acceptance criteria:
-  - [ ] The system can detect whether code is already deployed at a predicted payment address
-        before attempting deployment.
-  - [ ] The deploy-and-sweep path is idempotent for the same `paymentAddressId`; retries do not
-        duplicate collection.
-  - [ ] The active operator signer can be rotated without reissuing or recomputing existing payment
-        addresses as long as the same factory and receiver configuration remain active.
-  - [ ] Technical process state for Ethereum CREATE2 deployment and sweep is persisted with
-        addresses, tx hashes, status, and last error.
-  - [ ] A successful sweep always forwards ETH to the configured collector address for the active
-        policy or network.
-- Notes:
-  - This is technical process state, not a new business aggregate.
-
-### FR-004 - Observe native ETH receipts through the existing polling lifecycle
+### FR-003 - Observe native ETH receipts through the existing polling lifecycle
 
 - Description:
   - Receipt polling must observe native ETH transfers to issued CREATE2 payment addresses and map
@@ -150,7 +128,7 @@ links:
     destination address matches the issued payment address; trace-based internal ETH transfers are
     out of scope unless the configured provider and implementation explicitly support them.
 
-### FR-005 - Keep payment status retrieval and webhook behavior chain-consistent for Ethereum
+### FR-004 - Keep payment status retrieval and webhook behavior chain-consistent for Ethereum
 
 - Description:
   - The existing payment-status and webhook flow must remain the client-facing source of truth for
@@ -164,15 +142,15 @@ links:
   - [ ] No new mandatory public API endpoint is required for a client to issue, poll, or receive
         webhook updates for an ETH payment.
 - Notes:
-  - Any operator-only deploy/sweep control surface may remain internal.
+  - No additional public collection control surface is required in this iteration.
 
-### FR-006 - Validate and bootstrap Ethereum CREATE2 runtime configuration explicitly
+### FR-005 - Validate and bootstrap Ethereum CREATE2 runtime configuration explicitly
 
 - Description:
-  - Ethereum issuance, observation, and collection must start only when all required network
-    configuration is present and internally consistent.
+  - Ethereum issuance and observation must start only when all required network configuration is
+    present and internally consistent.
 - Acceptance criteria:
-  - [ ] Runtime configuration includes Ethereum RPC endpoint, collector address, operator-signer
+  - [ ] Runtime configuration includes Ethereum RPC endpoint, collector address, derivation-key
         configuration, receipt confirmation threshold, and receipt expiry settings.
   - [ ] Deployment-facing Compose and Cloudflare defaults may provide overrideable public
         Ethereum JSON-RPC endpoints per network for local or bootstrap convenience, while still
@@ -195,7 +173,7 @@ links:
   - Configuration should be explicit and network-scoped rather than hidden behind indirect prefix
     logic.
 
-### FR-007 - Keep receiver and signer behavior safe by construction
+### FR-006 - Keep receiver behavior safe by construction
 
 - Description:
   - The CREATE2 receiver design must minimize custody and routing risk.
@@ -203,16 +181,13 @@ links:
   - [ ] No per-payment private key material is generated or stored.
   - [ ] The receiver contract forwards ETH only to the configured collector destination and does
         not expose a generic arbitrary-call surface.
-  - [ ] No caller, including an unexpected or rotated operator signer, can redirect sweep proceeds
-        to a different destination.
-  - [ ] Contract caller permissions do not bind issued addresses to one hardcoded hot EOA; signer
-        rotation must remain possible without changing CREATE2 address derivation inputs.
   - [ ] The runtime verifies that Go-side prediction inputs and deployed contract bytecode
-        expectations match before issuing or collecting funds on a network.
+        expectations match before issuing payment addresses or running explicit contract
+        verification on a network.
 - Notes:
   - The goal is operational safety, not a generic wallet contract platform.
 
-### FR-008 - Preserve privacy of future Ethereum payment-address issuance
+### FR-007 - Preserve privacy of future Ethereum payment-address issuance
 
 - Description:
   - Ethereum CREATE2 issuance must avoid exposing enough public information for third parties to
@@ -241,22 +216,19 @@ links:
     with p95 latency <= 250 ms in a warm local environment because CREATE2 address prediction does
     not require chain IO.
 - Availability/Reliability (NFR-002):
-  - Re-running polling, deploy, or sweep for the same Ethereum payment address must be safe and
-    must not create duplicate receipt rows, duplicate deployment records, or duplicate fund
-    collection.
+  - Re-running issuance or polling for the same Ethereum payment address must be safe and must not
+    create duplicate receipt rows or inconsistent payment status transitions.
 - Security/Privacy (NFR-003):
-  - No per-payment secret keys may be persisted. Signer credentials must remain runtime-managed
-    operator secrets only. For privacy-preserving Ethereum issuance, each allocation must use at
-    least 128 bits of non-public salt entropy or an equivalent non-public derivation secret so
-    future addresses are not enumerable from public inputs alone.
+  - No per-payment secret keys may be persisted. For privacy-preserving Ethereum issuance, each
+    allocation must use at least 128 bits of non-public salt entropy or an equivalent non-public
+    derivation secret so future addresses are not enumerable from public inputs alone.
 - Compliance (NFR-004):
   - No additional compliance controls are introduced in this iteration beyond existing payment
     auditability and deterministic state persistence.
 - Observability (NFR-005):
-  - Logs and persisted technical state must let an operator diagnose prediction mismatch,
-    observation failure, deployment failure, and sweep failure using `paymentAddressId`, chain,
-    network, address, and tx hash context, without requiring raw CREATE2 salt or full source-ref
-    material in default logs.
+  - Logs and persisted state must let an operator diagnose prediction mismatch and observation
+    failure using `paymentAddressId`, chain, network, address, and block-height context, without
+    requiring raw CREATE2 salt or full source-ref material in default logs.
 - Maintainability (NFR-006):
   - EVM-specific RPC, ABI, and contract details must stay confined to adapters or infrastructure,
     and the existing Bitcoin tests and flows must remain green after the Ethereum changes.
@@ -266,7 +238,6 @@ links:
 - External systems:
   - Ethereum JSON-RPC provider.
   - CREATE2 factory and receiver contract artifacts plus deployment flow.
-  - Operator-managed signer credential source for deployment and sweep transactions.
 - Internal services:
   - Existing payment-address allocation flow.
   - Existing payment receipt polling and status API flow.

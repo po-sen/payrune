@@ -3,7 +3,7 @@ doc: 00_problem
 spec_date: 2026-03-20
 slug: create2-eth-payment-receiving
 mode: Full
-status: READY
+status: DONE
 owners:
   - payrune-team
 depends_on:
@@ -31,8 +31,8 @@ links:
 - Users or stakeholders:
   - Merchant backends that need one payment address per checkout or invoice.
   - Backend developers extending `payrune` to support non-Bitcoin chains.
-  - Operators who must safely manage collection wallets, operator-signer keys, and settlement
-    flows.
+  - Operators who must safely manage collector configuration, derivation keys, and payment-status
+    infrastructure.
 - Why now:
   - The next planned payment rail is native ETH.
   - CREATE2 allows deterministic deposit addresses without generating or storing one private key per
@@ -55,8 +55,8 @@ links:
     payment system.
 - Compliance/security constraints:
   - No per-payment private key material may be generated or persisted.
-  - Operator-signer credentials must stay operator-managed.
-  - The collection path must prevent sweeping ETH to arbitrary destinations.
+  - Any future collection signer credentials must stay operator-managed.
+  - The receiver contract path must keep future collector routing constrained.
   - Checked-in deployment metadata may remain public, but public metadata plus public API surfaces
     must not make future Ethereum payment addresses enumerable by third parties.
 
@@ -82,12 +82,9 @@ links:
   - Reuse the existing payment-address allocation, receipt tracking, status API, and webhook flow
     for Ethereum-native payments.
 - G3:
-  - Support an idempotent post-funding deployment and sweep path so ETH received at a predicted
-    CREATE2 address can be forwarded to the operator collector wallet.
-- G4:
   - Clean up the issuance model so Bitcoin HD derivation and Ethereum CREATE2 issuance can coexist
     without misusing Bitcoin-specific field names.
-- G5:
+- G4:
   - Preserve merchant privacy by preventing third parties from enumerating future Ethereum payment
     addresses from the combination of checked-in metadata, public policy ids, and public
     index-based preview routes.
@@ -101,11 +98,13 @@ links:
 - NG3:
   - Mempool-only payment detection before a transaction is mined.
 - NG4:
-  - Merchant payout settlement, treasury accounting, or fiat reconciliation beyond confirming and
-    collecting ETH into the configured collector address.
+  - Merchant payout settlement, treasury accounting, or fiat reconciliation beyond confirming ETH
+    receipt through the existing payment status lifecycle.
 - NG5:
   - Perfect on-chain anonymity after receiver deployment or final sweep into a known treasury
     address.
+- NG6:
+  - Automatic deploy-and-sweep collection in the first rollout.
 
 ## Assumptions
 
@@ -129,10 +128,8 @@ links:
     issuance networks, while keeping each policy disabled until its collector runtime config and
     checked-in CREATE2 deployment metadata are both present.
 - A7:
-  - An operator signer with gas is required to bootstrap the factory and later submit deploy/sweep
-    transactions, but that signer is not part of CREATE2 address derivation and may rotate without
-    changing previously issued addresses as long as the same factory and receiver configuration stay
-    active.
+  - Future deploy-and-sweep support may still need an operator signer with gas, but v1 receipt
+    collection is not part of the first rollout scope.
 - A8:
   - Privacy scope in v1 means future payment addresses are not publicly enumerable from public
     metadata plus sequential guesses or public preview routes; it does not guarantee that a fully
@@ -141,13 +138,11 @@ links:
 ## Open questions
 
 - Q1:
-  - Should deploy-and-sweep run in a dedicated worker, be triggered from the existing poller
-    lifecycle, or remain a manual operator command in the first rollout?
+  - When post-funding collection is added later, should it run in a dedicated worker, be triggered
+    from the existing poller lifecycle, or remain a manual operator command?
 - Q2:
-  - Should overpayment above `expectedAmountMinor` be swept automatically in the first version or
-    be left for manual review when it exceeds a threshold?
-- Q3:
-  - Do we want the sweeper to run after `paid_unconfirmed` or only after `paid_confirmed`?
+  - When post-funding collection is added later, should overpayment above `expectedAmountMinor` be
+    swept automatically or be left for manual review when it exceeds a threshold?
 
 ## Success metrics
 
@@ -166,11 +161,6 @@ links:
   - Target:
     - A mined ETH transfer at or above the expected amount transitions the payment to the correct
       status within two poll cycles in local and staging environments.
-- Metric:
-  - Collection reliability.
-  - Target:
-    - Re-running deploy/sweep for the same funded address does not duplicate collection and
-      produces a deterministic already-complete or already-in-progress result.
 - Metric:
   - Address-space privacy.
   - Target:
