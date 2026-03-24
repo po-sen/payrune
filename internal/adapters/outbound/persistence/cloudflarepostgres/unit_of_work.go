@@ -5,14 +5,15 @@ import (
 	"errors"
 
 	outport "payrune/internal/application/ports/outbound"
+	cloudflarepostgresinfra "payrune/internal/infrastructure/cloudflarepostgres"
 )
 
 type UnitOfWork struct {
 	bridgeID string
-	bridge   Bridge
+	bridge   cloudflarepostgresinfra.Bridge
 }
 
-func NewUnitOfWork(bridgeID string, bridge Bridge) *UnitOfWork {
+func NewUnitOfWork(bridgeID string, bridge cloudflarepostgresinfra.Bridge) *UnitOfWork {
 	return &UnitOfWork{
 		bridgeID: bridgeID,
 		bridge:   bridge,

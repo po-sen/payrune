@@ -1,14 +1,12 @@
 //go:build js && wasm
 
-package cloudflarewebhookdriver
+package cloudflarewebhook
 
 import (
 	"context"
 	"errors"
 	"syscall/js"
 	"time"
-
-	webhookadapter "payrune/internal/adapters/outbound/webhook"
 )
 
 const (
@@ -18,13 +16,13 @@ const (
 
 type jsBridge struct{}
 
-func NewBridge() webhookadapter.CloudflarePaymentReceiptStatusWebhookBridge {
+func NewBridge() Bridge {
 	return &jsBridge{}
 }
 
 func (b *jsBridge) PostJSON(
 	ctx context.Context,
-	input webhookadapter.CloudflarePaymentReceiptStatusWebhookPostInput,
+	input PostInput,
 ) error {
 	headers := js.Global().Get("Object").New()
 	for key, value := range input.Headers {

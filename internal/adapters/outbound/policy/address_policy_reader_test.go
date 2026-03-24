@@ -4,24 +4,33 @@ import (
 	"context"
 	"testing"
 
+	"payrune/internal/domain/entities"
 	"payrune/internal/domain/valueobjects"
 )
 
 func TestAddressPolicyReaderPreservesAddressSourceRef(t *testing.T) {
-	reader := NewAddressPolicyReader([]AddressPolicyConfig{
+	reader := NewAddressPolicyReader([]entities.AddressIssuancePolicy{
 		{
-			AddressPolicyID:  "policy-a",
-			Chain:            valueobjects.SupportedChainBitcoin,
-			Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:           string(valueobjects.BitcoinAddressSchemeLegacy),
-			AddressSourceRef: "xpub-a",
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "policy-a",
+				Chain:           valueobjects.SupportedChainBitcoin,
+				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+				Scheme:          string(valueobjects.BitcoinAddressSchemeLegacy),
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef: "xpub-a",
+			},
 		},
 		{
-			AddressPolicyID:  "policy-b",
-			Chain:            valueobjects.SupportedChainBitcoin,
-			Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:           string(valueobjects.BitcoinAddressSchemeLegacy),
-			AddressSourceRef: "xpub-b",
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "policy-b",
+				Chain:           valueobjects.SupportedChainBitcoin,
+				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+				Scheme:          string(valueobjects.BitcoinAddressSchemeLegacy),
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef: "xpub-b",
+			},
 		},
 	})
 
@@ -53,22 +62,30 @@ func TestAddressPolicyReaderPreservesAddressSourceRef(t *testing.T) {
 }
 
 func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
-	reader := NewAddressPolicyReader([]AddressPolicyConfig{
+	reader := NewAddressPolicyReader([]entities.AddressIssuancePolicy{
 		{
-			AddressPolicyID:        "native-mainnet",
-			Chain:                  valueobjects.SupportedChainBitcoin,
-			Network:                valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:                 string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-			AddressSourceRef:       "xpub-a",
-			AddressReferencePrefix: "m/84'/0'/0'",
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "native-mainnet",
+				Chain:           valueobjects.SupportedChainBitcoin,
+				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       "xpub-a",
+				AddressReferencePrefix: "m/84'/0'/0'",
+			},
 		},
 		{
-			AddressPolicyID:        "taproot-testnet4",
-			Chain:                  valueobjects.SupportedChainBitcoin,
-			Network:                valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			Scheme:                 string(valueobjects.BitcoinAddressSchemeTaproot),
-			AddressSourceRef:       "xpub-b",
-			AddressReferencePrefix: "m/86'/1'/0'",
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "taproot-testnet4",
+				Chain:           valueobjects.SupportedChainBitcoin,
+				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+				Scheme:          string(valueobjects.BitcoinAddressSchemeTaproot),
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       "xpub-b",
+				AddressReferencePrefix: "m/86'/1'/0'",
+			},
 		},
 	})
 
@@ -102,26 +119,34 @@ func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
 }
 
 func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
-	reader := NewAddressPolicyReader([]AddressPolicyConfig{
+	reader := NewAddressPolicyReader([]entities.AddressIssuancePolicy{
 		{
-			AddressPolicyID:        "ethereum-mainnet-create2",
-			Chain:                  valueobjects.SupportedChainEthereum,
-			Network:                valueobjects.NetworkID("mainnet"),
-			Scheme:                 "create2",
-			MinorUnit:              "wei",
-			Decimals:               18,
-			AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-			AddressReferencePrefix: "ethereum-mainnet-create2/",
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "ethereum-mainnet-create2",
+				Chain:           valueobjects.SupportedChainEthereum,
+				Network:         valueobjects.NetworkID("mainnet"),
+				Scheme:          "create2",
+				MinorUnit:       "wei",
+				Decimals:        18,
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+				AddressReferencePrefix: "ethereum-mainnet-create2/",
+			},
 		},
 		{
-			AddressPolicyID:        "ethereum-sepolia-create2",
-			Chain:                  valueobjects.SupportedChainEthereum,
-			Network:                valueobjects.NetworkID("sepolia"),
-			Scheme:                 "create2",
-			MinorUnit:              "wei",
-			Decimals:               18,
-			AddressSourceRef:       "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-			AddressReferencePrefix: "ethereum-sepolia-create2/",
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "ethereum-sepolia-create2",
+				Chain:           valueobjects.SupportedChainEthereum,
+				Network:         valueobjects.NetworkID("sepolia"),
+				Scheme:          "create2",
+				MinorUnit:       "wei",
+				Decimals:        18,
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+				AddressReferencePrefix: "ethereum-sepolia-create2/",
+			},
 		},
 	})
 

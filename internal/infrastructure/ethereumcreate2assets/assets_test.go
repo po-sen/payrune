@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"golang.org/x/crypto/sha3"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 func TestBuildAddressSourceRefFromMetadataRequiresCompleteInputs(t *testing.T) {
@@ -69,7 +67,7 @@ func TestReceiverArtifactInitCodeHashHex(t *testing.T) {
 }
 
 func TestEmbeddedMetadataLoadsMainnetAndSepolia(t *testing.T) {
-	mainnet, ok := LookupDeploymentMetadata(valueobjects.NetworkID("mainnet"))
+	mainnet, ok := LookupDeploymentMetadata("mainnet")
 	if !ok {
 		t.Fatal("expected embedded mainnet metadata")
 	}
@@ -80,7 +78,7 @@ func TestEmbeddedMetadataLoadsMainnetAndSepolia(t *testing.T) {
 		t.Fatal("expected embedded receiver artifact creation code")
 	}
 
-	sepolia, ok := LookupDeploymentMetadata(valueobjects.NetworkID("sepolia"))
+	sepolia, ok := LookupDeploymentMetadata("sepolia")
 	if !ok {
 		t.Fatal("expected embedded sepolia metadata")
 	}

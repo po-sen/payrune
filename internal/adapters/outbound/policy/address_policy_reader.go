@@ -9,17 +9,6 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-type AddressPolicyConfig struct {
-	AddressPolicyID        string
-	Chain                  valueobjects.SupportedChain
-	Network                valueobjects.NetworkID
-	Scheme                 string
-	MinorUnit              string
-	Decimals               uint8
-	AddressSourceRef       string
-	AddressReferencePrefix string
-}
-
 type addressPolicyReader struct {
 	ordered      []entities.AddressPolicy
 	issuanceByID map[string]entities.AddressIssuancePolicy
@@ -27,26 +16,12 @@ type addressPolicyReader struct {
 
 var _ outport.AddressPolicyReader = (*addressPolicyReader)(nil)
 
-func NewAddressPolicyReader(configs []AddressPolicyConfig) outport.AddressPolicyReader {
-	ordered := make([]entities.AddressPolicy, 0, len(configs))
-	issuanceByID := make(map[string]entities.AddressIssuancePolicy, len(configs))
+func NewAddressPolicyReader(policies []entities.AddressIssuancePolicy) outport.AddressPolicyReader {
+	ordered := make([]entities.AddressPolicy, 0, len(policies))
+	issuanceByID := make(map[string]entities.AddressIssuancePolicy, len(policies))
 
-	for _, cfg := range configs {
-		issuancePolicy := entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: strings.TrimSpace(cfg.AddressPolicyID),
-				Chain:           cfg.Chain,
-				Network:         cfg.Network,
-				Scheme:          cfg.Scheme,
-				MinorUnit:       strings.TrimSpace(cfg.MinorUnit),
-				Decimals:        cfg.Decimals,
-			},
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       strings.TrimSpace(cfg.AddressSourceRef),
-				AddressReferencePrefix: strings.TrimSpace(cfg.AddressReferencePrefix),
-			},
-		}.Normalize()
-
+	for _, issuancePolicy := range policies {
+		issuancePolicy = issuancePolicy.Normalize()
 		if issuancePolicy.AddressPolicy.AddressPolicyID == "" {
 			continue
 		}

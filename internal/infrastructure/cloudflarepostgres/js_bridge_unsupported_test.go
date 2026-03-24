@@ -1,6 +1,6 @@
 //go:build !js || !wasm
 
-package cloudflarepostgresdriver
+package cloudflarepostgres
 
 import (
 	"context"

@@ -84,7 +84,18 @@ This section is the direct architecture and workflow contract for this repositor
   or other IO.
 - Adapters may do technical validation and protocol mapping, but must not decide business outcomes.
 
-#### `internal/infrastructure/di`, `internal/bootstrap`, `cmd/`
+#### `internal/infrastructure`
+
+- Own external-service integrations, runtime bridges, embedded assets, and low-level technical
+  helpers used by adapters or bootstrap wiring.
+- Must not own dependency wiring, controller/use-case composition, process startup, or business
+  branching.
+- Must not depend on `internal/domain`, `internal/application`, or `internal/adapters`; any
+  technical contract needed by adapters should be defined at the infrastructure boundary and
+  consumed from there.
+- Infrastructure may normalize vendor/runtime details, but must not decide business outcomes.
+
+#### `internal/bootstrap`, `cmd/`
 
 - Own dependency wiring, env parsing, process startup, schedulers, and concrete client
   construction.
@@ -684,8 +695,8 @@ boundaries. Extra feature-level separation is optional for small projects.
 3. If the change belongs to a specific feature area or bounded context, place it under the relevant
    `internal/...` path. Ask a question only if strictly necessary to avoid incorrect placement.
 4. Ensure the directory structure exists for `internal/domain`, `internal/application`,
-   `internal/adapters`, `internal/infrastructure/di`, and `cmd/<app>/main.go` or
-   `internal/bootstrap` when those repo-standard wiring points are present.
+   `internal/adapters`, `internal/bootstrap`, and `cmd/<app>/main.go` when those repo-standard
+   wiring points are present.
 5. Define or extend a single inbound port per use case in `internal/application/ports/inbound`, using
    command-style input and explicit output DTOs.
 6. Implement the use case in `internal/application/usecases`, orchestrating domain behavior and
@@ -698,8 +709,8 @@ boundaries. Extra feature-level separation is optional for small projects.
    systems and using infrastructure drivers as needed.
 10. Implement inbound adapters in `internal/adapters/inbound/*`: validate input, map to command/DTO,
     call the inbound port or command bus, map errors.
-11. Wire dependencies only in `internal/infrastructure/di`, `internal/bootstrap`, and
-    `cmd/<app>/main.go` (or the existing repo-standard wiring area).
+11. Wire dependencies only in `internal/bootstrap` and `cmd/<app>/main.go` (or the existing
+    repo-standard wiring area).
 12. Add tests according to the Testing taxonomy below: unit (domain + use case with mocked outbound
     ports), integration + contract (adapters), and functional tests for critical user flows.
 13. Verify dependency boundaries by checking imports; fix any violations before finalizing.

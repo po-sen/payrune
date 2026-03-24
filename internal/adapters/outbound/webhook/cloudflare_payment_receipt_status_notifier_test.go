@@ -7,16 +7,17 @@ import (
 	"time"
 
 	outport "payrune/internal/application/ports/outbound"
+	cloudflarewebhookinfra "payrune/internal/infrastructure/cloudflarewebhook"
 )
 
 type fakeCloudflarePaymentReceiptStatusWebhookBridge struct {
-	input CloudflarePaymentReceiptStatusWebhookPostInput
+	input cloudflarewebhookinfra.PostInput
 	err   error
 }
 
 func (f *fakeCloudflarePaymentReceiptStatusWebhookBridge) PostJSON(
 	_ context.Context,
-	input CloudflarePaymentReceiptStatusWebhookPostInput,
+	input cloudflarewebhookinfra.PostInput,
 ) error {
 	f.input = input
 	return f.err

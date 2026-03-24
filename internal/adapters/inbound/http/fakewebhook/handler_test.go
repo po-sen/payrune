@@ -1,4 +1,4 @@
-package main
+package fakewebhook
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestFakeWebhookHandlerValidSignature(t *testing.T) {
+func TestHandlerValidSignature(t *testing.T) {
 	body := []byte(`{"eventType":"payment_receipt.status_changed","eventVersion":1,"notificationId":9}`)
 	request := httptest.NewRequest(http.MethodPost, "/receipt-status", bytes.NewReader(body))
 	request.Header.Set("X-Payrune-Event", "payment_receipt.status_changed")
@@ -19,7 +19,7 @@ func TestFakeWebhookHandlerValidSignature(t *testing.T) {
 	request.Header.Set(headerSignature256, "sha256="+computeWebhookSignature([]byte("secret-key"), body))
 
 	var logs bytes.Buffer
-	handler := newFakeWebhookHandler(log.New(&logs, "", 0), "secret-key")
+	handler := NewHandler(log.New(&logs, "", 0), "secret-key")
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, request)
@@ -53,7 +53,7 @@ func TestFakeWebhookHandlerValidSignature(t *testing.T) {
 	}
 }
 
-func TestFakeWebhookHandlerInvalidSignature(t *testing.T) {
+func TestHandlerInvalidSignature(t *testing.T) {
 	body := []byte(`{"eventType":"payment_receipt.status_changed","eventVersion":1,"notificationId":9}`)
 	request := httptest.NewRequest(http.MethodPost, "/receipt-status", bytes.NewReader(body))
 	request.Header.Set("X-Payrune-Event", "payment_receipt.status_changed")
@@ -62,7 +62,7 @@ func TestFakeWebhookHandlerInvalidSignature(t *testing.T) {
 	request.Header.Set(headerSignature256, "sha256=invalid")
 
 	var logs bytes.Buffer
-	handler := newFakeWebhookHandler(log.New(&logs, "", 0), "secret-key")
+	handler := NewHandler(log.New(&logs, "", 0), "secret-key")
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, request)
@@ -83,7 +83,7 @@ func TestFakeWebhookHandlerInvalidSignature(t *testing.T) {
 	}
 }
 
-func TestFakeWebhookHandlerSkipsVerificationWhenSecretMissing(t *testing.T) {
+func TestHandlerSkipsVerificationWhenSecretMissing(t *testing.T) {
 	body := []byte(`{"eventType":"payment_receipt.status_changed","eventVersion":1,"notificationId":9}`)
 	request := httptest.NewRequest(http.MethodPost, "/receipt-status", bytes.NewReader(body))
 	request.Header.Set("X-Payrune-Event", "payment_receipt.status_changed")
@@ -91,7 +91,7 @@ func TestFakeWebhookHandlerSkipsVerificationWhenSecretMissing(t *testing.T) {
 	request.Header.Set("X-Payrune-Notification-ID", "9")
 
 	var logs bytes.Buffer
-	handler := newFakeWebhookHandler(log.New(&logs, "", 0), "")
+	handler := NewHandler(log.New(&logs, "", 0), "")
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, request)
@@ -104,7 +104,7 @@ func TestFakeWebhookHandlerSkipsVerificationWhenSecretMissing(t *testing.T) {
 	}
 }
 
-func TestFakeWebhookHandlerRejectsInvalidJSON(t *testing.T) {
+func TestHandlerRejectsInvalidJSON(t *testing.T) {
 	body := []byte(`{"eventType":"payment_receipt.status_changed"`)
 	request := httptest.NewRequest(http.MethodPost, "/receipt-status", bytes.NewReader(body))
 	request.Header.Set("X-Payrune-Event", "payment_receipt.status_changed")
@@ -113,7 +113,7 @@ func TestFakeWebhookHandlerRejectsInvalidJSON(t *testing.T) {
 	request.Header.Set(headerSignature256, "sha256="+computeWebhookSignature([]byte("secret-key"), body))
 
 	var logs bytes.Buffer
-	handler := newFakeWebhookHandler(log.New(&logs, "", 0), "secret-key")
+	handler := NewHandler(log.New(&logs, "", 0), "secret-key")
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, request)

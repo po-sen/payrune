@@ -1,18 +1,16 @@
 //go:build !js || !wasm
 
-package cloudflarewebhookdriver
+package cloudflarewebhook
 
 import (
 	"context"
 	"testing"
-
-	webhookadapter "payrune/internal/adapters/outbound/webhook"
 )
 
 func TestUnsupportedBridgeReturnsError(t *testing.T) {
 	bridge := NewBridge()
 
-	err := bridge.PostJSON(context.Background(), webhookadapter.CloudflarePaymentReceiptStatusWebhookPostInput{})
+	err := bridge.PostJSON(context.Background(), PostInput{})
 	if err == nil {
 		t.Fatal("expected unsupported error")
 	}

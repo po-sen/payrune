@@ -1,25 +1,13 @@
 package cloudflarepostgres
 
-import "errors"
+import (
+	"errors"
 
-type QueryError struct {
-	Message    string
-	Code       string
-	Constraint string
-}
-
-func (e *QueryError) Error() string {
-	if e == nil {
-		return ""
-	}
-	if e.Message != "" {
-		return e.Message
-	}
-	return "postgres query failed"
-}
+	cloudflarepostgresinfra "payrune/internal/infrastructure/cloudflarepostgres"
+)
 
 func isUniqueViolation(err error, constraint string) bool {
-	var queryErr *QueryError
+	var queryErr *cloudflarepostgresinfra.QueryError
 	if !errors.As(err, &queryErr) {
 		return false
 	}

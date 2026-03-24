@@ -4,17 +4,9 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"syscall/js"
 
 	"payrune/internal/bootstrap"
-)
-
-const (
-	operationAPI               = "api"
-	operationPoller            = "poller"
-	operationWebhookDispatcher = "webhook_dispatcher"
 )
 
 func main() {
@@ -35,7 +27,11 @@ func main() {
 			}
 
 			go func() {
-				responseJSON, err := dispatchOperation(context.Background(), operation, payload)
+				responseJSON, err := bootstrap.DispatchCloudflareWorkerOperationJSON(
+					context.Background(),
+					operation,
+					payload,
+				)
 				if err != nil {
 					reject.Invoke(err.Error())
 					return
@@ -51,17 +47,4 @@ func main() {
 	}))
 
 	select {}
-}
-
-func dispatchOperation(ctx context.Context, operation string, payload string) (string, error) {
-	switch strings.TrimSpace(operation) {
-	case operationAPI:
-		return bootstrap.HandleCloudflareAPIRequestJSON(ctx, payload)
-	case operationPoller:
-		return bootstrap.HandleCloudflarePollerRequestJSON(ctx, payload)
-	case operationWebhookDispatcher:
-		return bootstrap.HandleCloudflareReceiptWebhookDispatcherRequestJSON(ctx, payload)
-	default:
-		return "", fmt.Errorf("unsupported payrune worker operation: %s", operation)
-	}
 }

@@ -41,14 +41,12 @@ func (c stubConn) Ping(context.Context) error {
 	return c.pingErr
 }
 
-func TestOpenFromEnvMissingDatabaseURL(t *testing.T) {
-	t.Setenv(envDatabaseURL, " ")
-
-	_, err := OpenFromEnv()
+func TestOpenMissingDatabaseURL(t *testing.T) {
+	_, err := Open("")
 	if err == nil {
-		t.Fatal("expected missing DATABASE_URL error")
+		t.Fatal("expected missing database url error")
 	}
-	if got := err.Error(); got != "DATABASE_URL is required" {
+	if got := err.Error(); got != "database url is required" {
 		t.Fatalf("unexpected error: %q", got)
 	}
 }

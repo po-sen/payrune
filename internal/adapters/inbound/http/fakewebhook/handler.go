@@ -1,4 +1,4 @@
-package main
+package fakewebhook
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ type paymentReceiptStatusChangedPayload struct {
 	NotificationID int64  `json:"notificationId"`
 }
 
-func newFakeWebhookHandler(logger *log.Logger, secret string) http.Handler {
+func NewHandler(logger *log.Logger, secret string) http.Handler {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -34,7 +34,7 @@ func newFakeWebhookHandler(logger *log.Logger, secret string) http.Handler {
 			return
 		}
 
-		result := verifyWebhookRequest(secret, r, body)
+		result := verifyRequest(secret, r, body)
 		logger.Printf(
 			"fake webhook request:\n  method=%s\n  path=%s\n  headers:\n%s\n  raw_body:\n%s",
 			r.Method,
@@ -71,7 +71,7 @@ func newFakeWebhookHandler(logger *log.Logger, secret string) http.Handler {
 	})
 }
 
-type webhookVerificationResult struct {
+type verificationResult struct {
 	Event                string
 	Version              string
 	NotificationIDHeader string
@@ -84,8 +84,8 @@ type webhookVerificationResult struct {
 	DecodeErr            error
 }
 
-func verifyWebhookRequest(secret string, r *http.Request, body []byte) webhookVerificationResult {
-	result := webhookVerificationResult{
+func verifyRequest(secret string, r *http.Request, body []byte) verificationResult {
+	result := verificationResult{
 		Event:                strings.TrimSpace(r.Header.Get("X-Payrune-Event")),
 		Version:              strings.TrimSpace(r.Header.Get("X-Payrune-Event-Version")),
 		NotificationIDHeader: strings.TrimSpace(r.Header.Get("X-Payrune-Notification-ID")),
@@ -120,11 +120,11 @@ func marshalHeadersJSON(header http.Header) string {
 		return "{}"
 	}
 
-	bytes, err := json.Marshal(header)
+	encoded, err := json.Marshal(header)
 	if err != nil {
 		return `{"_marshal_error":"header_json_failed"}`
 	}
-	return string(bytes)
+	return string(encoded)
 }
 
 func formatHeadersForLog(header http.Header) string {

@@ -1,6 +1,6 @@
 //go:build js && wasm
 
-package cloudflarepostgresdriver
+package cloudflarepostgres
 
 import (
 	"context"
@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"syscall/js"
 	"time"
-
-	cloudflarepostgresadapter "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
 )
 
 const (
@@ -24,7 +22,7 @@ const (
 
 type jsBridge struct{}
 
-func NewJSBridge() cloudflarepostgresadapter.Bridge {
+func NewJSBridge() Bridge {
 	return &jsBridge{}
 }
 
@@ -205,7 +203,7 @@ func jsError(value js.Value) error {
 	code := value.Get("code")
 	constraint := value.Get("constraint")
 	if message.Truthy() || code.Truthy() || constraint.Truthy() {
-		return &cloudflarepostgresadapter.QueryError{
+		return &QueryError{
 			Message:    message.String(),
 			Code:       code.String(),
 			Constraint: constraint.String(),

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	cloudflarepostgresinfra "payrune/internal/infrastructure/cloudflarepostgres"
 )
 
 type Result interface {
@@ -28,19 +30,19 @@ type Executor interface {
 }
 
 type bridgeExecutor struct {
-	bridge   Bridge
+	bridge   cloudflarepostgresinfra.Bridge
 	bridgeID string
 	txID     string
 }
 
-func NewExecutor(bridgeID string, bridge Bridge) Executor {
+func NewExecutor(bridgeID string, bridge cloudflarepostgresinfra.Bridge) Executor {
 	return &bridgeExecutor{
 		bridge:   bridge,
 		bridgeID: bridgeID,
 	}
 }
 
-func newTxExecutor(bridgeID string, txID string, bridge Bridge) Executor {
+func newTxExecutor(bridgeID string, txID string, bridge cloudflarepostgresinfra.Bridge) Executor {
 	return &bridgeExecutor{
 		bridge:   bridge,
 		bridgeID: bridgeID,

@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"path"
 	"strings"
-
-	"payrune/internal/adapters/outbound/ethereum"
-	"payrune/internal/domain/valueobjects"
 )
 
 //go:embed artifacts/*.json metadata/*.json
@@ -33,12 +30,12 @@ type ReceiverArtifact struct {
 
 var deploymentMetadataByNetwork = mustLoadDeploymentMetadataByNetwork()
 
-func LookupDeploymentMetadata(network valueobjects.NetworkID) (DeploymentMetadata, bool) {
-	metadata, ok := deploymentMetadataByNetwork[network]
+func LookupDeploymentMetadata(network string) (DeploymentMetadata, bool) {
+	metadata, ok := deploymentMetadataByNetwork[normalizeNetworkKey(network)]
 	return metadata, ok
 }
 
-func BuildAddressSourceRef(network valueobjects.NetworkID, collectorAddress string) string {
+func BuildAddressSourceRef(network string, collectorAddress string) string {
 	metadata, ok := LookupDeploymentMetadata(network)
 	if !ok {
 		return ""
@@ -60,7 +57,7 @@ func BuildAddressSourceRefFromMetadata(
 		return ""
 	}
 
-	sourceRef, err := ethereum.BuildCreate2AddressSourceRef(
+	sourceRef, err := buildCreate2AddressSourceRef(
 		strings.TrimSpace(metadata.FactoryAddress),
 		collectorAddress,
 		initCodeHash,
@@ -71,13 +68,13 @@ func BuildAddressSourceRefFromMetadata(
 	return sourceRef
 }
 
-func mustLoadDeploymentMetadataByNetwork() map[valueobjects.NetworkID]DeploymentMetadata {
+func mustLoadDeploymentMetadataByNetwork() map[string]DeploymentMetadata {
 	entries, err := embeddedAssets.ReadDir("metadata")
 	if err != nil {
 		panic(fmt.Errorf("read embedded ethereum create2 metadata: %w", err))
 	}
 
-	loaded := make(map[valueobjects.NetworkID]DeploymentMetadata, len(entries))
+	loaded := make(map[string]DeploymentMetadata, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
@@ -88,14 +85,15 @@ func mustLoadDeploymentMetadataByNetwork() map[valueobjects.NetworkID]Deployment
 			panic(err)
 		}
 
-		networkID, ok := valueobjects.ParseNetworkID(metadata.Network)
-		if !ok {
+		networkKey := normalizeNetworkKey(metadata.Network)
+		if networkKey == "" {
 			panic(fmt.Errorf("embedded ethereum create2 metadata network is invalid: %s", metadata.Network))
 		}
-		if _, exists := loaded[networkID]; exists {
-			panic(fmt.Errorf("duplicate embedded ethereum create2 metadata for network: %s", networkID))
+		metadata.Network = networkKey
+		if _, exists := loaded[networkKey]; exists {
+			panic(fmt.Errorf("duplicate embedded ethereum create2 metadata for network: %s", networkKey))
 		}
-		loaded[networkID] = metadata
+		loaded[networkKey] = metadata
 	}
 
 	return loaded
@@ -113,7 +111,7 @@ func loadDeploymentMetadata(fileName string) (DeploymentMetadata, error) {
 	}
 	metadata.FactoryAddress = strings.TrimSpace(metadata.FactoryAddress)
 	metadata.ReceiverArtifact = strings.TrimSpace(metadata.ReceiverArtifact)
-	metadata.Network = strings.TrimSpace(metadata.Network)
+	metadata.Network = normalizeNetworkKey(metadata.Network)
 	if metadata.FactoryAddress == "" || metadata.ReceiverArtifact == "" || metadata.Network == "" {
 		return DeploymentMetadata{}, fmt.Errorf("ethereum create2 metadata %s is incomplete", fileName)
 	}
@@ -143,7 +141,7 @@ func loadReceiverArtifact(fileName string) (ReceiverArtifact, error) {
 }
 
 func (a ReceiverArtifact) InitCodeHex(collectorAddress string) (string, bool) {
-	initCodeHex, err := ethereum.BuildFixedCollectorReceiverInitCodeHex(
+	initCodeHex, err := buildFixedCollectorReceiverInitCodeHex(
 		a.CreationCodeHex,
 		collectorAddress,
 	)
@@ -159,9 +157,13 @@ func (a ReceiverArtifact) InitCodeHashHex(collectorAddress string) (string, bool
 		return "", false
 	}
 
-	initCodeHashHex, err := ethereum.Keccak256Hex(initCodeHex)
+	initCodeHashHex, err := keccak256Hex(initCodeHex)
 	if err != nil {
 		return "", false
 	}
 	return initCodeHashHex, true
+}
+
+func normalizeNetworkKey(network string) string {
+	return strings.ToLower(strings.TrimSpace(network))
 }

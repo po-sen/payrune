@@ -1,14 +1,27 @@
-package di
+package bootstrap
 
 import (
 	"testing"
 	"time"
 
 	"payrune/internal/adapters/outbound/ethereum"
+	"payrune/internal/domain/entities"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
+
+func TestOpenPostgresFromEnvMissingDatabaseURL(t *testing.T) {
+	t.Setenv(envDatabaseURL, " ")
+
+	_, err := openPostgresFromEnv()
+	if err == nil {
+		t.Fatal("expected missing DATABASE_URL error")
+	}
+	if got := err.Error(); got != "DATABASE_URL is required" {
+		t.Fatalf("unexpected error: %q", got)
+	}
+}
 
 func TestLoadReceiptRequiredConfirmationsFromEnvDefaults(t *testing.T) {
 	t.Setenv(envBitcoinMainnetRequiredConfirmations, "")
@@ -206,13 +219,13 @@ func TestLoadReceiptExpiresAfterByScopeFromEnvNonPositive(t *testing.T) {
 	}
 }
 
-func TestNewEthereumCreate2PolicyConfigBuildsSourceRefFromFixtureMetadata(t *testing.T) {
+func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetadata(t *testing.T) {
 	network := valueobjects.NetworkID("sepolia")
 	collectorAddress := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
 		network: "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
-	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(network)
+	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(string(network))
 	if !ok {
 		t.Fatalf("expected embedded metadata for %s", network)
 	}
@@ -230,32 +243,87 @@ func TestNewEthereumCreate2PolicyConfigBuildsSourceRefFromFixtureMetadata(t *tes
 		t.Fatalf("BuildCreate2AddressSourceRef returned error: %v", err)
 	}
 
-	config := newEthereumCreate2PolicyConfig(network, collectorAddress, saltDeriver)
+	policy := newEthereumCreate2AddressIssuancePolicy(network, collectorAddress, saltDeriver)
 
-	if config.AddressPolicyID != "ethereum-sepolia-create2" {
-		t.Fatalf("unexpected address policy id: got %q", config.AddressPolicyID)
+	if policy.AddressPolicy.AddressPolicyID != "ethereum-sepolia-create2" {
+		t.Fatalf("unexpected address policy id: got %q", policy.AddressPolicy.AddressPolicyID)
 	}
-	if config.AddressReferencePrefix != "ethereum-sepolia-create2" {
-		t.Fatalf("unexpected address reference prefix: got %q", config.AddressReferencePrefix)
+	if policy.IssuanceConfig.AddressReferencePrefix != "ethereum-sepolia-create2" {
+		t.Fatalf("unexpected address reference prefix: got %q", policy.IssuanceConfig.AddressReferencePrefix)
 	}
-	if config.AddressSourceRef != expectedSourceRef {
-		t.Fatalf("unexpected address source ref: got %q want %q", config.AddressSourceRef, expectedSourceRef)
+	if policy.IssuanceConfig.AddressSourceRef != expectedSourceRef {
+		t.Fatalf("unexpected address source ref: got %q want %q", policy.IssuanceConfig.AddressSourceRef, expectedSourceRef)
 	}
 }
 
-func TestNewEthereumCreate2PolicyConfigRequiresCollectorAddress(t *testing.T) {
+func TestNewEthereumCreate2AddressIssuancePolicyRequiresCollectorAddress(t *testing.T) {
 	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
 		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
-	config := newEthereumCreate2PolicyConfig(valueobjects.NetworkID("mainnet"), "", saltDeriver)
-	if config.AddressSourceRef != "" {
-		t.Fatalf("expected disabled config when collector is missing, got %q", config.AddressSourceRef)
+	policy := newEthereumCreate2AddressIssuancePolicy(valueobjects.NetworkID("mainnet"), "", saltDeriver)
+	if policy.IssuanceConfig.AddressSourceRef != "" {
+		t.Fatalf("expected disabled policy when collector is missing, got %q", policy.IssuanceConfig.AddressSourceRef)
 	}
 }
 
-func TestNewEthereumCreate2PolicyConfigRequiresSaltSecret(t *testing.T) {
-	config := newEthereumCreate2PolicyConfig(valueobjects.NetworkID("mainnet"), "0x2222222222222222222222222222222222222222", ethereum.NewCreate2SaltDeriver(nil))
-	if config.AddressSourceRef != "" {
-		t.Fatalf("expected disabled config when derivation key is missing, got %q", config.AddressSourceRef)
+func TestNewEthereumCreate2AddressIssuancePolicyRequiresSaltSecret(t *testing.T) {
+	policy := newEthereumCreate2AddressIssuancePolicy(
+		valueobjects.NetworkID("mainnet"),
+		"0x2222222222222222222222222222222222222222",
+		ethereum.NewCreate2SaltDeriver(nil),
+	)
+	if policy.IssuanceConfig.AddressSourceRef != "" {
+		t.Fatalf("expected disabled policy when derivation key is missing, got %q", policy.IssuanceConfig.AddressSourceRef)
 	}
+}
+
+func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
+	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
+		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
+	})
+	env := map[string]string{
+		envBitcoinMainnetLegacyXPub:        " xpub-mainnet-legacy ",
+		envEthereumMainnetCreate2Collector: "0x2222222222222222222222222222222222222222",
+	}
+
+	policies := buildAddressIssuancePolicies(func(key string) string {
+		return env[key]
+	}, saltDeriver)
+
+	bitcoinPolicy := findAddressIssuancePolicyByID(policies, "bitcoin-mainnet-legacy")
+	if bitcoinPolicy.IssuanceConfig.AddressSourceRef != "xpub-mainnet-legacy" {
+		t.Fatalf("unexpected bitcoin address source ref: got %q", bitcoinPolicy.IssuanceConfig.AddressSourceRef)
+	}
+	if bitcoinPolicy.IssuanceConfig.AddressReferencePrefix != "m/44'/0'/0'" {
+		t.Fatalf(
+			"unexpected bitcoin address reference prefix: got %q",
+			bitcoinPolicy.IssuanceConfig.AddressReferencePrefix,
+		)
+	}
+
+	ethereumPolicy := findAddressIssuancePolicyByID(policies, "ethereum-mainnet-create2")
+	if ethereumPolicy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected ethereum policy chain: got %q", ethereumPolicy.AddressPolicy.Chain)
+	}
+	if ethereumPolicy.IssuanceConfig.AddressReferencePrefix != "ethereum-mainnet-create2" {
+		t.Fatalf(
+			"unexpected ethereum address reference prefix: got %q",
+			ethereumPolicy.IssuanceConfig.AddressReferencePrefix,
+		)
+	}
+	if ethereumPolicy.IssuanceConfig.AddressSourceRef == "" {
+		t.Fatal("expected ethereum create2 source ref to be populated")
+	}
+}
+
+func findAddressIssuancePolicyByID(
+	policies []entities.AddressIssuancePolicy,
+	addressPolicyID string,
+) entities.AddressIssuancePolicy {
+	for _, policy := range policies {
+		if policy.AddressPolicy.AddressPolicyID == addressPolicyID {
+			return policy
+		}
+	}
+	return entities.AddressIssuancePolicy{}
 }

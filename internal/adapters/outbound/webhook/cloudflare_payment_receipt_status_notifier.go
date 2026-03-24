@@ -9,6 +9,7 @@ import (
 	"time"
 
 	outport "payrune/internal/application/ports/outbound"
+	cloudflarewebhookinfra "payrune/internal/infrastructure/cloudflarewebhook"
 )
 
 type cloudflarePaymentReceiptStatusWebhookNotifier struct {
@@ -16,12 +17,12 @@ type cloudflarePaymentReceiptStatusWebhookNotifier struct {
 	path    string
 	secret  []byte
 	timeout time.Duration
-	bridge  CloudflarePaymentReceiptStatusWebhookBridge
+	bridge  cloudflarewebhookinfra.Bridge
 }
 
 func NewCloudflarePaymentReceiptStatusWebhookNotifier(
 	config PaymentReceiptWebhookNotifierConfig,
-	bridge CloudflarePaymentReceiptStatusWebhookBridge,
+	bridge cloudflarewebhookinfra.Bridge,
 ) (outport.PaymentReceiptStatusNotifier, error) {
 	if bridge == nil {
 		return nil, errors.New("cloudflare payment receipt webhook bridge is not configured")
@@ -82,7 +83,7 @@ func (n *cloudflarePaymentReceiptStatusWebhookNotifier) NotifyStatusChanged(
 		return err
 	}
 
-	return n.bridge.PostJSON(ctx, CloudflarePaymentReceiptStatusWebhookPostInput{
+	return n.bridge.PostJSON(ctx, cloudflarewebhookinfra.PostInput{
 		Binding: n.binding,
 		Path:    n.path,
 		Timeout: n.timeout,

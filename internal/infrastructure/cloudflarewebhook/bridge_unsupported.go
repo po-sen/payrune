@@ -1,23 +1,21 @@
 //go:build !js || !wasm
 
-package cloudflarewebhookdriver
+package cloudflarewebhook
 
 import (
 	"context"
 	"errors"
-
-	webhookadapter "payrune/internal/adapters/outbound/webhook"
 )
 
 type unsupportedBridge struct{}
 
-func NewBridge() webhookadapter.CloudflarePaymentReceiptStatusWebhookBridge {
+func NewBridge() Bridge {
 	return &unsupportedBridge{}
 }
 
 func (b *unsupportedBridge) PostJSON(
 	context.Context,
-	webhookadapter.CloudflarePaymentReceiptStatusWebhookPostInput,
+	PostInput,
 ) error {
 	return errors.New("cloudflare payment receipt webhook bridge is only available in js/wasm")
 }

@@ -5,22 +5,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
 )
 
 const (
-	envDatabaseURL     = "DATABASE_URL"
 	defaultPingTimeout = 5 * time.Second
 )
 
-func OpenFromEnv() (*sql.DB, error) {
-	databaseURL := strings.TrimSpace(os.Getenv(envDatabaseURL))
+func Open(databaseURL string) (*sql.DB, error) {
 	if databaseURL == "" {
-		return nil, errors.New("DATABASE_URL is required")
+		return nil, errors.New("database url is required")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultPingTimeout)
