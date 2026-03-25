@@ -3,9 +3,6 @@ package bootstrap
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
@@ -18,11 +15,6 @@ import (
 )
 
 const (
-	cfEnvReceiptWebhookDispatchBatchSize   = "RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE"
-	cfEnvReceiptWebhookDispatchClaimTTL    = "RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL"
-	cfEnvReceiptWebhookDispatchMaxAttempts = "RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS"
-	cfEnvReceiptWebhookDispatchRetryDelay  = "RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY"
-
 	cfDefaultReceiptWebhookDispatchBatchSize   = 50
 	cfDefaultReceiptWebhookDispatchClaimTTL    = 30 * time.Second
 	cfDefaultReceiptWebhookDispatchMaxAttempts = int32(10)
@@ -109,62 +101,32 @@ func buildCloudflareReceiptWebhookDispatcherRuntime(
 func buildCloudflareReceiptWebhookDispatcherRequest(
 	env map[string]string,
 ) (scheduleradapter.WebhookDispatcherRequest, error) {
-	batchSize, err := parseCloudflareReceiptWebhookDispatcherPositiveIntEnvWithDefault(
-		env,
-		cfEnvReceiptWebhookDispatchBatchSize,
-		cfDefaultReceiptWebhookDispatchBatchSize,
-	)
-	if err != nil {
-		return scheduleradapter.WebhookDispatcherRequest{}, err
-	}
-	dispatchTTL, err := parseCloudflareReceiptWebhookDispatcherDurationMapWithDefault(
-		env,
-		cfEnvReceiptWebhookDispatchClaimTTL,
-		cfDefaultReceiptWebhookDispatchClaimTTL,
-	)
-	if err != nil {
-		return scheduleradapter.WebhookDispatcherRequest{}, err
-	}
-	maxAttempts, err := parseCloudflareReceiptWebhookDispatcherPositiveInt32MapWithDefault(
-		env,
-		cfEnvReceiptWebhookDispatchMaxAttempts,
-		cfDefaultReceiptWebhookDispatchMaxAttempts,
-	)
-	if err != nil {
-		return scheduleradapter.WebhookDispatcherRequest{}, err
-	}
-	retryDelay, err := parseCloudflareReceiptWebhookDispatcherDurationMapWithDefault(
-		env,
-		cfEnvReceiptWebhookDispatchRetryDelay,
-		cfDefaultReceiptWebhookDispatchRetryDelay,
-	)
+	settings, err := loadReceiptWebhookDispatchSettingsFromLookup(func(key string) string {
+		return env[key]
+	}, receiptWebhookDispatchDefaults{
+		BatchSize:   cfDefaultReceiptWebhookDispatchBatchSize,
+		DispatchTTL: cfDefaultReceiptWebhookDispatchClaimTTL,
+		MaxAttempts: cfDefaultReceiptWebhookDispatchMaxAttempts,
+		RetryDelay:  cfDefaultReceiptWebhookDispatchRetryDelay,
+	}, false)
 	if err != nil {
 		return scheduleradapter.WebhookDispatcherRequest{}, err
 	}
 
 	return scheduleradapter.WebhookDispatcherRequest{
-		BatchSize:   batchSize,
-		DispatchTTL: dispatchTTL,
-		RetryDelay:  retryDelay,
-		MaxAttempts: maxAttempts,
+		BatchSize:   settings.BatchSize,
+		DispatchTTL: settings.DispatchTTL,
+		RetryDelay:  settings.RetryDelay,
+		MaxAttempts: settings.MaxAttempts,
 	}, nil
 }
 
 func loadCloudflareReceiptWebhookNotifierConfig(
 	env map[string]string,
 ) (webhookadapter.PaymentReceiptWebhookNotifierConfig, error) {
-	timeout, err := parseCloudflareReceiptWebhookDispatcherDurationMapWithDefault(
-		env,
-		envPaymentReceiptWebhookTimeout,
-		10*time.Second,
-	)
-	if err != nil {
-		return webhookadapter.PaymentReceiptWebhookNotifierConfig{}, err
-	}
-	insecureSkipVerify, err := parseCloudflareReceiptWebhookDispatcherBoolEnv(
-		env,
-		envPaymentReceiptWebhookInsecureSkipVerify,
-	)
+	settings, err := loadReceiptWebhookNotifierSettingsFromLookup(func(key string) string {
+		return env[key]
+	}, 10*time.Second)
 	if err != nil {
 		return webhookadapter.PaymentReceiptWebhookNotifierConfig{}, err
 	}
@@ -172,89 +134,8 @@ func loadCloudflareReceiptWebhookNotifierConfig(
 	return webhookadapter.PaymentReceiptWebhookNotifierConfig{
 		CloudflareBinding:  cfReceiptWebhookMockBinding,
 		CloudflarePath:     cfReceiptWebhookMockPath,
-		Secret:             cloudflareReceiptWebhookDispatcherEnvValue(env, envPaymentReceiptWebhookSecret),
-		Timeout:            timeout,
-		InsecureSkipVerify: insecureSkipVerify,
+		Secret:             settings.Secret,
+		Timeout:            settings.Timeout,
+		InsecureSkipVerify: settings.InsecureSkipVerify,
 	}, nil
-}
-
-func parseCloudflareReceiptWebhookDispatcherBoolEnv(
-	env map[string]string,
-	key string,
-) (bool, error) {
-	rawValue := cloudflareReceiptWebhookDispatcherEnvValue(env, key)
-	if rawValue == "" {
-		return false, nil
-	}
-
-	value, err := strconv.ParseBool(rawValue)
-	if err != nil {
-		return false, fmt.Errorf("%s must be a boolean: %w", key, err)
-	}
-	return value, nil
-}
-
-func parseCloudflareReceiptWebhookDispatcherPositiveIntEnvWithDefault(
-	env map[string]string,
-	key string,
-	fallback int,
-) (int, error) {
-	rawValue := cloudflareReceiptWebhookDispatcherEnvValue(env, key)
-	if rawValue == "" {
-		return fallback, nil
-	}
-
-	value, err := strconv.Atoi(rawValue)
-	if err != nil {
-		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
-	}
-	if value <= 0 {
-		return 0, fmt.Errorf("%s must be greater than zero", key)
-	}
-	return value, nil
-}
-
-func parseCloudflareReceiptWebhookDispatcherPositiveInt32MapWithDefault(
-	env map[string]string,
-	key string,
-	fallback int32,
-) (int32, error) {
-	rawValue := cloudflareReceiptWebhookDispatcherEnvValue(env, key)
-	if rawValue == "" {
-		return fallback, nil
-	}
-
-	parsedValue, err := strconv.ParseInt(rawValue, 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("%s must be a positive integer: %w", key, err)
-	}
-	if parsedValue <= 0 {
-		return 0, fmt.Errorf("%s must be a positive integer", key)
-	}
-
-	return int32(parsedValue), nil
-}
-
-func parseCloudflareReceiptWebhookDispatcherDurationMapWithDefault(
-	env map[string]string,
-	key string,
-	fallback time.Duration,
-) (time.Duration, error) {
-	rawValue := cloudflareReceiptWebhookDispatcherEnvValue(env, key)
-	if rawValue == "" {
-		return fallback, nil
-	}
-
-	duration, err := time.ParseDuration(rawValue)
-	if err != nil {
-		return 0, fmt.Errorf("%s must be a duration: %w", key, err)
-	}
-	if duration <= 0 {
-		return 0, fmt.Errorf("%s must be greater than zero", key)
-	}
-	return duration, nil
-}
-
-func cloudflareReceiptWebhookDispatcherEnvValue(env map[string]string, key string) string {
-	return strings.TrimSpace(env[key])
 }

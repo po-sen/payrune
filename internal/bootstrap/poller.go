@@ -26,6 +26,13 @@ const (
 	defaultPollerClaimTTL     = 30 * time.Second
 	defaultPollerBatchSize    = 50
 
+	envPollTickInterval       = "POLL_TICK_INTERVAL"
+	envPollRescheduleInterval = "POLL_RESCHEDULE_INTERVAL"
+	envPollBatchSize          = "POLL_BATCH_SIZE"
+	envPollClaimTTL           = "POLL_CLAIM_TTL"
+	envPollChain              = "POLL_CHAIN"
+	envPollNetwork            = "POLL_NETWORK"
+
 	envBitcoinMainnetEsploraURL            = "BITCOIN_MAINNET_ESPLORA_URL"
 	envBitcoinMainnetEsploraUser           = "BITCOIN_MAINNET_ESPLORA_USER"
 	envBitcoinMainnetEsploraPassword       = "BITCOIN_MAINNET_ESPLORA_PASSWORD"
@@ -63,6 +70,20 @@ type PollerConfig struct {
 type pollerContainer struct {
 	PollerHandler *scheduleradapter.PollerHandler
 	closeFn       func() error
+}
+
+type pollerDispatchConfig struct {
+	RescheduleInterval time.Duration
+	BatchSize          int
+	ClaimTTL           time.Duration
+	Chain              string
+	Network            string
+}
+
+type pollerDispatchDefaults struct {
+	RescheduleInterval time.Duration
+	BatchSize          int
+	ClaimTTL           time.Duration
 }
 
 type bitcoinEsploraEnvKeys struct {
@@ -141,44 +162,22 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 }
 
 func loadPollerConfigFromLookup(lookup func(string) string) (PollerConfig, error) {
-	tickInterval, err := parseOptionalPositiveDurationEnv(lookup, "POLL_TICK_INTERVAL")
+	tickInterval, err := parsePollerPositiveDurationLookupWithDefault(lookup, envPollTickInterval, 0)
 	if err != nil {
 		return PollerConfig{}, err
 	}
-
-	rescheduleInterval, err := parseOptionalPositiveDurationEnv(lookup, "POLL_RESCHEDULE_INTERVAL")
+	dispatchConfig, err := loadPollerDispatchConfigFromLookup(lookup, pollerDispatchDefaults{})
 	if err != nil {
 		return PollerConfig{}, err
-	}
-
-	claimTTL, err := parseOptionalPositiveDurationEnv(lookup, "POLL_CLAIM_TTL")
-	if err != nil {
-		return PollerConfig{}, err
-	}
-
-	batchSize, err := parseOptionalPositiveIntEnv(lookup, "POLL_BATCH_SIZE")
-	if err != nil {
-		return PollerConfig{}, err
-	}
-	chain, err := parseOptionalChainIDEnv(lookup, "POLL_CHAIN")
-	if err != nil {
-		return PollerConfig{}, err
-	}
-	network, err := parseOptionalNetworkIDEnv(lookup, "POLL_NETWORK")
-	if err != nil {
-		return PollerConfig{}, err
-	}
-	if network != "" && chain == "" {
-		return PollerConfig{}, fmt.Errorf("POLL_CHAIN is required when POLL_NETWORK is set")
 	}
 
 	return PollerConfig{
 		TickInterval:       tickInterval,
-		RescheduleInterval: rescheduleInterval,
-		BatchSize:          batchSize,
-		ClaimTTL:           claimTTL,
-		Chain:              chain,
-		Network:            network,
+		RescheduleInterval: dispatchConfig.RescheduleInterval,
+		BatchSize:          dispatchConfig.BatchSize,
+		ClaimTTL:           dispatchConfig.ClaimTTL,
+		Chain:              dispatchConfig.Chain,
+		Network:            dispatchConfig.Network,
 	}, nil
 }
 
@@ -246,10 +245,63 @@ func (c *pollerContainer) Close() error {
 	return c.closeFn()
 }
 
-func parseOptionalPositiveDurationEnv(lookup func(string) string, key string) (time.Duration, error) {
+func loadPollerDispatchConfigFromLookup(
+	lookup func(string) string,
+	defaults pollerDispatchDefaults,
+) (pollerDispatchConfig, error) {
+	rescheduleInterval, err := parsePollerPositiveDurationLookupWithDefault(
+		lookup,
+		envPollRescheduleInterval,
+		defaults.RescheduleInterval,
+	)
+	if err != nil {
+		return pollerDispatchConfig{}, err
+	}
+	claimTTL, err := parsePollerPositiveDurationLookupWithDefault(
+		lookup,
+		envPollClaimTTL,
+		defaults.ClaimTTL,
+	)
+	if err != nil {
+		return pollerDispatchConfig{}, err
+	}
+	batchSize, err := parsePollerPositiveIntLookupWithDefault(
+		lookup,
+		envPollBatchSize,
+		defaults.BatchSize,
+	)
+	if err != nil {
+		return pollerDispatchConfig{}, err
+	}
+	chain, err := parsePollerChainLookup(lookup, envPollChain)
+	if err != nil {
+		return pollerDispatchConfig{}, err
+	}
+	network, err := parsePollerNetworkLookup(lookup, envPollNetwork)
+	if err != nil {
+		return pollerDispatchConfig{}, err
+	}
+	if network != "" && chain == "" {
+		return pollerDispatchConfig{}, fmt.Errorf("%s is required when %s is set", envPollChain, envPollNetwork)
+	}
+
+	return pollerDispatchConfig{
+		RescheduleInterval: rescheduleInterval,
+		BatchSize:          batchSize,
+		ClaimTTL:           claimTTL,
+		Chain:              chain,
+		Network:            network,
+	}, nil
+}
+
+func parsePollerPositiveDurationLookupWithDefault(
+	lookup func(string) string,
+	key string,
+	fallback time.Duration,
+) (time.Duration, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
-		return 0, nil
+		return fallback, nil
 	}
 
 	value, err := time.ParseDuration(raw)
@@ -262,10 +314,14 @@ func parseOptionalPositiveDurationEnv(lookup func(string) string, key string) (t
 	return value, nil
 }
 
-func parseOptionalPositiveIntEnv(lookup func(string) string, key string) (int, error) {
+func parsePollerPositiveIntLookupWithDefault(
+	lookup func(string) string,
+	key string,
+	fallback int,
+) (int, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
-		return 0, nil
+		return fallback, nil
 	}
 
 	value, err := strconv.Atoi(raw)
@@ -278,7 +334,7 @@ func parseOptionalPositiveIntEnv(lookup func(string) string, key string) (int, e
 	return value, nil
 }
 
-func parseOptionalChainIDEnv(lookup func(string) string, key string) (string, error) {
+func parsePollerChainLookup(lookup func(string) string, key string) (string, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return "", nil
@@ -291,7 +347,7 @@ func parseOptionalChainIDEnv(lookup func(string) string, key string) (string, er
 	return string(chain), nil
 }
 
-func parseOptionalNetworkIDEnv(lookup func(string) string, key string) (string, error) {
+func parsePollerNetworkLookup(lookup func(string) string, key string) (string, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return "", nil
@@ -311,16 +367,14 @@ func loadConfiguredPollerChainFromEnv() (valueobjects.ChainID, bool, error) {
 func loadConfiguredPollerChainFromLookup(
 	lookup func(string) string,
 ) (valueobjects.ChainID, bool, error) {
-	rawChain := strings.TrimSpace(lookup(envPollChain))
-	if rawChain == "" {
+	chain, err := parsePollerChainLookup(lookup, envPollChain)
+	if err != nil {
+		return "", false, err
+	}
+	if chain == "" {
 		return "", false, nil
 	}
-
-	chain, ok := valueobjects.ParseChainID(rawChain)
-	if !ok {
-		return "", false, fmt.Errorf("%s is invalid", envPollChain)
-	}
-	return chain, true, nil
+	return valueobjects.ChainID(chain), true, nil
 }
 
 func loadBitcoinMainnetEsploraConfigFromEnv() *bitcoin.BitcoinEsploraObserverConfig {

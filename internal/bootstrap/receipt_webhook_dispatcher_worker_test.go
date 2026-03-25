@@ -18,7 +18,7 @@ func TestHandleCloudflareReceiptWebhookDispatcherRequestJSONInvalidJSON(t *testi
 func TestHandleCloudflareReceiptWebhookDispatcherRequestJSONValidationError(t *testing.T) {
 	payload, err := json.Marshal(receiptWebhookDispatcherWorkerRequestEnvelope{
 		Env: map[string]string{
-			cfEnvReceiptWebhookDispatchBatchSize: "bad",
+			envReceiptWebhookDispatchBatchSize: "bad",
 		},
 	})
 	if err != nil {
@@ -29,7 +29,7 @@ func TestHandleCloudflareReceiptWebhookDispatcherRequestJSONValidationError(t *t
 	if err == nil {
 		t.Fatal("expected validation error")
 	}
-	if !strings.Contains(err.Error(), cfEnvReceiptWebhookDispatchBatchSize) {
+	if !strings.Contains(err.Error(), envReceiptWebhookDispatchBatchSize) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

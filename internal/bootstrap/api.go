@@ -33,6 +33,14 @@ const (
 	envBitcoinTestnet4RequiredConfirmations = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
 	envBitcoinMainnetReceiptExpiresAfter    = "BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER"
 	envBitcoinTestnet4ReceiptExpiresAfter   = "BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER"
+	envBitcoinMainnetLegacyXPub             = "BITCOIN_MAINNET_LEGACY_XPUB"
+	envBitcoinMainnetSegwitXPub             = "BITCOIN_MAINNET_SEGWIT_XPUB"
+	envBitcoinMainnetNativeSegwitXPub       = "BITCOIN_MAINNET_NATIVE_SEGWIT_XPUB"
+	envBitcoinMainnetTaprootXPub            = "BITCOIN_MAINNET_TAPROOT_XPUB"
+	envBitcoinTestnet4LegacyXPub            = "BITCOIN_TESTNET4_LEGACY_XPUB"
+	envBitcoinTestnet4SegwitXPub            = "BITCOIN_TESTNET4_SEGWIT_XPUB"
+	envBitcoinTestnet4NativeSegwitXPub      = "BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB"
+	envBitcoinTestnet4TaprootXPub           = "BITCOIN_TESTNET4_TAPROOT_XPUB"
 	envEthereumMainnetRequiredConfirmations = "ETHEREUM_MAINNET_REQUIRED_CONFIRMATIONS"
 	envEthereumSepoliaRequiredConfirmations = "ETHEREUM_SEPOLIA_REQUIRED_CONFIRMATIONS"
 	envEthereumMainnetReceiptExpiresAfter   = "ETHEREUM_MAINNET_RECEIPT_EXPIRES_AFTER"
@@ -175,30 +183,45 @@ func openPostgresFromEnv() (*sql.DB, error) {
 }
 
 func loadReceiptRequiredConfirmationsFromEnv() (map[policies.PaymentReceiptTermsScope]int32, error) {
-	mainnetConfirmations, err := parsePositiveInt32EnvWithDefault(
+	return loadReceiptRequiredConfirmationsFromLookup(os.Getenv, defaultBitcoinRequiredConfirmations)
+}
+
+func loadReceiptExpiresAfterByScopeFromEnv() (map[policies.PaymentReceiptTermsScope]time.Duration, error) {
+	return loadReceiptExpiresAfterByScopeFromLookup(os.Getenv, defaultBitcoinReceiptExpiresAfter)
+}
+
+func loadReceiptRequiredConfirmationsFromLookup(
+	lookup func(string) string,
+	fallback int32,
+) (map[policies.PaymentReceiptTermsScope]int32, error) {
+	mainnetConfirmations, err := parsePositiveInt32LookupWithDefault(
+		lookup,
 		envBitcoinMainnetRequiredConfirmations,
-		defaultBitcoinRequiredConfirmations,
+		fallback,
 	)
 	if err != nil {
 		return nil, err
 	}
-	testnet4Confirmations, err := parsePositiveInt32EnvWithDefault(
+	testnet4Confirmations, err := parsePositiveInt32LookupWithDefault(
+		lookup,
 		envBitcoinTestnet4RequiredConfirmations,
-		defaultBitcoinRequiredConfirmations,
+		fallback,
 	)
 	if err != nil {
 		return nil, err
 	}
-	ethereumMainnetConfirmations, err := parsePositiveInt32EnvWithDefault(
+	ethereumMainnetConfirmations, err := parsePositiveInt32LookupWithDefault(
+		lookup,
 		envEthereumMainnetRequiredConfirmations,
-		defaultBitcoinRequiredConfirmations,
+		fallback,
 	)
 	if err != nil {
 		return nil, err
 	}
-	ethereumSepoliaConfirmations, err := parsePositiveInt32EnvWithDefault(
+	ethereumSepoliaConfirmations, err := parsePositiveInt32LookupWithDefault(
+		lookup,
 		envEthereumSepoliaRequiredConfirmations,
-		defaultBitcoinRequiredConfirmations,
+		fallback,
 	)
 	if err != nil {
 		return nil, err
@@ -224,31 +247,38 @@ func loadReceiptRequiredConfirmationsFromEnv() (map[policies.PaymentReceiptTerms
 	}, nil
 }
 
-func loadReceiptExpiresAfterByScopeFromEnv() (map[policies.PaymentReceiptTermsScope]time.Duration, error) {
-	mainnetExpiresAfter, err := parseAPIPositiveDurationEnvWithDefault(
+func loadReceiptExpiresAfterByScopeFromLookup(
+	lookup func(string) string,
+	fallback time.Duration,
+) (map[policies.PaymentReceiptTermsScope]time.Duration, error) {
+	mainnetExpiresAfter, err := parsePositiveDurationLookupWithDefault(
+		lookup,
 		envBitcoinMainnetReceiptExpiresAfter,
-		defaultBitcoinReceiptExpiresAfter,
+		fallback,
 	)
 	if err != nil {
 		return nil, err
 	}
-	testnet4ExpiresAfter, err := parseAPIPositiveDurationEnvWithDefault(
+	testnet4ExpiresAfter, err := parsePositiveDurationLookupWithDefault(
+		lookup,
 		envBitcoinTestnet4ReceiptExpiresAfter,
-		defaultBitcoinReceiptExpiresAfter,
+		fallback,
 	)
 	if err != nil {
 		return nil, err
 	}
-	ethereumMainnetExpiresAfter, err := parseAPIPositiveDurationEnvWithDefault(
+	ethereumMainnetExpiresAfter, err := parsePositiveDurationLookupWithDefault(
+		lookup,
 		envEthereumMainnetReceiptExpiresAfter,
-		defaultBitcoinReceiptExpiresAfter,
+		fallback,
 	)
 	if err != nil {
 		return nil, err
 	}
-	ethereumSepoliaExpiresAfter, err := parseAPIPositiveDurationEnvWithDefault(
+	ethereumSepoliaExpiresAfter, err := parsePositiveDurationLookupWithDefault(
+		lookup,
 		envEthereumSepoliaReceiptExpiresAfter,
-		defaultBitcoinReceiptExpiresAfter,
+		fallback,
 	)
 	if err != nil {
 		return nil, err
@@ -274,8 +304,12 @@ func loadReceiptExpiresAfterByScopeFromEnv() (map[policies.PaymentReceiptTermsSc
 	}, nil
 }
 
-func parsePositiveInt32EnvWithDefault(key string, fallback int32) (int32, error) {
-	raw := strings.TrimSpace(os.Getenv(key))
+func parsePositiveInt32LookupWithDefault(
+	lookup func(string) string,
+	key string,
+	fallback int32,
+) (int32, error) {
+	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return fallback, nil
 	}
@@ -290,8 +324,12 @@ func parsePositiveInt32EnvWithDefault(key string, fallback int32) (int32, error)
 	return int32(parsed), nil
 }
 
-func parseAPIPositiveDurationEnvWithDefault(key string, fallback time.Duration) (time.Duration, error) {
-	raw := strings.TrimSpace(os.Getenv(key))
+func parsePositiveDurationLookupWithDefault(
+	lookup func(string) string,
+	key string,
+	fallback time.Duration,
+) (time.Duration, error) {
+	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return fallback, nil
 	}

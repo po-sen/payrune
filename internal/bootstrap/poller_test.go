@@ -117,23 +117,23 @@ func TestLoadPollerConfigFromEnvRequiresChainWhenNetworkSet(t *testing.T) {
 	}
 }
 
-func TestParseOptionalChainIDEnvAllowsCustomChain(t *testing.T) {
-	chain, err := parseOptionalChainIDEnv(func(key string) string {
+func TestParsePollerChainLookupAllowsCustomChain(t *testing.T) {
+	chain, err := parsePollerChainLookup(func(key string) string {
 		if key == "POLL_CHAIN" {
 			return "Eth"
 		}
 		return ""
 	}, "POLL_CHAIN")
 	if err != nil {
-		t.Fatalf("parseOptionalChainIDEnv returned error: %v", err)
+		t.Fatalf("parsePollerChainLookup returned error: %v", err)
 	}
 	if chain != "eth" {
 		t.Fatalf("unexpected normalized chain: got %q", chain)
 	}
 }
 
-func TestParseOptionalNetworkIDEnvValidation(t *testing.T) {
-	_, err := parseOptionalNetworkIDEnv(func(key string) string {
+func TestParsePollerNetworkLookupValidation(t *testing.T) {
+	_, err := parsePollerNetworkLookup(func(key string) string {
 		if key == "POLL_NETWORK" {
 			return "main/net"
 		}

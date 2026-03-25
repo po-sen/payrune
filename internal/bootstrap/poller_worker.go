@@ -3,9 +3,6 @@ package bootstrap
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
@@ -22,12 +19,6 @@ import (
 )
 
 const (
-	envPollRescheduleInterval = "POLL_RESCHEDULE_INTERVAL"
-	envPollBatchSize          = "POLL_BATCH_SIZE"
-	envPollClaimTTL           = "POLL_CLAIM_TTL"
-	envPollChain              = "POLL_CHAIN"
-	envPollNetwork            = "POLL_NETWORK"
-
 	cloudflarePollerDefaultBatchSize          = 2
 	cloudflarePollerDefaultRescheduleInterval = 10 * time.Minute
 	cloudflarePollerDefaultClaimTTL           = 30 * time.Second
@@ -100,7 +91,7 @@ func buildCloudflarePollerRuntime(
 	}
 	if request.Chain == "" || request.Chain == string(valueobjects.ChainIDEthereum) {
 		if ethereumConfigs := loadEthereumRPCConfigsFromLookup(func(key string) string {
-			return cloudflarePollerEnvValue(env, key)
+			return env[key]
 		}); len(ethereumConfigs) > 0 {
 			ethereumObserver, err := ethereum.NewEthereumRPCReceiptObserver(ethereumConfigs)
 			if err != nil {
@@ -128,117 +119,22 @@ func buildCloudflarePollerRuntime(
 }
 
 func buildCloudflarePollerRequest(env map[string]string) (scheduleradapter.PollerRequest, error) {
-	batchSize, err := parseCloudflarePollerPositiveIntEnvWithDefault(
-		env,
-		envPollBatchSize,
-		cloudflarePollerDefaultBatchSize,
-	)
+	dispatchConfig, err := loadPollerDispatchConfigFromLookup(func(key string) string {
+		return env[key]
+	}, pollerDispatchDefaults{
+		RescheduleInterval: cloudflarePollerDefaultRescheduleInterval,
+		BatchSize:          cloudflarePollerDefaultBatchSize,
+		ClaimTTL:           cloudflarePollerDefaultClaimTTL,
+	})
 	if err != nil {
 		return scheduleradapter.PollerRequest{}, err
-	}
-	rescheduleInterval, err := parseCloudflarePollerDurationMapWithDefault(
-		env,
-		envPollRescheduleInterval,
-		cloudflarePollerDefaultRescheduleInterval,
-	)
-	if err != nil {
-		return scheduleradapter.PollerRequest{}, err
-	}
-	claimTTL, err := parseCloudflarePollerDurationMapWithDefault(
-		env,
-		envPollClaimTTL,
-		cloudflarePollerDefaultClaimTTL,
-	)
-	if err != nil {
-		return scheduleradapter.PollerRequest{}, err
-	}
-	chain, err := parseCloudflarePollerChainEnv(env, envPollChain)
-	if err != nil {
-		return scheduleradapter.PollerRequest{}, err
-	}
-	network, err := parseCloudflarePollerNetworkEnv(env, envPollNetwork)
-	if err != nil {
-		return scheduleradapter.PollerRequest{}, err
-	}
-	if network != "" && chain == "" {
-		return scheduleradapter.PollerRequest{}, fmt.Errorf("%s is required when %s is set", envPollChain, envPollNetwork)
 	}
 
 	return scheduleradapter.PollerRequest{
-		BatchSize:          batchSize,
-		RescheduleInterval: rescheduleInterval,
-		ClaimTTL:           claimTTL,
-		Chain:              chain,
-		Network:            network,
+		BatchSize:          dispatchConfig.BatchSize,
+		RescheduleInterval: dispatchConfig.RescheduleInterval,
+		ClaimTTL:           dispatchConfig.ClaimTTL,
+		Chain:              dispatchConfig.Chain,
+		Network:            dispatchConfig.Network,
 	}, nil
-}
-
-func parseCloudflarePollerPositiveIntEnvWithDefault(
-	env map[string]string,
-	key string,
-	fallback int,
-) (int, error) {
-	rawValue := cloudflarePollerEnvValue(env, key)
-	if rawValue == "" {
-		return fallback, nil
-	}
-
-	value, err := strconv.Atoi(rawValue)
-	if err != nil {
-		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
-	}
-	if value <= 0 {
-		return 0, fmt.Errorf("%s must be greater than zero", key)
-	}
-	return value, nil
-}
-
-func parseCloudflarePollerChainEnv(env map[string]string, key string) (string, error) {
-	rawValue := cloudflarePollerEnvValue(env, key)
-	if rawValue == "" {
-		return "", nil
-	}
-
-	chain, ok := valueobjects.ParseChainID(rawValue)
-	if !ok {
-		return "", fmt.Errorf("%s is invalid", key)
-	}
-	return string(chain), nil
-}
-
-func parseCloudflarePollerNetworkEnv(env map[string]string, key string) (string, error) {
-	rawValue := cloudflarePollerEnvValue(env, key)
-	if rawValue == "" {
-		return "", nil
-	}
-
-	network, ok := valueobjects.ParseNetworkID(rawValue)
-	if !ok {
-		return "", fmt.Errorf("%s is invalid", key)
-	}
-	return string(network), nil
-}
-
-func cloudflarePollerEnvValue(env map[string]string, key string) string {
-	return strings.TrimSpace(env[key])
-}
-
-func parseCloudflarePollerDurationMapWithDefault(
-	env map[string]string,
-	key string,
-	fallback time.Duration,
-) (time.Duration, error) {
-	rawValue := cloudflarePollerEnvValue(env, key)
-	if rawValue == "" {
-		return fallback, nil
-	}
-
-	duration, err := time.ParseDuration(rawValue)
-	if err != nil {
-		return 0, fmt.Errorf("%s must be a duration: %w", key, err)
-	}
-	if duration <= 0 {
-		return 0, fmt.Errorf("%s must be greater than zero", key)
-	}
-	return duration, nil
 }

@@ -23,6 +23,12 @@ const (
 	defaultReceiptWebhookDispatcherMaxAttempts = int32(10)
 	defaultReceiptWebhookDispatcherRetryDelay  = time.Minute
 
+	envReceiptWebhookDispatchInterval    = "RECEIPT_WEBHOOK_DISPATCH_INTERVAL"
+	envReceiptWebhookDispatchBatchSize   = "RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE"
+	envReceiptWebhookDispatchClaimTTL    = "RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL"
+	envReceiptWebhookDispatchMaxAttempts = "RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS"
+	envReceiptWebhookDispatchRetryDelay  = "RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY"
+
 	envPaymentReceiptWebhookURL                = "PAYMENT_RECEIPT_WEBHOOK_URL"
 	envPaymentReceiptWebhookSecret             = "PAYMENT_RECEIPT_WEBHOOK_SECRET"
 	envPaymentReceiptWebhookTimeout            = "PAYMENT_RECEIPT_WEBHOOK_TIMEOUT"
@@ -44,6 +50,26 @@ type receiptWebhookDispatcherContainer struct {
 
 type configError struct {
 	message string
+}
+
+type receiptWebhookDispatchSettings struct {
+	BatchSize   int
+	DispatchTTL time.Duration
+	MaxAttempts int32
+	RetryDelay  time.Duration
+}
+
+type receiptWebhookDispatchDefaults struct {
+	BatchSize   int
+	DispatchTTL time.Duration
+	MaxAttempts int32
+	RetryDelay  time.Duration
+}
+
+type receiptWebhookNotifierSettings struct {
+	Secret             string
+	Timeout            time.Duration
+	InsecureSkipVerify bool
 }
 
 func LoadReceiptWebhookDispatcherConfigFromEnv() (ReceiptWebhookDispatcherConfig, error) {
@@ -114,33 +140,30 @@ func RunReceiptWebhookDispatcher(ctx context.Context, config ReceiptWebhookDispa
 func loadReceiptWebhookDispatcherConfigFromLookup(
 	lookup func(string) string,
 ) (ReceiptWebhookDispatcherConfig, error) {
-	interval, err := parseRequiredPositiveDurationEnv(lookup, "RECEIPT_WEBHOOK_DISPATCH_INTERVAL")
+	interval, err := parseReceiptWebhookDispatcherPositiveDurationLookup(
+		lookup,
+		envReceiptWebhookDispatchInterval,
+		0,
+		true,
+	)
 	if err != nil {
 		return ReceiptWebhookDispatcherConfig{}, err
 	}
-	batchSize, err := parseRequiredPositiveIntEnv(lookup, "RECEIPT_WEBHOOK_DISPATCH_BATCH_SIZE")
-	if err != nil {
-		return ReceiptWebhookDispatcherConfig{}, err
-	}
-	claimTTL, err := parseRequiredPositiveDurationEnv(lookup, "RECEIPT_WEBHOOK_DISPATCH_CLAIM_TTL")
-	if err != nil {
-		return ReceiptWebhookDispatcherConfig{}, err
-	}
-	maxAttempts, err := parseRequiredPositiveInt32Env(lookup, "RECEIPT_WEBHOOK_DISPATCH_MAX_ATTEMPTS")
-	if err != nil {
-		return ReceiptWebhookDispatcherConfig{}, err
-	}
-	retryDelay, err := parseRequiredPositiveDurationEnv(lookup, "RECEIPT_WEBHOOK_DISPATCH_RETRY_DELAY")
+	dispatchSettings, err := loadReceiptWebhookDispatchSettingsFromLookup(
+		lookup,
+		receiptWebhookDispatchDefaults{},
+		true,
+	)
 	if err != nil {
 		return ReceiptWebhookDispatcherConfig{}, err
 	}
 
 	return ReceiptWebhookDispatcherConfig{
 		Interval:    interval,
-		BatchSize:   batchSize,
-		ClaimTTL:    claimTTL,
-		MaxAttempts: maxAttempts,
-		RetryDelay:  retryDelay,
+		BatchSize:   dispatchSettings.BatchSize,
+		ClaimTTL:    dispatchSettings.DispatchTTL,
+		MaxAttempts: dispatchSettings.MaxAttempts,
+		RetryDelay:  dispatchSettings.RetryDelay,
 	}, nil
 }
 
@@ -183,73 +206,187 @@ func (c *receiptWebhookDispatcherContainer) Close() error {
 }
 
 func loadPaymentReceiptWebhookNotifierConfigFromEnv() (webhookadapter.PaymentReceiptWebhookNotifierConfig, error) {
-	timeout, err := parseReceiptWebhookDispatcherPositiveDurationEnvWithDefault(
-		envPaymentReceiptWebhookTimeout,
-		0,
-	)
-	if err != nil {
-		return webhookadapter.PaymentReceiptWebhookNotifierConfig{}, err
-	}
-	insecureSkipVerify, err := parseBoolEnv(envPaymentReceiptWebhookInsecureSkipVerify)
+	settings, err := loadReceiptWebhookNotifierSettingsFromLookup(os.Getenv, 0)
 	if err != nil {
 		return webhookadapter.PaymentReceiptWebhookNotifierConfig{}, err
 	}
 
 	return webhookadapter.PaymentReceiptWebhookNotifierConfig{
 		URL:                strings.TrimSpace(os.Getenv(envPaymentReceiptWebhookURL)),
-		Secret:             os.Getenv(envPaymentReceiptWebhookSecret),
+		Secret:             settings.Secret,
+		Timeout:            settings.Timeout,
+		InsecureSkipVerify: settings.InsecureSkipVerify,
+	}, nil
+}
+
+func loadReceiptWebhookDispatchSettingsFromLookup(
+	lookup func(string) string,
+	defaults receiptWebhookDispatchDefaults,
+	required bool,
+) (receiptWebhookDispatchSettings, error) {
+	batchSize, err := parseReceiptWebhookDispatcherPositiveIntLookup(
+		lookup,
+		envReceiptWebhookDispatchBatchSize,
+		defaults.BatchSize,
+		required,
+	)
+	if err != nil {
+		return receiptWebhookDispatchSettings{}, err
+	}
+	dispatchTTL, err := parseReceiptWebhookDispatcherPositiveDurationLookup(
+		lookup,
+		envReceiptWebhookDispatchClaimTTL,
+		defaults.DispatchTTL,
+		required,
+	)
+	if err != nil {
+		return receiptWebhookDispatchSettings{}, err
+	}
+	maxAttempts, err := parseReceiptWebhookDispatcherPositiveInt32Lookup(
+		lookup,
+		envReceiptWebhookDispatchMaxAttempts,
+		defaults.MaxAttempts,
+		required,
+	)
+	if err != nil {
+		return receiptWebhookDispatchSettings{}, err
+	}
+	retryDelay, err := parseReceiptWebhookDispatcherPositiveDurationLookup(
+		lookup,
+		envReceiptWebhookDispatchRetryDelay,
+		defaults.RetryDelay,
+		required,
+	)
+	if err != nil {
+		return receiptWebhookDispatchSettings{}, err
+	}
+
+	return receiptWebhookDispatchSettings{
+		BatchSize:   batchSize,
+		DispatchTTL: dispatchTTL,
+		MaxAttempts: maxAttempts,
+		RetryDelay:  retryDelay,
+	}, nil
+}
+
+func loadReceiptWebhookNotifierSettingsFromLookup(
+	lookup func(string) string,
+	timeoutFallback time.Duration,
+) (receiptWebhookNotifierSettings, error) {
+	timeout, err := parseReceiptWebhookDispatcherPositiveDurationLookup(
+		lookup,
+		envPaymentReceiptWebhookTimeout,
+		timeoutFallback,
+		false,
+	)
+	if err != nil {
+		return receiptWebhookNotifierSettings{}, err
+	}
+	insecureSkipVerify, err := parseReceiptWebhookDispatcherBoolLookup(
+		lookup,
+		envPaymentReceiptWebhookInsecureSkipVerify,
+	)
+	if err != nil {
+		return receiptWebhookNotifierSettings{}, err
+	}
+
+	return receiptWebhookNotifierSettings{
+		Secret:             lookup(envPaymentReceiptWebhookSecret),
 		Timeout:            timeout,
 		InsecureSkipVerify: insecureSkipVerify,
 	}, nil
 }
 
-func parseRequiredPositiveDurationEnv(lookup func(string) string, key string) (time.Duration, error) {
+func parseReceiptWebhookDispatcherPositiveDurationLookup(
+	lookup func(string) string,
+	key string,
+	fallback time.Duration,
+	required bool,
+) (time.Duration, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
-		return 0, configRequiredError(key)
+		if required {
+			return 0, configRequiredError(key)
+		}
+		return fallback, nil
 	}
+
 	value, err := time.ParseDuration(raw)
 	if err != nil {
-		return 0, configInvalidError(key, "must be a valid duration", err)
+		if required {
+			return 0, configInvalidError(key, "must be a valid duration", err)
+		}
+		return 0, fmt.Errorf("%s must be a duration: %w", key, err)
 	}
 	if value <= 0 {
-		return 0, configSimpleError(key, "must be greater than zero")
+		if required {
+			return 0, configSimpleError(key, "must be greater than zero")
+		}
+		return 0, fmt.Errorf("%s must be greater than zero", key)
 	}
 	return value, nil
 }
 
-func parseRequiredPositiveIntEnv(lookup func(string) string, key string) (int, error) {
+func parseReceiptWebhookDispatcherPositiveIntLookup(
+	lookup func(string) string,
+	key string,
+	fallback int,
+	required bool,
+) (int, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
-		return 0, configRequiredError(key)
+		if required {
+			return 0, configRequiredError(key)
+		}
+		return fallback, nil
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil {
-		return 0, configInvalidError(key, "must be an integer", err)
+		if required {
+			return 0, configInvalidError(key, "must be an integer", err)
+		}
+		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
 	}
 	if value <= 0 {
-		return 0, configSimpleError(key, "must be greater than zero")
+		if required {
+			return 0, configSimpleError(key, "must be greater than zero")
+		}
+		return 0, fmt.Errorf("%s must be greater than zero", key)
 	}
 	return value, nil
 }
 
-func parseRequiredPositiveInt32Env(lookup func(string) string, key string) (int32, error) {
+func parseReceiptWebhookDispatcherPositiveInt32Lookup(
+	lookup func(string) string,
+	key string,
+	fallback int32,
+	required bool,
+) (int32, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
-		return 0, configRequiredError(key)
+		if required {
+			return 0, configRequiredError(key)
+		}
+		return fallback, nil
 	}
 	value, err := strconv.ParseInt(raw, 10, 32)
 	if err != nil {
-		return 0, configInvalidError(key, "must be a 32-bit integer", err)
+		if required {
+			return 0, configInvalidError(key, "must be a 32-bit integer", err)
+		}
+		return 0, fmt.Errorf("%s must be a positive integer: %w", key, err)
 	}
 	if value <= 0 {
-		return 0, configSimpleError(key, "must be greater than zero")
+		if required {
+			return 0, configSimpleError(key, "must be greater than zero")
+		}
+		return 0, fmt.Errorf("%s must be a positive integer", key)
 	}
 	return int32(value), nil
 }
 
-func parseBoolEnv(key string) (bool, error) {
-	raw := strings.TrimSpace(os.Getenv(key))
+func parseReceiptWebhookDispatcherBoolLookup(lookup func(string) string, key string) (bool, error) {
+	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return false, nil
 	}
@@ -258,25 +395,6 @@ func parseBoolEnv(key string) (bool, error) {
 		return false, fmt.Errorf("%s must be a boolean: %w", key, err)
 	}
 	return value, nil
-}
-
-func parseReceiptWebhookDispatcherPositiveDurationEnvWithDefault(
-	key string,
-	fallback time.Duration,
-) (time.Duration, error) {
-	raw := strings.TrimSpace(os.Getenv(key))
-	if raw == "" {
-		return fallback, nil
-	}
-
-	parsed, err := time.ParseDuration(raw)
-	if err != nil {
-		return 0, fmt.Errorf("%s must be a valid duration: %w", key, err)
-	}
-	if parsed <= 0 {
-		return 0, fmt.Errorf("%s must be greater than zero", key)
-	}
-	return parsed, nil
 }
 
 func configRequiredError(key string) error {
