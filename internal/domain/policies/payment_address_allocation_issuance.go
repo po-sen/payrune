@@ -1,7 +1,6 @@
 package policies
 
 import (
-	"errors"
 	"strings"
 	"time"
 
@@ -90,7 +89,7 @@ func (p PaymentAddressAllocationIssuancePolicy) Plan(
 	issuedAt time.Time,
 ) (PaymentAddressAllocationIssuancePlan, error) {
 	if issuedAt.IsZero() {
-		return PaymentAddressAllocationIssuancePlan{}, errors.New("issued at is required")
+		return PaymentAddressAllocationIssuancePlan{}, ErrPaymentAddressAllocationIssuedAtRequired
 	}
 
 	validatedPolicy, err := issuancePolicy.ValidateForAllocationIssuance(requestedChain, expectedAmountMinor)

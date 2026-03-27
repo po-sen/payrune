@@ -1,17 +1,6 @@
 package entities
 
-import (
-	"errors"
-
-	"payrune/internal/domain/valueobjects"
-)
-
-var (
-	ErrAddressPolicyChainMismatch       = errors.New("address policy chain mismatch")
-	ErrAddressPolicyNotEnabled          = errors.New("address policy is not enabled")
-	ErrAddressPolicyPreviewNotSupported = errors.New("address preview is not supported for this address policy")
-	ErrExpectedAmountMinorInvalid       = errors.New("expected amount minor must be greater than zero")
-)
+import "payrune/internal/domain/valueobjects"
 
 type AddressIssuancePolicy struct {
 	AddressPolicy  AddressPolicy
@@ -35,7 +24,7 @@ func (p AddressIssuancePolicy) ValidateForAllocationIssuance(
 ) (AddressIssuancePolicy, error) {
 	normalized := p.Normalize()
 	if normalized.AddressPolicy.AddressPolicyID == "" {
-		return AddressIssuancePolicy{}, errors.New("address policy id is required")
+		return AddressIssuancePolicy{}, ErrAddressPolicyIDRequired
 	}
 	if normalized.AddressPolicy.Chain != requestedChain {
 		return AddressIssuancePolicy{}, ErrAddressPolicyChainMismatch
@@ -60,7 +49,7 @@ func (p AddressIssuancePolicy) ValidateForAddressPreview(
 ) (AddressIssuancePolicy, error) {
 	normalized := p.Normalize()
 	if normalized.AddressPolicy.AddressPolicyID == "" {
-		return AddressIssuancePolicy{}, errors.New("address policy id is required")
+		return AddressIssuancePolicy{}, ErrAddressPolicyIDRequired
 	}
 	if normalized.AddressPolicy.Chain != requestedChain {
 		return AddressIssuancePolicy{}, ErrAddressPolicyChainMismatch

@@ -1,7 +1,6 @@
 package policies
 
 import (
-	"errors"
 	"strings"
 	"time"
 
@@ -22,10 +21,10 @@ func MarkPaymentReceiptStatusNotificationSent(
 	deliveredAt time.Time,
 ) (PaymentReceiptStatusNotificationDeliveryResult, error) {
 	if notificationID <= 0 {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, errors.New("notification id must be greater than zero")
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationIDInvalid
 	}
 	if deliveredAt.IsZero() {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, errors.New("delivered at is required")
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationDeliveredAtRequired
 	}
 
 	deliveredAtUTC := deliveredAt.UTC()
@@ -45,20 +44,20 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	lastError string,
 ) (PaymentReceiptStatusNotificationDeliveryResult, error) {
 	if notificationID <= 0 {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, errors.New("notification id must be greater than zero")
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationIDInvalid
 	}
 	if currentAttempts < 0 {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, errors.New("current attempts must be greater than or equal to zero")
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationCurrentAttemptsInvalid
 	}
 	if maxAttempts <= 0 {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, errors.New("max attempts must be greater than zero")
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationMaxAttemptsInvalid
 	}
 	if now.IsZero() {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, errors.New("now is required")
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationNowRequired
 	}
 	normalizedError := strings.TrimSpace(lastError)
 	if normalizedError == "" {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, errors.New("last error is required")
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationLastErrorRequired
 	}
 
 	attempts := currentAttempts + 1
@@ -72,7 +71,7 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	}
 
 	if retryDelay <= 0 {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, errors.New("retry delay must be greater than zero")
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationRetryDelayInvalid
 	}
 
 	nextAttemptAt := now.Add(retryDelay).UTC()

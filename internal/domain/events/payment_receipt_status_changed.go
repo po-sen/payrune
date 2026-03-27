@@ -1,7 +1,6 @@
 package events
 
 import (
-	"errors"
 	"time"
 
 	"payrune/internal/domain/valueobjects"
@@ -27,28 +26,28 @@ func NewPaymentReceiptStatusChanged(
 	statusChangedAt time.Time,
 ) (PaymentReceiptStatusChanged, error) {
 	if paymentAddressID <= 0 {
-		return PaymentReceiptStatusChanged{}, errors.New("payment address id must be greater than zero")
+		return PaymentReceiptStatusChanged{}, ErrPaymentReceiptStatusChangedPaymentAddressIDInvalid
 	}
 	if previousStatus == "" {
-		return PaymentReceiptStatusChanged{}, errors.New("previous status is required")
+		return PaymentReceiptStatusChanged{}, ErrPaymentReceiptStatusChangedPreviousStatusRequired
 	}
 	if currentStatus == "" {
-		return PaymentReceiptStatusChanged{}, errors.New("current status is required")
+		return PaymentReceiptStatusChanged{}, ErrPaymentReceiptStatusChangedCurrentStatusRequired
 	}
 	if previousStatus == currentStatus {
-		return PaymentReceiptStatusChanged{}, errors.New("status change is required")
+		return PaymentReceiptStatusChanged{}, ErrPaymentReceiptStatusChangedStatusChangeRequired
 	}
 	if observedTotalMinor < 0 {
-		return PaymentReceiptStatusChanged{}, errors.New("observed total minor must be greater than or equal to zero")
+		return PaymentReceiptStatusChanged{}, ErrPaymentReceiptStatusChangedObservedTotalMinorInvalid
 	}
 	if confirmedTotalMinor < 0 {
-		return PaymentReceiptStatusChanged{}, errors.New("confirmed total minor must be greater than or equal to zero")
+		return PaymentReceiptStatusChanged{}, ErrPaymentReceiptStatusChangedConfirmedTotalMinorInvalid
 	}
 	if unconfirmedTotalMinor < 0 {
-		return PaymentReceiptStatusChanged{}, errors.New("unconfirmed total minor must be greater than or equal to zero")
+		return PaymentReceiptStatusChanged{}, ErrPaymentReceiptStatusChangedUnconfirmedTotalMinorInvalid
 	}
 	if statusChangedAt.IsZero() {
-		return PaymentReceiptStatusChanged{}, errors.New("status changed at is required")
+		return PaymentReceiptStatusChanged{}, ErrPaymentReceiptStatusChangedAtRequired
 	}
 
 	return PaymentReceiptStatusChanged{

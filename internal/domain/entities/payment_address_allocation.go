@@ -1,7 +1,6 @@
 package entities
 
 import (
-	"errors"
 	"strings"
 	"time"
 
@@ -32,13 +31,13 @@ func NewPaymentAddressAllocation(
 ) (PaymentAddressAllocation, error) {
 	normalizedPolicyID := strings.TrimSpace(addressPolicyID)
 	if paymentAddressID <= 0 {
-		return PaymentAddressAllocation{}, errors.New("payment address id must be greater than zero")
+		return PaymentAddressAllocation{}, ErrPaymentAddressIDInvalid
 	}
 	if normalizedPolicyID == "" {
-		return PaymentAddressAllocation{}, errors.New("address policy id is required")
+		return PaymentAddressAllocation{}, ErrAddressPolicyIDRequired
 	}
 	if expectedAmountMinor <= 0 {
-		return PaymentAddressAllocation{}, errors.New("expected amount minor must be greater than zero")
+		return PaymentAddressAllocation{}, ErrExpectedAmountMinorInvalid
 	}
 
 	return PaymentAddressAllocation{
@@ -58,19 +57,19 @@ func (a PaymentAddressAllocation) MarkIssued(
 ) (PaymentAddressAllocation, error) {
 	policy = policy.Normalize()
 	if policy.AddressPolicy.AddressPolicyID == "" {
-		return PaymentAddressAllocation{}, errors.New("address policy id is required")
+		return PaymentAddressAllocation{}, ErrAddressPolicyIDRequired
 	}
 	if policy.AddressPolicy.AddressPolicyID != a.AddressPolicyID {
-		return PaymentAddressAllocation{}, errors.New("address policy mismatch")
+		return PaymentAddressAllocation{}, ErrAddressPolicyMismatch
 	}
 
 	normalizedAddress := strings.TrimSpace(address)
 	if normalizedAddress == "" {
-		return PaymentAddressAllocation{}, errors.New("address is required")
+		return PaymentAddressAllocation{}, ErrAddressRequired
 	}
 	normalizedAddressReference := strings.TrimSpace(addressReference)
 	if normalizedAddressReference == "" {
-		return PaymentAddressAllocation{}, errors.New("address reference is required")
+		return PaymentAddressAllocation{}, ErrAddressReferenceRequired
 	}
 
 	issued := a
@@ -88,7 +87,7 @@ func (a PaymentAddressAllocation) MarkIssued(
 func (a PaymentAddressAllocation) MarkDerivationFailed(reason string) (PaymentAddressAllocation, error) {
 	normalizedReason := strings.TrimSpace(reason)
 	if normalizedReason == "" {
-		return PaymentAddressAllocation{}, errors.New("derivation failure reason is required")
+		return PaymentAddressAllocation{}, ErrDerivationFailureReasonRequired
 	}
 
 	failed := a
@@ -108,19 +107,19 @@ func (a PaymentAddressAllocation) IssueReceiptTracking(
 	expiresAt time.Time,
 ) (PaymentReceiptTracking, error) {
 	if a.Status != valueobjects.PaymentAddressAllocationStatusIssued {
-		return PaymentReceiptTracking{}, errors.New("payment address allocation is not issued")
+		return PaymentReceiptTracking{}, ErrPaymentAddressAllocationNotIssued
 	}
 	if expiresAt.IsZero() {
-		return PaymentReceiptTracking{}, errors.New("expires at is required")
+		return PaymentReceiptTracking{}, ErrExpiresAtRequired
 	}
 
 	chainID, ok := valueobjects.ParseChainID(string(a.Chain))
 	if !ok {
-		return PaymentReceiptTracking{}, errors.New("chain is invalid")
+		return PaymentReceiptTracking{}, ErrChainInvalid
 	}
 	networkID, ok := valueobjects.ParseNetworkID(string(a.Network))
 	if !ok {
-		return PaymentReceiptTracking{}, errors.New("network is invalid")
+		return PaymentReceiptTracking{}, ErrNetworkInvalid
 	}
 
 	tracking, err := NewPaymentReceiptTracking(

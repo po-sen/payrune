@@ -1,6 +1,7 @@
 package policies
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -69,5 +70,31 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureTerminal(t *testi
 	}
 	if result.NextAttemptAt != nil {
 		t.Fatalf("expected nil next attempt at, got %v", result.NextAttemptAt)
+	}
+}
+
+func TestResolvePaymentReceiptStatusNotificationDeliveryFailureValidation(t *testing.T) {
+	_, err := ResolvePaymentReceiptStatusNotificationDeliveryFailure(
+		0,
+		0,
+		3,
+		time.Now().UTC(),
+		time.Minute,
+		"timeout",
+	)
+	if !errors.Is(err, ErrPaymentReceiptStatusNotificationIDInvalid) {
+		t.Fatalf("unexpected error: got %v", err)
+	}
+
+	_, err = ResolvePaymentReceiptStatusNotificationDeliveryFailure(
+		99,
+		1,
+		3,
+		time.Now().UTC(),
+		time.Minute,
+		"   ",
+	)
+	if !errors.Is(err, ErrPaymentReceiptStatusNotificationLastErrorRequired) {
+		t.Fatalf("unexpected error: got %v", err)
 	}
 }

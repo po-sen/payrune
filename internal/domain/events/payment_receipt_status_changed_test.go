@@ -1,6 +1,7 @@
 package events
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -43,6 +44,9 @@ func TestNewPaymentReceiptStatusChangedValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected validation error")
 	}
+	if !errors.Is(err, ErrPaymentReceiptStatusChangedPaymentAddressIDInvalid) {
+		t.Fatalf("unexpected error: got %v", err)
+	}
 
 	_, err = NewPaymentReceiptStatusChanged(
 		1,
@@ -55,5 +59,8 @@ func TestNewPaymentReceiptStatusChangedValidation(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("expected status change validation error")
+	}
+	if !errors.Is(err, ErrPaymentReceiptStatusChangedStatusChangeRequired) {
+		t.Fatalf("unexpected error: got %v", err)
 	}
 }

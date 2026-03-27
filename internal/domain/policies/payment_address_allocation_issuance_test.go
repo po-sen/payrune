@@ -177,3 +177,28 @@ func TestPaymentAddressAllocationIssuancePolicyPlanRejectsDisabledPolicy(t *test
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
+
+func TestPaymentAddressAllocationIssuancePolicyPlanRejectsMissingIssuedAt(t *testing.T) {
+	policy := NewPaymentAddressAllocationIssuancePolicy(nil, nil)
+
+	_, err := policy.Plan(
+		entities.AddressIssuancePolicy{
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "bitcoin-mainnet-native-segwit",
+				Chain:           valueobjects.SupportedChainBitcoin,
+				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSourceRef:       "xpub-main",
+				AddressReferencePrefix: "m/84'/0'/0'",
+			},
+		},
+		valueobjects.SupportedChainBitcoin,
+		1200,
+		"order-001",
+		time.Time{},
+	)
+	if !errors.Is(err, ErrPaymentAddressAllocationIssuedAtRequired) {
+		t.Fatalf("unexpected error: got %v", err)
+	}
+}

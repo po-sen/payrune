@@ -1,7 +1,6 @@
 package entities
 
 import (
-	"errors"
 	"strings"
 	"time"
 
@@ -47,28 +46,28 @@ func NewPaymentReceiptTracking(
 	normalizedNetwork, networkOK := valueobjects.ParseNetworkID(string(network))
 
 	if paymentAddressID <= 0 {
-		return PaymentReceiptTracking{}, errors.New("payment address id must be greater than zero")
+		return PaymentReceiptTracking{}, ErrPaymentAddressIDInvalid
 	}
 	if normalizedPolicyID == "" {
-		return PaymentReceiptTracking{}, errors.New("address policy id is required")
+		return PaymentReceiptTracking{}, ErrAddressPolicyIDRequired
 	}
 	if !chainOK {
-		return PaymentReceiptTracking{}, errors.New("chain is invalid")
+		return PaymentReceiptTracking{}, ErrChainInvalid
 	}
 	if !networkOK {
-		return PaymentReceiptTracking{}, errors.New("network is invalid")
+		return PaymentReceiptTracking{}, ErrNetworkInvalid
 	}
 	if normalizedAddress == "" {
-		return PaymentReceiptTracking{}, errors.New("address is required")
+		return PaymentReceiptTracking{}, ErrAddressRequired
 	}
 	if issuedAt.IsZero() {
-		return PaymentReceiptTracking{}, errors.New("issued at is required")
+		return PaymentReceiptTracking{}, ErrIssuedAtRequired
 	}
 	if expectedAmountMinor <= 0 {
-		return PaymentReceiptTracking{}, errors.New("expected amount minor must be greater than zero")
+		return PaymentReceiptTracking{}, ErrExpectedAmountMinorInvalid
 	}
 	if requiredConfirmations <= 0 {
-		return PaymentReceiptTracking{}, errors.New("required confirmations must be greater than zero")
+		return PaymentReceiptTracking{}, ErrRequiredConfirmationsInvalid
 	}
 
 	return PaymentReceiptTracking{
@@ -92,7 +91,7 @@ func (t PaymentReceiptTracking) ApplyObservation(
 		return PaymentReceiptTracking{}, err
 	}
 	if observedAt.IsZero() {
-		return PaymentReceiptTracking{}, errors.New("observed time is required")
+		return PaymentReceiptTracking{}, ErrObservedAtRequired
 	}
 
 	updated := t
@@ -122,7 +121,7 @@ func (t PaymentReceiptTracking) ApplyObservation(
 func (t PaymentReceiptTracking) MarkPollingError(reason string) (PaymentReceiptTracking, error) {
 	normalizedReason := strings.TrimSpace(reason)
 	if normalizedReason == "" {
-		return PaymentReceiptTracking{}, errors.New("polling error reason is required")
+		return PaymentReceiptTracking{}, ErrPollingErrorReasonRequired
 	}
 
 	updated := t
@@ -144,7 +143,7 @@ func (t PaymentReceiptTracking) CanExpireByPaymentWindow() bool {
 func (t PaymentReceiptTracking) MarkExpired(reason string) (PaymentReceiptTracking, error) {
 	normalizedReason := strings.TrimSpace(reason)
 	if normalizedReason == "" {
-		return PaymentReceiptTracking{}, errors.New("expired reason is required")
+		return PaymentReceiptTracking{}, ErrExpiredReasonRequired
 	}
 
 	updated := t

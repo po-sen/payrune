@@ -1,12 +1,15 @@
 package valueobjects
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestPaymentReceiptObservationValidate(t *testing.T) {
 	tests := []struct {
 		name        string
 		observation PaymentReceiptObservation
-		wantErr     bool
+		wantErr     error
 	}{
 		{
 			name: "valid",
@@ -16,7 +19,7 @@ func TestPaymentReceiptObservationValidate(t *testing.T) {
 				UnconfirmedTotalMinor: 40,
 				LatestBlockHeight:     10,
 			},
-			wantErr: false,
+			wantErr: nil,
 		},
 		{
 			name: "negative observed",
@@ -26,7 +29,7 @@ func TestPaymentReceiptObservationValidate(t *testing.T) {
 				UnconfirmedTotalMinor: 0,
 				LatestBlockHeight:     0,
 			},
-			wantErr: true,
+			wantErr: ErrPaymentReceiptObservationObservedTotalMinorInvalid,
 		},
 		{
 			name: "sum mismatch",
@@ -36,18 +39,18 @@ func TestPaymentReceiptObservationValidate(t *testing.T) {
 				UnconfirmedTotalMinor: 10,
 				LatestBlockHeight:     0,
 			},
-			wantErr: true,
+			wantErr: ErrPaymentReceiptObservationTotalMismatch,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.observation.Validate()
-			if tc.wantErr && err == nil {
-				t.Fatal("expected error but got nil")
-			}
-			if !tc.wantErr && err != nil {
+			if tc.wantErr == nil && err != nil {
 				t.Fatalf("expected nil error, got %v", err)
+			}
+			if tc.wantErr != nil && !errors.Is(err, tc.wantErr) {
+				t.Fatalf("expected %v, got %v", tc.wantErr, err)
 			}
 		})
 	}

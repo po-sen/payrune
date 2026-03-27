@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -40,14 +41,15 @@ func TestNewPaymentReceiptTrackingValidation(t *testing.T) {
 		issuedAt  time.Time
 		expected  int64
 		required  int32
+		wantErr   error
 	}{
-		{name: "invalid payment id", paymentID: 0, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1},
-		{name: "invalid chain identifier", paymentID: 1, chain: "eth/mainnet", network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1},
-		{name: "missing network", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: "", address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1},
-		{name: "missing address", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "", issuedAt: time.Now().UTC(), expected: 1, required: 1},
-		{name: "missing issued at", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Time{}, expected: 1, required: 1},
-		{name: "invalid expected", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 0, required: 1},
-		{name: "invalid confirmations", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 0},
+		{name: "invalid payment id", paymentID: 0, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrPaymentAddressIDInvalid},
+		{name: "invalid chain identifier", paymentID: 1, chain: "eth/mainnet", network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrChainInvalid},
+		{name: "missing network", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: "", address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrNetworkInvalid},
+		{name: "missing address", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrAddressRequired},
+		{name: "missing issued at", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Time{}, expected: 1, required: 1, wantErr: ErrIssuedAtRequired},
+		{name: "invalid expected", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 0, required: 1, wantErr: ErrExpectedAmountMinorInvalid},
+		{name: "invalid confirmations", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 0, wantErr: ErrRequiredConfirmationsInvalid},
 	}
 
 	for _, tc := range tests {
@@ -62,8 +64,8 @@ func TestNewPaymentReceiptTrackingValidation(t *testing.T) {
 				tc.expected,
 				tc.required,
 			)
-			if err == nil {
-				t.Fatal("expected error but got nil")
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("expected %v, got %v", tc.wantErr, err)
 			}
 		})
 	}
@@ -204,8 +206,8 @@ func TestPaymentReceiptTrackingApplyObservationValidation(t *testing.T) {
 		UnconfirmedTotalMinor: 30,
 		LatestBlockHeight:     1,
 	}, time.Now())
-	if err == nil {
-		t.Fatal("expected validation error but got nil")
+	if !errors.Is(err, valueobjects.ErrPaymentReceiptObservationTotalMismatch) {
+		t.Fatalf("unexpected error: got %v", err)
 	}
 }
 
@@ -232,8 +234,8 @@ func TestPaymentReceiptTrackingMarkPollingError(t *testing.T) {
 		t.Fatalf("unexpected last error: got %q", updated.LastError)
 	}
 
-	if _, err := tracking.MarkPollingError("   "); err == nil {
-		t.Fatal("expected validation error but got nil")
+	if _, err := tracking.MarkPollingError("   "); !errors.Is(err, ErrPollingErrorReasonRequired) {
+		t.Fatalf("unexpected error: got %v", err)
 	}
 }
 
@@ -283,8 +285,8 @@ func TestPaymentReceiptTrackingExpirationHelpers(t *testing.T) {
 		t.Fatalf("unexpected last error: got %q", expired.LastError)
 	}
 
-	if _, err := tracking.MarkExpired("   "); err == nil {
-		t.Fatal("expected validation error for empty expired reason")
+	if _, err := tracking.MarkExpired("   "); !errors.Is(err, ErrExpiredReasonRequired) {
+		t.Fatalf("unexpected error: got %v", err)
 	}
 }
 

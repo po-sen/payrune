@@ -1,7 +1,5 @@
 package valueobjects
 
-import "errors"
-
 type PaymentReceiptObservation struct {
 	ObservedTotalMinor    int64
 	ConfirmedTotalMinor   int64
@@ -11,25 +9,25 @@ type PaymentReceiptObservation struct {
 
 func (o PaymentReceiptObservation) Validate() error {
 	if o.ObservedTotalMinor < 0 {
-		return errors.New("observed total minor must be non-negative")
+		return ErrPaymentReceiptObservationObservedTotalMinorInvalid
 	}
 	if o.ConfirmedTotalMinor < 0 {
-		return errors.New("confirmed total minor must be non-negative")
+		return ErrPaymentReceiptObservationConfirmedTotalMinorInvalid
 	}
 	if o.UnconfirmedTotalMinor < 0 {
-		return errors.New("unconfirmed total minor must be non-negative")
+		return ErrPaymentReceiptObservationUnconfirmedTotalMinorInvalid
 	}
 	if o.LatestBlockHeight < 0 {
-		return errors.New("latest block height must be non-negative")
+		return ErrPaymentReceiptObservationLatestBlockHeightInvalid
 	}
 	if o.ConfirmedTotalMinor+o.UnconfirmedTotalMinor != o.ObservedTotalMinor {
-		return errors.New("observed total minor must equal confirmed plus unconfirmed total")
+		return ErrPaymentReceiptObservationTotalMismatch
 	}
 	if o.ConfirmedTotalMinor > o.ObservedTotalMinor {
-		return errors.New("confirmed total minor cannot exceed observed total")
+		return ErrPaymentReceiptObservationConfirmedExceedsObserved
 	}
 	if o.UnconfirmedTotalMinor > o.ObservedTotalMinor {
-		return errors.New("unconfirmed total minor cannot exceed observed total")
+		return ErrPaymentReceiptObservationUnconfirmedExceedsObserved
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -76,6 +77,8 @@ func TestPaymentAddressAllocationMarkIssuedRejectPolicyMismatch(t *testing.T) {
 
 	if _, err := allocation.MarkIssued(issuancePolicy, "bc1qexample", "m/84'/0'/0'/0/42"); err == nil {
 		t.Fatalf("expected policy mismatch error")
+	} else if !errors.Is(err, ErrAddressPolicyMismatch) {
+		t.Fatalf("unexpected error: got %v", err)
 	}
 }
 
@@ -94,6 +97,10 @@ func TestPaymentAddressAllocationMarkDerivationFailed(t *testing.T) {
 	}
 	if failed.FailureReason != "derive failed" {
 		t.Fatalf("unexpected failure reason: got %q", failed.FailureReason)
+	}
+
+	if _, err := allocation.MarkDerivationFailed("   "); !errors.Is(err, ErrDerivationFailureReasonRequired) {
+		t.Fatalf("unexpected error: got %v", err)
 	}
 }
 
