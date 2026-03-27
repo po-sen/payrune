@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"errors"
 
 	"payrune/internal/application/dto"
 	applicationoutbox "payrune/internal/application/outbox"
@@ -35,22 +34,22 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 	input dto.RunReceiptWebhookDispatchCycleInput,
 ) (dto.RunReceiptWebhookDispatchCycleOutput, error) {
 	if uc.unitOfWork == nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, errors.New("unit of work is not configured")
+		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrUnitOfWorkNotConfigured
 	}
 	if uc.notifier == nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, errors.New("payment receipt status notifier is not configured")
+		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrPaymentReceiptStatusNotifierNotConfigured
 	}
 	if uc.clock == nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, errors.New("clock is not configured")
+		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrClockNotConfigured
 	}
 	if input.BatchSize <= 0 {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, errors.New("batch size must be greater than zero")
+		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrBatchSizeMustBeGreaterThanZero
 	}
 	if input.MaxAttempts <= 0 {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, errors.New("max attempts must be greater than zero")
+		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrMaxAttemptsMustBeGreaterThanZero
 	}
 	if input.RetryDelay <= 0 {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, errors.New("retry delay must be greater than zero")
+		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrRetryDelayMustBeGreaterThanZero
 	}
 
 	claimNow := uc.clock.NowUTC()
@@ -59,7 +58,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		outbox := txScope.PaymentReceiptStatusNotificationOutbox
 		if outbox == nil {
-			return errors.New("payment receipt status notification outbox is not configured")
+			return inport.ErrPaymentReceiptStatusOutboxNotConfigured
 		}
 
 		notifications, err := outbox.ClaimPending(ctx, outport.ClaimPaymentReceiptStatusNotificationsInput{
@@ -152,7 +151,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) saveDeliveryResult(
 	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		outbox := txScope.PaymentReceiptStatusNotificationOutbox
 		if outbox == nil {
-			return errors.New("payment receipt status notification outbox is not configured")
+			return inport.ErrPaymentReceiptStatusOutboxNotConfigured
 		}
 		return outbox.SaveDeliveryResult(ctx, deliveryResult)
 	})

@@ -2,10 +2,23 @@ package outbound
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/valueobjects"
+)
+
+var (
+	ErrPaymentReceiptTrackingNextPollAtRequired    = errors.New("next poll at is required")
+	ErrPaymentReceiptTrackingAlreadyExists         = errors.New("payment receipt tracking already exists")
+	ErrPaymentReceiptTrackingClaimNowRequired      = errors.New("claim now is required")
+	ErrPaymentReceiptTrackingClaimUntilRequired    = errors.New("claim until is required")
+	ErrPaymentReceiptTrackingClaimLimitInvalid     = errors.New("claim limit must be greater than zero")
+	ErrPaymentReceiptTrackingClaimStatusesRequired = errors.New("claim statuses are required")
+	ErrPaymentReceiptTrackingClaimStatusRequired   = errors.New("claim status is required")
+	ErrPaymentReceiptTrackingPolledAtRequired      = errors.New("polled at is required")
+	ErrPaymentReceiptTrackingNotFound              = errors.New("payment receipt tracking is not found")
 )
 
 type ClaimPaymentReceiptTrackingsInput struct {

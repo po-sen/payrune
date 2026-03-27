@@ -120,11 +120,19 @@ func (f *PaymentAddressStatusFinder) FindByID(
 
 	chain, ok := valueobjects.ParseSupportedChain(rawChain)
 	if !ok {
-		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf("persisted payment address chain is invalid: %s", rawChain)
+		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentAddressStatusPersistedChainInvalid,
+			rawChain,
+		)
 	}
 	network, ok := valueobjects.ParseNetworkID(rawNetwork)
 	if !ok {
-		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf("persisted payment address network is invalid: %s", rawNetwork)
+		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentAddressStatusPersistedNetworkInvalid,
+			rawNetwork,
+		)
 	}
 	if !receiptStatusRaw.Valid {
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
@@ -132,7 +140,8 @@ func (f *PaymentAddressStatusFinder) FindByID(
 	status, ok := valueobjects.ParsePaymentReceiptStatus(receiptStatusRaw.String)
 	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
-			"persisted payment receipt status is invalid: %s",
+			"%w: %s",
+			outport.ErrPaymentAddressStatusPersistedReceiptStatusInvalid,
 			receiptStatusRaw.String,
 		)
 	}

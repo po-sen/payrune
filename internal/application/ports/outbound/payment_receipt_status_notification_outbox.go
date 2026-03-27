@@ -2,11 +2,22 @@ package outbound
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	applicationoutbox "payrune/internal/application/outbox"
 	"payrune/internal/domain/events"
 	"payrune/internal/domain/policies"
+)
+
+var (
+	ErrPaymentReceiptStatusNotificationClaimNowRequired      = errors.New("claim now is required")
+	ErrPaymentReceiptStatusNotificationClaimUntilRequired    = errors.New("claim until is required")
+	ErrPaymentReceiptStatusNotificationClaimLimitInvalid     = errors.New("claim limit must be greater than zero")
+	ErrPaymentReceiptStatusNotificationDeliveredAtRequired   = errors.New("delivered at is required")
+	ErrPaymentReceiptStatusNotificationNextAttemptRequired   = errors.New("next attempt at is required")
+	ErrPaymentReceiptStatusNotificationDeliveryStatusInvalid = errors.New("delivery result status is invalid")
+	ErrPaymentReceiptStatusNotificationNotFound              = errors.New("payment receipt status notification is not found")
 )
 
 type PaymentReceiptStatusNotificationOutbox interface {

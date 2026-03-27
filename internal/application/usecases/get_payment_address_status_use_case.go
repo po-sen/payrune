@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"errors"
 	"strconv"
 
 	"payrune/internal/application/dto"
@@ -30,10 +29,10 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 	input dto.GetPaymentAddressStatusInput,
 ) (dto.GetPaymentAddressStatusResponse, error) {
 	if uc.finder == nil {
-		return dto.GetPaymentAddressStatusResponse{}, errors.New("payment address status finder is not configured")
+		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressStatusFinderNotConfigured
 	}
 	if uc.policyReader == nil {
-		return dto.GetPaymentAddressStatusResponse{}, errors.New("address policy reader is not configured")
+		return dto.GetPaymentAddressStatusResponse{}, inport.ErrAddressPolicyReaderNotConfigured
 	}
 
 	record, found, err := uc.finder.FindByID(ctx, outport.FindPaymentAddressStatusInput{
@@ -52,7 +51,7 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 		return dto.GetPaymentAddressStatusResponse{}, err
 	}
 	if !ok || policy.AddressPolicy.Chain != input.Chain {
-		return dto.GetPaymentAddressStatusResponse{}, errors.New("payment address policy is not configured")
+		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressPolicyNotConfigured
 	}
 
 	return dto.GetPaymentAddressStatusResponse{

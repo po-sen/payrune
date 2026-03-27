@@ -42,16 +42,16 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 	input dto.AllocatePaymentAddressInput,
 ) (dto.AllocatePaymentAddressResponse, error) {
 	if uc.unitOfWork == nil {
-		return dto.AllocatePaymentAddressResponse{}, errors.New("unit of work is not configured")
+		return dto.AllocatePaymentAddressResponse{}, inport.ErrUnitOfWorkNotConfigured
 	}
 	if uc.issuedAddressDeriver == nil {
-		return dto.AllocatePaymentAddressResponse{}, errors.New("issued payment address deriver is not configured")
+		return dto.AllocatePaymentAddressResponse{}, inport.ErrIssuedPaymentAddressDeriverNotConfigured
 	}
 	if uc.policyReader == nil {
-		return dto.AllocatePaymentAddressResponse{}, errors.New("address policy reader is not configured")
+		return dto.AllocatePaymentAddressResponse{}, inport.ErrAddressPolicyReaderNotConfigured
 	}
 	if uc.clock == nil {
-		return dto.AllocatePaymentAddressResponse{}, errors.New("clock is not configured")
+		return dto.AllocatePaymentAddressResponse{}, inport.ErrClockNotConfigured
 	}
 	if !uc.issuedAddressDeriver.SupportsChain(input.Chain) {
 		return dto.AllocatePaymentAddressResponse{}, inport.ErrChainNotSupported
@@ -104,9 +104,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 			if found {
 				return response, nil
 			}
-			return dto.AllocatePaymentAddressResponse{}, errors.New(
-				"idempotency key claim conflict occurred but no completed idempotency record was found",
-			)
+			return dto.AllocatePaymentAddressResponse{}, inport.ErrIdempotencyClaimConflictWithoutCompletedRecord
 		}
 		if errors.Is(err, outport.ErrAddressIndexExhausted) {
 			return dto.AllocatePaymentAddressResponse{}, inport.ErrAddressPoolExhausted
@@ -115,7 +113,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 	}
 
 	if issuedAllocation.PaymentAddressID <= 0 {
-		return dto.AllocatePaymentAddressResponse{}, errors.New("payment address id must be greater than zero")
+		return dto.AllocatePaymentAddressResponse{}, inport.ErrPaymentAddressIDMustBeGreaterThanZero
 	}
 
 	return dto.AllocatePaymentAddressResponse{
@@ -147,10 +145,10 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 		allocationStore := txScope.PaymentAddressAllocation
 		idempotencyStore := txScope.PaymentAddressIdempotency
 		if allocationStore == nil {
-			return errors.New("payment address allocation store is not configured")
+			return inport.ErrPaymentAddressAllocationStoreNotConfigured
 		}
 		if idempotencyStore == nil {
-			return errors.New("payment address idempotency store is not configured")
+			return inport.ErrPaymentAddressIdempotencyStoreNotConfigured
 		}
 
 		record, recordFound, err := idempotencyStore.FindByKey(
@@ -167,7 +165,7 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 			return nil
 		}
 		if record.PaymentAddressID <= 0 {
-			return errors.New("payment address idempotency record is incomplete")
+			return inport.ErrPaymentAddressIdempotencyRecordIncomplete
 		}
 		if record.AddressPolicyID != input.AddressPolicyID ||
 			record.ExpectedAmountMinor != input.ExpectedAmountMinor ||
@@ -183,7 +181,7 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 			return err
 		}
 		if !allocationFound {
-			return errors.New("completed payment address idempotency record references missing issued allocation")
+			return inport.ErrCompletedIdempotencyRecordMissingIssuedAllocation
 		}
 
 		allocation = existingAllocation
@@ -205,7 +203,7 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 		return dto.AllocatePaymentAddressResponse{}, false, inport.ErrAddressPolicyNotFound
 	}
 	if allocation.PaymentAddressID <= 0 {
-		return dto.AllocatePaymentAddressResponse{}, false, errors.New("payment address id must be greater than zero")
+		return dto.AllocatePaymentAddressResponse{}, false, inport.ErrPaymentAddressIDMustBeGreaterThanZero
 	}
 
 	return dto.AllocatePaymentAddressResponse{
@@ -247,13 +245,13 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 		idempotencyStore := txScope.PaymentAddressIdempotency
 		receiptTrackingStore := txScope.PaymentReceiptTracking
 		if allocationStore == nil {
-			return errors.New("payment address allocation store is not configured")
+			return inport.ErrPaymentAddressAllocationStoreNotConfigured
 		}
 		if idempotencyStore == nil {
-			return errors.New("payment address idempotency store is not configured")
+			return inport.ErrPaymentAddressIdempotencyStoreNotConfigured
 		}
 		if receiptTrackingStore == nil {
-			return errors.New("payment receipt tracking store is not configured")
+			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
 
 		if idempotencyKey != "" {
@@ -348,11 +346,11 @@ func reserveAllocation(
 		case policies.PaymentAddressAllocationReservationAttemptReserveFresh:
 			return allocationStore.ReserveFresh(ctx, reserveInput)
 		default:
-			return entities.PaymentAddressAllocation{}, errors.New("payment address allocation reservation attempt is invalid")
+			return entities.PaymentAddressAllocation{}, inport.ErrPaymentAddressAllocationReservationAttemptInvalid
 		}
 	}
 
-	return entities.PaymentAddressAllocation{}, errors.New("payment address allocation reservation attempts are required")
+	return entities.PaymentAddressAllocation{}, inport.ErrPaymentAddressAllocationReservationAttemptsRequired
 }
 
 func persistDerivationFailure(

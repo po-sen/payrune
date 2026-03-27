@@ -2,8 +2,11 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
+
+	inport "payrune/internal/application/ports/inbound"
 )
 
 type fakeClock struct {
@@ -36,7 +39,7 @@ func TestCheckHealthUseCaseValidationMissingClock(t *testing.T) {
 	useCase := NewCheckHealthUseCase(nil)
 
 	_, err := useCase.Execute(context.Background())
-	if err == nil || err.Error() != "clock is not configured" {
+	if !errors.Is(err, inport.ErrClockNotConfigured) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

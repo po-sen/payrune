@@ -2,9 +2,11 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"payrune/internal/application/dto"
+	inport "payrune/internal/application/ports/inbound"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/valueobjects"
 )
@@ -83,7 +85,7 @@ func TestListAddressPoliciesUseCaseValidationMissingPolicyReader(t *testing.T) {
 	useCase := &listAddressPoliciesUseCase{}
 
 	_, err := useCase.Execute(context.Background(), valueobjects.SupportedChainBitcoin)
-	if err == nil || err.Error() != "address policy reader is not configured" {
+	if !errors.Is(err, inport.ErrAddressPolicyReaderNotConfigured) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

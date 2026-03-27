@@ -47,7 +47,7 @@ func TestPaymentAddressAllocationStoreCompleteValidation(t *testing.T) {
 	store := NewPaymentAddressAllocationStore(&stubNotificationExecutor{})
 
 	err := store.Complete(context.Background(), entities.PaymentAddressAllocation{}, time.Time{})
-	if err == nil || err.Error() != "issued at is required" {
+	if !errors.Is(err, outport.ErrPaymentAddressAllocationIssuedAtRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
@@ -104,8 +104,8 @@ func TestPaymentAddressAllocationStoreCompleteNotReserved(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = store.Complete(context.Background(), entities.PaymentAddressAllocation{PaymentAddressID: 44}, issuedAt)
-	if !errors.Is(err, errAllocationNotReserved) {
-		t.Fatalf("expected errAllocationNotReserved, got %v", err)
+	if !errors.Is(err, outport.ErrPaymentAddressAllocationNotReserved) {
+		t.Fatalf("expected ErrPaymentAddressAllocationNotReserved, got %v", err)
 	}
 }
 
@@ -191,6 +191,96 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 	}
 }
 
+func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	store := NewPaymentAddressAllocationStore(db)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"address_policy_id",
+		"derivation_index",
+		"expected_amount_minor",
+		"customer_reference",
+		"chain",
+		"network",
+		"scheme",
+		"address",
+		"address_reference",
+		"failure_reason",
+	}).AddRow(
+		int64(199),
+		"bitcoin-mainnet-native-segwit",
+		int64(21),
+		int64(125000),
+		"order-lookup",
+		"bad/chain",
+		"mainnet",
+		"nativeSegwit",
+		"bc1qlookup",
+		"m/84'/0'/0'/0/21",
+		"",
+	)
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id,")).
+		WithArgs(int64(199)).
+		WillReturnRows(rows)
+
+	_, _, err = store.FindIssuedByID(context.Background(), newFindIssuedPaymentAddressAllocationByIDInput(199))
+	if !errors.Is(err, outport.ErrPaymentAddressAllocationPersistedChainInvalid) {
+		t.Fatalf("unexpected invalid chain error: %v", err)
+	}
+}
+
+func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedNetwork(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	store := NewPaymentAddressAllocationStore(db)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"address_policy_id",
+		"derivation_index",
+		"expected_amount_minor",
+		"customer_reference",
+		"chain",
+		"network",
+		"scheme",
+		"address",
+		"address_reference",
+		"failure_reason",
+	}).AddRow(
+		int64(199),
+		"bitcoin-mainnet-native-segwit",
+		int64(21),
+		int64(125000),
+		"order-lookup",
+		"bitcoin",
+		"main/net",
+		"nativeSegwit",
+		"bc1qlookup",
+		"m/84'/0'/0'/0/21",
+		"",
+	)
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id,")).
+		WithArgs(int64(199)).
+		WillReturnRows(rows)
+
+	_, _, err = store.FindIssuedByID(context.Background(), newFindIssuedPaymentAddressAllocationByIDInput(199))
+	if !errors.Is(err, outport.ErrPaymentAddressAllocationPersistedNetworkInvalid) {
+		t.Fatalf("unexpected invalid network error: %v", err)
+	}
+}
+
 func TestPaymentAddressAllocationStoreMarkDerivationFailedSuccess(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -229,8 +319,8 @@ func TestPaymentAddressAllocationStoreMarkDerivationFailedNotReserved(t *testing
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = store.MarkDerivationFailed(context.Background(), entities.PaymentAddressAllocation{PaymentAddressID: 44})
-	if !errors.Is(err, errAllocationNotReserved) {
-		t.Fatalf("expected errAllocationNotReserved, got %v", err)
+	if !errors.Is(err, outport.ErrPaymentAddressAllocationNotReserved) {
+		t.Fatalf("expected ErrPaymentAddressAllocationNotReserved, got %v", err)
 	}
 }
 

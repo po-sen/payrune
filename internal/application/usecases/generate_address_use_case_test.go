@@ -234,25 +234,25 @@ func TestGenerateAddressUseCaseValidationMissingDependencies(t *testing.T) {
 	tests := []struct {
 		name    string
 		useCase *generateAddressUseCase
-		wantErr string
+		wantErr error
 	}{
 		{
 			name:    "missing deriver",
 			useCase: &generateAddressUseCase{policyReader: newInMemoryAddressPolicyReader(nil)},
-			wantErr: "chain address deriver is not configured",
+			wantErr: inport.ErrChainAddressDeriverNotConfigured,
 		},
 		{
 			name:    "missing policy reader",
 			useCase: &generateAddressUseCase{deriver: newFakeChainAddressDeriver()},
-			wantErr: "address policy reader is not configured",
+			wantErr: inport.ErrAddressPolicyReaderNotConfigured,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := tc.useCase.Execute(context.Background(), input)
-			if err == nil || err.Error() != tc.wantErr {
-				t.Fatalf("unexpected error: got %v want %q", err, tc.wantErr)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("unexpected error: got %v want %v", err, tc.wantErr)
 			}
 		})
 	}

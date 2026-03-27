@@ -8,6 +8,7 @@ import (
 
 	"payrune/internal/application/dto"
 	applicationoutbox "payrune/internal/application/outbox"
+	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/events"
 	"payrune/internal/domain/policies"
@@ -286,7 +287,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteValidation(t *testing.T) {
 		RetryDelay:  time.Minute,
 		MaxAttempts: 3,
 	})
-	if err == nil {
-		t.Fatal("expected validation error")
+	if !errors.Is(err, inport.ErrBatchSizeMustBeGreaterThanZero) {
+		t.Fatalf("unexpected validation error: got %v", err)
 	}
 }

@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"payrune/internal/application/dto"
@@ -52,28 +51,28 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 	input dto.RunReceiptPollingCycleInput,
 ) (dto.RunReceiptPollingCycleOutput, error) {
 	if uc.unitOfWork == nil {
-		return dto.RunReceiptPollingCycleOutput{}, errors.New("unit of work is not configured")
+		return dto.RunReceiptPollingCycleOutput{}, inport.ErrUnitOfWorkNotConfigured
 	}
 	if uc.observer == nil {
-		return dto.RunReceiptPollingCycleOutput{}, errors.New("blockchain receipt observer is not configured")
+		return dto.RunReceiptPollingCycleOutput{}, inport.ErrBlockchainReceiptObserverNotConfigured
 	}
 	if uc.clock == nil {
-		return dto.RunReceiptPollingCycleOutput{}, errors.New("clock is not configured")
+		return dto.RunReceiptPollingCycleOutput{}, inport.ErrClockNotConfigured
 	}
 	if input.BatchSize <= 0 {
-		return dto.RunReceiptPollingCycleOutput{}, errors.New("batch size must be greater than zero")
+		return dto.RunReceiptPollingCycleOutput{}, inport.ErrBatchSizeMustBeGreaterThanZero
 	}
 
 	now := uc.clock.NowUTC()
 	if input.Network != "" && input.Chain == "" {
-		return dto.RunReceiptPollingCycleOutput{}, errors.New("poll chain is required when poll network is set")
+		return dto.RunReceiptPollingCycleOutput{}, inport.ErrPollChainRequiredWhenPollNetworkSet
 	}
 
 	var trackings []entities.PaymentReceiptTracking
 	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		trackingStore := txScope.PaymentReceiptTracking
 		if trackingStore == nil {
-			return errors.New("payment receipt tracking store is not configured")
+			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
 
 		claimedTrackings, err := trackingStore.ClaimDue(ctx, outport.ClaimPaymentReceiptTrackingsInput{
@@ -226,7 +225,7 @@ func (uc *runReceiptPollingCycleUseCase) savePollingError(
 	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		trackingStore := txScope.PaymentReceiptTracking
 		if trackingStore == nil {
-			return errors.New("payment receipt tracking store is not configured")
+			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
 		return trackingStore.Save(ctx, trackingWithError, now, nextPollAt)
 	})
@@ -247,7 +246,7 @@ func (uc *runReceiptPollingCycleUseCase) saveTrackingAndMaybeEnqueueStatusChange
 	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		trackingStore := txScope.PaymentReceiptTracking
 		if trackingStore == nil {
-			return errors.New("payment receipt tracking store is not configured")
+			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
 		if err := trackingStore.Save(ctx, tracking, now, nextPollAt); err != nil {
 			return err
@@ -257,7 +256,7 @@ func (uc *runReceiptPollingCycleUseCase) saveTrackingAndMaybeEnqueueStatusChange
 		}
 		notificationOutbox := txScope.PaymentReceiptStatusNotificationOutbox
 		if notificationOutbox == nil {
-			return errors.New("payment receipt status notification outbox is not configured")
+			return inport.ErrPaymentReceiptStatusOutboxNotConfigured
 		}
 		return notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent)
 	})

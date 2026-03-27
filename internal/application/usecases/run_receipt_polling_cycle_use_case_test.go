@@ -8,6 +8,7 @@ import (
 
 	"payrune/internal/application/dto"
 	applicationoutbox "payrune/internal/application/outbox"
+	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/events"
@@ -1051,8 +1052,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{BatchSize: 0})
-	if err == nil {
-		t.Fatal("expected validation error but got nil")
+	if !errors.Is(err, inport.ErrBatchSizeMustBeGreaterThanZero) {
+		t.Fatalf("unexpected validation error: got %v", err)
 	}
 
 	_, err = useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -1070,8 +1071,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 		BatchSize: 10,
 		Network:   "regtest",
 	})
-	if err == nil {
-		t.Fatal("expected missing chain error but got nil")
+	if !errors.Is(err, inport.ErrPollChainRequiredWhenPollNetworkSet) {
+		t.Fatalf("unexpected missing chain error: got %v", err)
 	}
 }
 

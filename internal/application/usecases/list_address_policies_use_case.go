@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"errors"
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
@@ -23,7 +22,7 @@ func (uc *listAddressPoliciesUseCase) Execute(
 	chain valueobjects.SupportedChain,
 ) (dto.ListAddressPoliciesResponse, error) {
 	if uc.policyReader == nil {
-		return dto.ListAddressPoliciesResponse{}, errors.New("address policy reader is not configured")
+		return dto.ListAddressPoliciesResponse{}, inport.ErrAddressPolicyReaderNotConfigured
 	}
 
 	policyEntities, err := uc.policyReader.ListByChain(ctx, chain)

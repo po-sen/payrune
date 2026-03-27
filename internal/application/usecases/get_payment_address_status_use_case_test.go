@@ -134,7 +134,7 @@ func TestGetPaymentAddressStatusUseCasePolicyMissing(t *testing.T) {
 		Chain:            valueobjects.SupportedChainBitcoin,
 		PaymentAddressID: 101,
 	})
-	if err == nil || err.Error() != "payment address policy is not configured" {
+	if !errors.Is(err, inport.ErrPaymentAddressPolicyNotConfigured) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

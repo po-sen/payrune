@@ -30,10 +30,10 @@ func (uc *generateAddressUseCase) Execute(
 	input dto.GenerateAddressInput,
 ) (dto.GenerateAddressResponse, error) {
 	if uc.deriver == nil {
-		return dto.GenerateAddressResponse{}, errors.New("chain address deriver is not configured")
+		return dto.GenerateAddressResponse{}, inport.ErrChainAddressDeriverNotConfigured
 	}
 	if uc.policyReader == nil {
-		return dto.GenerateAddressResponse{}, errors.New("address policy reader is not configured")
+		return dto.GenerateAddressResponse{}, inport.ErrAddressPolicyReaderNotConfigured
 	}
 	if !uc.deriver.SupportsChain(input.Chain) {
 		return dto.GenerateAddressResponse{}, inport.ErrChainNotSupported

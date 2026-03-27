@@ -14,8 +14,6 @@ import (
 
 const paymentAddressIdempotencyPrimaryKey = "pk_payment_address_idempotency_keys"
 
-var errPaymentAddressIdempotencyClaimNotFound = errors.New("payment address idempotency claim was not found")
-
 type PaymentAddressIdempotencyStore struct {
 	executor Executor
 }
@@ -70,7 +68,7 @@ func (r *PaymentAddressIdempotencyStore) FindByKey(
 
 	chain, ok := valueobjects.ParseSupportedChain(rawChain)
 	if !ok {
-		return outport.PaymentAddressIdempotencyRecord{}, false, errors.New("persisted idempotency chain is invalid")
+		return outport.PaymentAddressIdempotencyRecord{}, false, outport.ErrPaymentAddressIdempotencyPersistedChainInvalid
 	}
 
 	return outport.PaymentAddressIdempotencyRecord{
@@ -92,16 +90,16 @@ func (r *PaymentAddressIdempotencyStore) Claim(
 	customerReference := strings.TrimSpace(input.CustomerReference)
 
 	if input.Chain == "" {
-		return outport.PaymentAddressIdempotencyRecord{}, errors.New("chain is required")
+		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyChainRequired
 	}
 	if idempotencyKey == "" {
-		return outport.PaymentAddressIdempotencyRecord{}, errors.New("idempotency key is required")
+		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyKeyRequired
 	}
 	if addressPolicyID == "" {
-		return outport.PaymentAddressIdempotencyRecord{}, errors.New("address policy id is required")
+		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyAddressPolicyIDRequired
 	}
 	if input.ExpectedAmountMinor <= 0 {
-		return outport.PaymentAddressIdempotencyRecord{}, errors.New("expected amount minor must be greater than zero")
+		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyExpectedAmountInvalid
 	}
 
 	_, err := r.executor.ExecContext(
@@ -142,13 +140,13 @@ func (r *PaymentAddressIdempotencyStore) Complete(
 ) error {
 	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
 	if input.Chain == "" {
-		return errors.New("chain is required")
+		return outport.ErrPaymentAddressIdempotencyChainRequired
 	}
 	if idempotencyKey == "" {
-		return errors.New("idempotency key is required")
+		return outport.ErrPaymentAddressIdempotencyKeyRequired
 	}
 	if input.PaymentAddressID <= 0 {
-		return errors.New("payment address id must be greater than zero")
+		return outport.ErrPaymentAddressIdempotencyPaymentAddressIDInvalid
 	}
 
 	result, err := r.executor.ExecContext(
@@ -172,7 +170,7 @@ func (r *PaymentAddressIdempotencyStore) Complete(
 		return err
 	}
 	if rowsAffected == 0 {
-		return errPaymentAddressIdempotencyClaimNotFound
+		return outport.ErrPaymentAddressIdempotencyClaimNotFound
 	}
 	return nil
 }
@@ -183,10 +181,10 @@ func (r *PaymentAddressIdempotencyStore) Release(
 ) error {
 	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
 	if input.Chain == "" {
-		return errors.New("chain is required")
+		return outport.ErrPaymentAddressIdempotencyChainRequired
 	}
 	if idempotencyKey == "" {
-		return errors.New("idempotency key is required")
+		return outport.ErrPaymentAddressIdempotencyKeyRequired
 	}
 
 	result, err := r.executor.ExecContext(
@@ -207,7 +205,7 @@ func (r *PaymentAddressIdempotencyStore) Release(
 		return err
 	}
 	if rowsAffected == 0 {
-		return errPaymentAddressIdempotencyClaimNotFound
+		return outport.ErrPaymentAddressIdempotencyClaimNotFound
 	}
 	return nil
 }

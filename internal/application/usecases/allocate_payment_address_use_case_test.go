@@ -1209,12 +1209,12 @@ func TestAllocatePaymentAddressUseCaseValidationMissingDependencies(t *testing.T
 	tests := []struct {
 		name    string
 		useCase *allocatePaymentAddressUseCase
-		wantErr string
+		wantErr error
 	}{
 		{
 			name:    "missing unit of work",
 			useCase: &allocatePaymentAddressUseCase{},
-			wantErr: "unit of work is not configured",
+			wantErr: inport.ErrUnitOfWorkNotConfigured,
 		},
 		{
 			name: "missing deriver",
@@ -1223,7 +1223,7 @@ func TestAllocatePaymentAddressUseCaseValidationMissingDependencies(t *testing.T
 				policyReader: newInMemoryAddressPolicyReader(nil),
 				clock:        newAllocatePaymentAddressClock(),
 			},
-			wantErr: "issued payment address deriver is not configured",
+			wantErr: inport.ErrIssuedPaymentAddressDeriverNotConfigured,
 		},
 		{
 			name: "missing policy reader",
@@ -1232,7 +1232,7 @@ func TestAllocatePaymentAddressUseCaseValidationMissingDependencies(t *testing.T
 				issuedAddressDeriver: newFakeIssuedPaymentAddressDeriver(),
 				clock:                newAllocatePaymentAddressClock(),
 			},
-			wantErr: "address policy reader is not configured",
+			wantErr: inport.ErrAddressPolicyReaderNotConfigured,
 		},
 		{
 			name: "missing clock",
@@ -1241,15 +1241,15 @@ func TestAllocatePaymentAddressUseCaseValidationMissingDependencies(t *testing.T
 				issuedAddressDeriver: newFakeIssuedPaymentAddressDeriver(),
 				policyReader:         newInMemoryAddressPolicyReader(nil),
 			},
-			wantErr: "clock is not configured",
+			wantErr: inport.ErrClockNotConfigured,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := tc.useCase.Execute(context.Background(), input)
-			if err == nil || err.Error() != tc.wantErr {
-				t.Fatalf("unexpected error: got %v want %q", err, tc.wantErr)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("unexpected error: got %v want %v", err, tc.wantErr)
 			}
 		})
 	}

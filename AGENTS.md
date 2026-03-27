@@ -110,6 +110,21 @@ This section is the direct architecture and workflow contract for this repositor
 - If something is really a delivery pipeline, queue state, or technical process state, the port name
   should reflect that instead of pretending to be a classic aggregate repository.
 
+### Error ownership
+
+- Keep business errors and invariant violations in `internal/domain`.
+- Keep shared application-facing errors returned by use cases in `internal/application/ports/inbound`.
+- Do not define reusable use-case contract errors ad-hoc inside `internal/application/usecases`; if
+  an inbound adapter must map or compare the error, it belongs in `inport`.
+- Keep shared outbound port contract errors in `internal/application/ports/outbound` only when the
+  application must branch on them or multiple implementations of the same outbound port must return
+  the same contract error.
+- Keep adapter-private technical, vendor, scan, parse, and runtime errors inside the adapter
+  package; do not promote them to `inport` or `outport` unless they are part of a stable port
+  contract.
+- Inbound adapters map `inport.Err...` to transport-specific responses; use cases may branch on
+  `outport.Err...`, but must not depend on adapter-private error strings.
+
 ### Modeling rules
 
 - Use an `Entity` only when the concept has identity, lifecycle, and meaningful business behavior.
@@ -154,6 +169,11 @@ Stop and reconsider if any of these are true:
 - A generic abstraction exists only for a hypothetical future chain or provider.
 - Config becomes harder to read because of prefixes, indirection, or hidden defaults.
 - The user says the design feels too abstract or too hard to understand.
+- A use case defines a reusable contract error locally instead of reusing `inport`.
+- Two implementations of the same outbound port duplicate the same contract error string instead of
+  sharing `outport.Err...`.
+- Adapter-private technical errors are being promoted to shared error catalogs without a real port
+  contract need.
 
 ## Embedded Reference Workflows
 

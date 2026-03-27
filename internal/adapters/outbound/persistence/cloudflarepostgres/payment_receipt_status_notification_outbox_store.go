@@ -3,7 +3,6 @@ package cloudflarepostgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -70,13 +69,13 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 	input outport.ClaimPaymentReceiptStatusNotificationsInput,
 ) ([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error) {
 	if input.Now.IsZero() {
-		return nil, errors.New("claim now is required")
+		return nil, outport.ErrPaymentReceiptStatusNotificationClaimNowRequired
 	}
 	if input.ClaimUntil.IsZero() {
-		return nil, errors.New("claim until is required")
+		return nil, outport.ErrPaymentReceiptStatusNotificationClaimUntilRequired
 	}
 	if input.Limit <= 0 {
-		return nil, errors.New("claim limit must be greater than zero")
+		return nil, outport.ErrPaymentReceiptStatusNotificationClaimLimitInvalid
 	}
 
 	rows, err := r.executor.QueryContext(
@@ -142,7 +141,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 	switch result.Status {
 	case valueobjects.PaymentReceiptNotificationDeliveryStatusSent:
 		if result.DeliveredAt == nil {
-			return errors.New("delivered at is required")
+			return outport.ErrPaymentReceiptStatusNotificationDeliveredAtRequired
 		}
 		execResult, err := r.executor.ExecContext(
 			ctx,
@@ -162,7 +161,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 		return ensureNotificationRowsAffected(execResult)
 	case valueobjects.PaymentReceiptNotificationDeliveryStatusPending:
 		if result.NextAttemptAt == nil {
-			return errors.New("next attempt at is required")
+			return outport.ErrPaymentReceiptStatusNotificationNextAttemptRequired
 		}
 		execResult, err := r.executor.ExecContext(
 			ctx,
@@ -202,7 +201,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 		}
 		return ensureNotificationRowsAffected(execResult)
 	default:
-		return errors.New("delivery result status is invalid")
+		return outport.ErrPaymentReceiptStatusNotificationDeliveryStatusInvalid
 	}
 }
 
@@ -287,7 +286,7 @@ func ensureNotificationRowsAffected(result Result) error {
 		return err
 	}
 	if rowsAffected == 0 {
-		return errors.New("payment receipt status notification is not found")
+		return outport.ErrPaymentReceiptStatusNotificationNotFound
 	}
 	return nil
 }

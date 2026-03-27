@@ -152,8 +152,8 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedAddressNotFou
 		UnconfirmedTotalMinor: 0,
 		StatusChangedAt:       time.Now().UTC(),
 	})
-	if err == nil {
-		t.Fatal("expected not found error")
+	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationNotFound) {
+		t.Fatalf("unexpected not found error: %v", err)
 	}
 }
 
@@ -178,23 +178,32 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedExecError(t *
 
 func TestPaymentReceiptStatusNotificationOutboxClaimPendingValidation(t *testing.T) {
 	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(&stubNotificationExecutor{})
+	now := time.Now().UTC()
 
 	_, err := outboxStore.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
 		Now:        time.Time{},
 		Limit:      1,
-		ClaimUntil: time.Now().UTC(),
+		ClaimUntil: now,
 	})
-	if err == nil {
-		t.Fatal("expected missing now error")
+	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationClaimNowRequired) {
+		t.Fatalf("unexpected missing now error: %v", err)
 	}
 
 	_, err = outboxStore.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
-		Now:        time.Now().UTC(),
-		Limit:      0,
-		ClaimUntil: time.Now().UTC(),
+		Now:   now,
+		Limit: 1,
 	})
-	if err == nil {
-		t.Fatal("expected invalid limit error")
+	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationClaimUntilRequired) {
+		t.Fatalf("unexpected missing claim-until error: %v", err)
+	}
+
+	_, err = outboxStore.ClaimPending(context.Background(), outport.ClaimPaymentReceiptStatusNotificationsInput{
+		Now:        now,
+		Limit:      0,
+		ClaimUntil: now,
+	})
+	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationClaimLimitInvalid) {
+		t.Fatalf("unexpected invalid limit error: %v", err)
 	}
 }
 
@@ -272,8 +281,31 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 			Status: valueobjects.PaymentReceiptNotificationDeliveryStatusSent,
 		},
 	)
-	if err == nil {
-		t.Fatal("expected delivered at validation error")
+	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationDeliveredAtRequired) {
+		t.Fatalf("unexpected delivered-at validation error: %v", err)
+	}
+
+	nextAttemptAt := time.Date(2026, 3, 6, 17, 0, 0, 0, time.UTC)
+
+	err = outboxStore.SaveDeliveryResult(
+		context.Background(),
+		policies.PaymentReceiptStatusNotificationDeliveryResult{
+			Status: valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
+		},
+	)
+	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationNextAttemptRequired) {
+		t.Fatalf("unexpected next-attempt validation error: %v", err)
+	}
+
+	err = outboxStore.SaveDeliveryResult(
+		context.Background(),
+		policies.PaymentReceiptStatusNotificationDeliveryResult{
+			Status:        "mystery",
+			NextAttemptAt: &nextAttemptAt,
+		},
+	)
+	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationDeliveryStatusInvalid) {
+		t.Fatalf("unexpected delivery-status validation error: %v", err)
 	}
 }
 

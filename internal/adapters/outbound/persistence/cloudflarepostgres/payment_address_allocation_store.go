@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,8 +14,6 @@ import (
 )
 
 const maxNonHardenedIndex int64 = 0x7fffffff
-
-var errAllocationNotReserved = errors.New("address allocation is not reserved")
 
 type PaymentAddressAllocationStore struct {
 	executor Executor
@@ -89,11 +88,19 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 
 	chain, ok := valueobjects.ParseSupportedChain(rawChain)
 	if !ok {
-		return entities.PaymentAddressAllocation{}, false, errors.New("persisted allocation chain is invalid")
+		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentAddressAllocationPersistedChainInvalid,
+			rawChain,
+		)
 	}
 	network, ok := valueobjects.ParseNetworkID(rawNetwork)
 	if !ok {
-		return entities.PaymentAddressAllocation{}, false, errors.New("persisted allocation network is invalid")
+		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentAddressAllocationPersistedNetworkInvalid,
+			rawNetwork,
+		)
 	}
 
 	return entities.PaymentAddressAllocation{
@@ -118,7 +125,7 @@ func (r *PaymentAddressAllocationStore) Complete(
 	issuedAt time.Time,
 ) error {
 	if issuedAt.IsZero() {
-		return errors.New("issued at is required")
+		return outport.ErrPaymentAddressAllocationIssuedAtRequired
 	}
 
 	result, err := r.executor.ExecContext(
@@ -150,7 +157,7 @@ func (r *PaymentAddressAllocationStore) Complete(
 		return err
 	}
 	if rowsAffected == 0 {
-		return errAllocationNotReserved
+		return outport.ErrPaymentAddressAllocationNotReserved
 	}
 
 	return nil
@@ -178,7 +185,7 @@ func (r *PaymentAddressAllocationStore) MarkDerivationFailed(
 		return err
 	}
 	if rowsAffected == 0 {
-		return errAllocationNotReserved
+		return outport.ErrPaymentAddressAllocationNotReserved
 	}
 
 	return nil

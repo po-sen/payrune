@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"payrune/internal/application/dto"
@@ -21,7 +20,7 @@ func NewCheckHealthUseCase(clock outport.Clock) inport.CheckHealthUseCase {
 
 func (uc *checkHealthUseCase) Execute(_ context.Context) (dto.HealthResponse, error) {
 	if uc.clock == nil {
-		return dto.HealthResponse{}, errors.New("clock is not configured")
+		return dto.HealthResponse{}, inport.ErrClockNotConfigured
 	}
 	now := uc.clock.NowUTC().Format(time.RFC3339)
 

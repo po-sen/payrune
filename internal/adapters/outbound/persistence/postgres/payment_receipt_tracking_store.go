@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -29,7 +28,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 	nextPollAt time.Time,
 ) error {
 	if nextPollAt.IsZero() {
-		return errors.New("next poll at is required")
+		return outport.ErrPaymentReceiptTrackingNextPollAtRequired
 	}
 
 	result, err := r.executor.ExecContext(
@@ -89,7 +88,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 		return err
 	}
 	if rowsAffected == 0 {
-		return errors.New("payment receipt tracking already exists")
+		return outport.ErrPaymentReceiptTrackingAlreadyExists
 	}
 	return nil
 }
@@ -99,23 +98,23 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 	input outport.ClaimPaymentReceiptTrackingsInput,
 ) ([]entities.PaymentReceiptTracking, error) {
 	if input.Now.IsZero() {
-		return nil, errors.New("claim now is required")
+		return nil, outport.ErrPaymentReceiptTrackingClaimNowRequired
 	}
 	if input.ClaimUntil.IsZero() {
-		return nil, errors.New("claim until is required")
+		return nil, outport.ErrPaymentReceiptTrackingClaimUntilRequired
 	}
 	if input.Limit <= 0 {
-		return nil, errors.New("claim limit must be greater than zero")
+		return nil, outport.ErrPaymentReceiptTrackingClaimLimitInvalid
 	}
 	if len(input.Statuses) == 0 {
-		return nil, errors.New("claim statuses are required")
+		return nil, outport.ErrPaymentReceiptTrackingClaimStatusesRequired
 	}
 	chainFilter := strings.ToLower(strings.TrimSpace(input.Chain))
 	networkFilter := strings.ToLower(strings.TrimSpace(input.Network))
 	statusFilters := make([]string, 0, len(input.Statuses))
 	for _, status := range input.Statuses {
 		if status == "" {
-			return nil, errors.New("claim status is required")
+			return nil, outport.ErrPaymentReceiptTrackingClaimStatusRequired
 		}
 		statusFilters = append(statusFilters, string(status))
 	}
@@ -193,10 +192,10 @@ func (r *PaymentReceiptTrackingStore) Save(
 	nextPollAt time.Time,
 ) error {
 	if polledAt.IsZero() {
-		return errors.New("polled at is required")
+		return outport.ErrPaymentReceiptTrackingPolledAtRequired
 	}
 	if nextPollAt.IsZero() {
-		return errors.New("next poll at is required")
+		return outport.ErrPaymentReceiptTrackingNextPollAtRequired
 	}
 
 	result, err := r.executor.ExecContext(
@@ -240,7 +239,7 @@ func (r *PaymentReceiptTrackingStore) Save(
 		return err
 	}
 	if rowsAffected == 0 {
-		return errors.New("payment receipt tracking is not found")
+		return outport.ErrPaymentReceiptTrackingNotFound
 	}
 
 	return nil

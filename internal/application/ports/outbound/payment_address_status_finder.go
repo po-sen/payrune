@@ -8,7 +8,12 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-var ErrPaymentAddressStatusIncomplete = errors.New("payment address status is incomplete")
+var (
+	ErrPaymentAddressStatusIncomplete                    = errors.New("payment address status is incomplete")
+	ErrPaymentAddressStatusPersistedChainInvalid         = errors.New("persisted payment address chain is invalid")
+	ErrPaymentAddressStatusPersistedNetworkInvalid       = errors.New("persisted payment address network is invalid")
+	ErrPaymentAddressStatusPersistedReceiptStatusInvalid = errors.New("persisted payment receipt status is invalid")
+)
 
 type FindPaymentAddressStatusInput struct {
 	Chain            valueobjects.SupportedChain

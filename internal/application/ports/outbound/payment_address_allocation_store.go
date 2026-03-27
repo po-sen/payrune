@@ -10,6 +10,13 @@ import (
 
 var ErrAddressIndexExhausted = errors.New("address index is exhausted")
 
+var (
+	ErrPaymentAddressAllocationNotReserved             = errors.New("address allocation is not reserved")
+	ErrPaymentAddressAllocationPersistedChainInvalid   = errors.New("persisted allocation chain is invalid")
+	ErrPaymentAddressAllocationPersistedNetworkInvalid = errors.New("persisted allocation network is invalid")
+	ErrPaymentAddressAllocationIssuedAtRequired        = errors.New("issued at is required")
+)
+
 type ReservePaymentAddressAllocationInput struct {
 	IssuancePolicy      entities.AddressIssuancePolicy
 	ExpectedAmountMinor int64

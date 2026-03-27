@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -218,7 +219,7 @@ func TestPaymentReceiptTrackingStoreCreateValidation(t *testing.T) {
 	store := NewPaymentReceiptTrackingStore(&stubNotificationExecutor{})
 
 	err := store.Create(context.Background(), entities.PaymentReceiptTracking{}, time.Time{})
-	if err == nil || err.Error() != "next poll at is required" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingNextPollAtRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
@@ -277,7 +278,7 @@ func TestPaymentReceiptTrackingStoreCreateAlreadyExists(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = store.Create(context.Background(), tracking, time.Now().UTC())
-	if err == nil || err.Error() != "payment receipt tracking already exists" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingAlreadyExists) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
@@ -291,7 +292,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 		ClaimUntil: now,
 		Statuses:   []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
 	})
-	if err == nil || err.Error() != "claim now is required" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimNowRequired) {
 		t.Fatalf("unexpected missing-now error: %v", err)
 	}
 
@@ -300,7 +301,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 		Limit:    1,
 		Statuses: []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
 	})
-	if err == nil || err.Error() != "claim until is required" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimUntilRequired) {
 		t.Fatalf("unexpected missing-claim-until error: %v", err)
 	}
 
@@ -309,7 +310,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 		ClaimUntil: now,
 		Statuses:   []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
 	})
-	if err == nil || err.Error() != "claim limit must be greater than zero" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimLimitInvalid) {
 		t.Fatalf("unexpected missing-limit error: %v", err)
 	}
 
@@ -318,7 +319,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 		ClaimUntil: now,
 		Limit:      1,
 	})
-	if err == nil || err.Error() != "claim statuses are required" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimStatusesRequired) {
 		t.Fatalf("unexpected missing-statuses error: %v", err)
 	}
 
@@ -328,7 +329,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 		Limit:      1,
 		Statuses:   []valueobjects.PaymentReceiptStatus{""},
 	})
-	if err == nil || err.Error() != "claim status is required" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimStatusRequired) {
 		t.Fatalf("unexpected blank-status error: %v", err)
 	}
 }
@@ -490,12 +491,12 @@ func TestPaymentReceiptTrackingStoreSaveValidation(t *testing.T) {
 	store := NewPaymentReceiptTrackingStore(&stubNotificationExecutor{})
 
 	err := store.Save(context.Background(), entities.PaymentReceiptTracking{}, time.Time{}, time.Now().UTC())
-	if err == nil || err.Error() != "polled at is required" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingPolledAtRequired) {
 		t.Fatalf("unexpected missing-polled-at error: %v", err)
 	}
 
 	err = store.Save(context.Background(), entities.PaymentReceiptTracking{}, time.Now().UTC(), time.Time{})
-	if err == nil || err.Error() != "next poll at is required" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingNextPollAtRequired) {
 		t.Fatalf("unexpected missing-next-poll-at error: %v", err)
 	}
 }
@@ -551,7 +552,7 @@ func TestPaymentReceiptTrackingStoreSaveNotFound(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = store.Save(context.Background(), newTrackingStoreTestEntity(), time.Now().UTC(), time.Now().UTC().Add(time.Minute))
-	if err == nil || err.Error() != "payment receipt tracking is not found" {
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingNotFound) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
