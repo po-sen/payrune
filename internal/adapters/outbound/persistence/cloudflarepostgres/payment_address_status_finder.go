@@ -150,6 +150,8 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
 	}
 
+	lastFailureReason, _ := valueobjects.ParsePaymentReceiptTrackingFailureReason(strings.TrimSpace(lastError.String))
+
 	record := outport.PaymentAddressStatusRecord{
 		PaymentAddressID:        paymentAddressID,
 		AddressPolicyID:         strings.TrimSpace(addressPolicyID),
@@ -166,7 +168,7 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		RequiredConfirmations:   requiredConfirmations.Int32,
 		LastObservedBlockHeight: lastObservedBlockHeight.Int64,
 		IssuedAt:                issuedAt.Time.UTC(),
-		LastError:               strings.TrimSpace(lastError.String),
+		LastFailureReason:       lastFailureReason,
 	}
 	if firstObservedAt.Valid {
 		timeValue := firstObservedAt.Time.UTC()

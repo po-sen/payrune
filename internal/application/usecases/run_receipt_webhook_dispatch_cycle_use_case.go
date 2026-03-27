@@ -128,7 +128,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 			input.MaxAttempts,
 			uc.clock.NowUTC(),
 			input.RetryDelay,
-			err.Error(),
+			valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		)
 		if resultErr != nil {
 			return "", inport.ErrInternalFailure

@@ -176,7 +176,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			result.NotificationID,
 			result.Attempts,
 			result.NextAttemptAt.UTC(),
-			result.LastError,
+			string(result.LastFailureReason),
 		)
 		if err != nil {
 			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
@@ -194,7 +194,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			 WHERE id = $1`,
 			result.NotificationID,
 			result.Attempts,
-			result.LastError,
+			string(result.LastFailureReason),
 		)
 		if err != nil {
 			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
@@ -257,6 +257,8 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedDeliveryStatusInvalid, deliveryStatusRaw)
 	}
 
+	lastFailureReason, _ := valueobjects.ParsePaymentReceiptNotificationDeliveryFailureReason(lastError)
+
 	notification := applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
 		NotificationID:        notificationID,
 		PaymentAddressID:      paymentAddressID,
@@ -270,7 +272,7 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		DeliveryStatus:        deliveryStatus,
 		DeliveryAttempts:      deliveryAttempts,
 		NextAttemptAt:         nextAttemptAt.UTC(),
-		LastError:             lastError,
+		LastFailureReason:     lastFailureReason,
 	}
 	if deliveredAt.Valid {
 		timeValue := deliveredAt.Time.UTC()

@@ -10,6 +10,6 @@ var (
 	ErrPaymentReceiptStatusNotificationCurrentAttemptsInvalid = errors.New("current attempts must be greater than or equal to zero")
 	ErrPaymentReceiptStatusNotificationMaxAttemptsInvalid     = errors.New("max attempts must be greater than zero")
 	ErrPaymentReceiptStatusNotificationNowRequired            = errors.New("now is required")
-	ErrPaymentReceiptStatusNotificationLastErrorRequired      = errors.New("last error is required")
+	ErrPaymentReceiptStatusNotificationFailureReasonRequired  = errors.New("notification failure reason is required")
 	ErrPaymentReceiptStatusNotificationRetryDelayInvalid      = errors.New("retry delay must be greater than zero")
 )

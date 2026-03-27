@@ -74,7 +74,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 		nullableTimePointer(tracking.FirstObservedAt),
 		nullableTimePointer(tracking.PaidAt),
 		nullableTimePointer(tracking.ConfirmedAt),
-		nullIfEmpty(tracking.LastError),
+		nullIfEmpty(string(tracking.LastFailureReason)),
 		nextPollAt.UTC(),
 	)
 	if err != nil {
@@ -232,7 +232,7 @@ func (r *PaymentReceiptTrackingStore) Save(
 		nullableTimePointer(tracking.PaidAt),
 		nullableTimePointer(tracking.ConfirmedAt),
 		nullableTimePointer(tracking.ExpiresAt),
-		nullIfEmpty(tracking.LastError),
+		nullIfEmpty(string(tracking.LastFailureReason)),
 		polledAt.UTC(),
 		nextPollAt.UTC(),
 	)
@@ -310,6 +310,7 @@ func scanPaymentReceiptTracking(scanner interface {
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedStatusInvalid, receiptStatusRaw)
 	}
+	lastFailureReason, _ := valueobjects.ParsePaymentReceiptTrackingFailureReason(lastError)
 
 	tracking := entities.PaymentReceiptTracking{
 		TrackingID:              trackingID,
@@ -325,7 +326,7 @@ func scanPaymentReceiptTracking(scanner interface {
 		ConfirmedTotalMinor:     confirmedTotalMinor,
 		UnconfirmedTotalMinor:   unconfirmedTotalMinor,
 		LastObservedBlockHeight: lastObservedBlockHeight,
-		LastError:               lastError,
+		LastFailureReason:       lastFailureReason,
 	}
 	if issuedAt.Valid {
 		tracking.IssuedAt = issuedAt.Time.UTC()

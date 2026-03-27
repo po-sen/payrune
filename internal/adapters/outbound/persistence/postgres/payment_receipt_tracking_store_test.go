@@ -211,7 +211,7 @@ func newTrackingStoreTestEntity() entities.PaymentReceiptTracking {
 		UnconfirmedTotalMinor:   500,
 		LastObservedBlockHeight: 123,
 		FirstObservedAt:         &firstObservedAt,
-		LastError:               "observer warning",
+		LastFailureReason:       valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed,
 	}
 }
 
@@ -254,7 +254,7 @@ func TestPaymentReceiptTrackingStoreCreateSuccess(t *testing.T) {
 			tracking.FirstObservedAt.UTC(),
 			nil,
 			nil,
-			"observer warning",
+			"observation_failed",
 			nextPollAt.UTC(),
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -528,7 +528,7 @@ func TestPaymentReceiptTrackingStoreSaveSuccess(t *testing.T) {
 			paidAt.UTC(),
 			nil,
 			tracking.ExpiresAt.UTC(),
-			"observer warning",
+			"observation_failed",
 			polledAt.UTC(),
 			nextPollAt.UTC(),
 		).

@@ -26,8 +26,8 @@ func TestPaymentReceiptTrackingLifecyclePolicyExpireIfDue(t *testing.T) {
 	if expiredTracking.Status != valueobjects.PaymentReceiptStatusFailedExpired {
 		t.Fatalf("unexpected status: got %q", expiredTracking.Status)
 	}
-	if expiredTracking.LastError != defaultPaymentReceiptExpiredReason {
-		t.Fatalf("unexpected expired reason: got %q", expiredTracking.LastError)
+	if expiredTracking.LastFailureReason != valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired {
+		t.Fatalf("unexpected expired reason: got %q", expiredTracking.LastFailureReason)
 	}
 }
 

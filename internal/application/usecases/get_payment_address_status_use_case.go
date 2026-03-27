@@ -88,6 +88,6 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 		PaidAt:                  record.PaidAt,
 		ConfirmedAt:             record.ConfirmedAt,
 		ExpiresAt:               record.ExpiresAt,
-		LastError:               record.LastError,
+		LastError:               record.LastFailureReason.Message(),
 	}, nil
 }

@@ -27,7 +27,7 @@ type PaymentReceiptTracking struct {
 	PaidAt                  *time.Time
 	ConfirmedAt             *time.Time
 	ExpiresAt               *time.Time
-	LastError               string
+	LastFailureReason       valueobjects.PaymentReceiptTrackingFailureReason
 }
 
 func NewPaymentReceiptTracking(
@@ -99,7 +99,7 @@ func (t PaymentReceiptTracking) ApplyObservation(
 	updated.ConfirmedTotalMinor = observation.ConfirmedTotalMinor
 	updated.UnconfirmedTotalMinor = observation.UnconfirmedTotalMinor
 	updated.LastObservedBlockHeight = observation.LatestBlockHeight
-	updated.LastError = ""
+	updated.LastFailureReason = ""
 
 	if observation.ObservedTotalMinor > 0 && updated.FirstObservedAt == nil {
 		firstObservedAt := observedAt
@@ -118,14 +118,15 @@ func (t PaymentReceiptTracking) ApplyObservation(
 	return updated, nil
 }
 
-func (t PaymentReceiptTracking) MarkPollingError(reason string) (PaymentReceiptTracking, error) {
-	normalizedReason := strings.TrimSpace(reason)
-	if normalizedReason == "" {
-		return PaymentReceiptTracking{}, ErrPollingErrorReasonRequired
+func (t PaymentReceiptTracking) MarkPollingFailure(
+	reason valueobjects.PaymentReceiptTrackingFailureReason,
+) (PaymentReceiptTracking, error) {
+	if reason.IsZero() {
+		return PaymentReceiptTracking{}, ErrPaymentReceiptFailureReasonRequired
 	}
 
 	updated := t
-	updated.LastError = normalizedReason
+	updated.LastFailureReason = reason
 	return updated, nil
 }
 
@@ -140,15 +141,16 @@ func (t PaymentReceiptTracking) CanExpireByPaymentWindow() bool {
 	return t.PaidAt == nil
 }
 
-func (t PaymentReceiptTracking) MarkExpired(reason string) (PaymentReceiptTracking, error) {
-	normalizedReason := strings.TrimSpace(reason)
-	if normalizedReason == "" {
-		return PaymentReceiptTracking{}, ErrExpiredReasonRequired
+func (t PaymentReceiptTracking) MarkExpired(
+	reason valueobjects.PaymentReceiptTrackingFailureReason,
+) (PaymentReceiptTracking, error) {
+	if reason.IsZero() {
+		return PaymentReceiptTracking{}, ErrPaymentReceiptFailureReasonRequired
 	}
 
 	updated := t
 	updated.Status = valueobjects.PaymentReceiptStatusFailedExpired
-	updated.LastError = normalizedReason
+	updated.LastFailureReason = reason
 	return updated, nil
 }
 

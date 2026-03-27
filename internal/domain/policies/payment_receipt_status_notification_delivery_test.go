@@ -32,7 +32,7 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureRetry(t *testing.
 		5,
 		now,
 		2*time.Minute,
-		"timeout",
+		valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 	)
 	if err != nil {
 		t.Fatalf("ResolvePaymentReceiptStatusNotificationDeliveryFailure returned error: %v", err)
@@ -42,6 +42,9 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureRetry(t *testing.
 	}
 	if result.Attempts != 2 {
 		t.Fatalf("unexpected attempts: got %d", result.Attempts)
+	}
+	if result.LastFailureReason != valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+		t.Fatalf("unexpected last failure reason: got %q", result.LastFailureReason)
 	}
 	if result.NextAttemptAt == nil || !result.NextAttemptAt.Equal(now.Add(2*time.Minute)) {
 		t.Fatalf("unexpected next attempt at: got %v", result.NextAttemptAt)
@@ -57,7 +60,7 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureTerminal(t *testi
 		3,
 		now,
 		2*time.Minute,
-		"webhook returned 500",
+		valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 	)
 	if err != nil {
 		t.Fatalf("ResolvePaymentReceiptStatusNotificationDeliveryFailure returned error: %v", err)
@@ -67,6 +70,9 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureTerminal(t *testi
 	}
 	if result.Attempts != 3 {
 		t.Fatalf("unexpected attempts: got %d", result.Attempts)
+	}
+	if result.LastFailureReason != valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+		t.Fatalf("unexpected last failure reason: got %q", result.LastFailureReason)
 	}
 	if result.NextAttemptAt != nil {
 		t.Fatalf("expected nil next attempt at, got %v", result.NextAttemptAt)
@@ -80,7 +86,7 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureValidation(t *tes
 		3,
 		time.Now().UTC(),
 		time.Minute,
-		"timeout",
+		valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 	)
 	if !errors.Is(err, ErrPaymentReceiptStatusNotificationIDInvalid) {
 		t.Fatalf("unexpected error: got %v", err)
@@ -92,9 +98,9 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureValidation(t *tes
 		3,
 		time.Now().UTC(),
 		time.Minute,
-		"   ",
+		"",
 	)
-	if !errors.Is(err, ErrPaymentReceiptStatusNotificationLastErrorRequired) {
+	if !errors.Is(err, ErrPaymentReceiptStatusNotificationFailureReasonRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

@@ -21,6 +21,6 @@ type PaymentReceiptStatusNotificationOutboxMessage struct {
 	DeliveryStatus        valueobjects.PaymentReceiptNotificationDeliveryStatus
 	DeliveryAttempts      int32
 	NextAttemptAt         time.Time
-	LastError             string
+	LastFailureReason     valueobjects.PaymentReceiptNotificationDeliveryFailureReason
 	DeliveredAt           *time.Time
 }

@@ -39,6 +39,7 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 				IssuedAt:                issuedAt,
 				FirstObservedAt:         &firstObservedAt,
 				ExpiresAt:               &expiresAt,
+				LastFailureReason:       valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed,
 			},
 		},
 		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
@@ -79,6 +80,9 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 	}
 	if response.FirstObservedAt == nil || !response.FirstObservedAt.Equal(firstObservedAt) {
 		t.Fatalf("unexpected firstObservedAt: got %v", response.FirstObservedAt)
+	}
+	if response.LastError != "receipt observation failed" {
+		t.Fatalf("unexpected lastError: got %q", response.LastError)
 	}
 }
 

@@ -7,10 +7,6 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-const (
-	defaultPaymentReceiptExpiredReason = "payment window expired"
-)
-
 type PaymentReceiptTrackingLifecyclePolicy struct{}
 
 func NewPaymentReceiptTrackingLifecyclePolicy() PaymentReceiptTrackingLifecyclePolicy {
@@ -28,7 +24,9 @@ func (p PaymentReceiptTrackingLifecyclePolicy) ExpireIfDue(
 		return tracking, false, nil
 	}
 
-	expiredTracking, err := tracking.MarkExpired(defaultPaymentReceiptExpiredReason)
+	expiredTracking, err := tracking.MarkExpired(
+		valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired,
+	)
 	if err != nil {
 		return entities.PaymentReceiptTracking{}, false, err
 	}

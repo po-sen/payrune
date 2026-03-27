@@ -30,14 +30,14 @@ type fakePaymentReceiptTrackingStore struct {
 	saveErr     error
 	savePollErr error
 
-	lastClaimInput                    outport.ClaimPaymentReceiptTrackingsInput
-	savedObservationTrackings         []entities.PaymentReceiptTracking
-	savedObservationNextPollAtValues  []time.Time
-	savedObservationPolledAtValues    []time.Time
-	savedPollingErrorPaymentAddressID []int64
-	savedPollingErrorReasons          []string
-	savedPollingErrorNextPollAt       []time.Time
-	savedPollingErrorPolledAt         []time.Time
+	lastClaimInput                      outport.ClaimPaymentReceiptTrackingsInput
+	savedObservationTrackings           []entities.PaymentReceiptTracking
+	savedObservationNextPollAtValues    []time.Time
+	savedObservationPolledAtValues      []time.Time
+	savedPollingFailurePaymentAddressID []int64
+	savedPollingFailureReasons          []valueobjects.PaymentReceiptTrackingFailureReason
+	savedPollingFailureNextPollAt       []time.Time
+	savedPollingFailurePolledAt         []time.Time
 }
 
 func (f *fakePaymentReceiptTrackingStore) Create(
@@ -70,11 +70,11 @@ func (f *fakePaymentReceiptTrackingStore) Save(
 	f.savedObservationTrackings = append(f.savedObservationTrackings, tracking)
 	f.savedObservationPolledAtValues = append(f.savedObservationPolledAtValues, now)
 	f.savedObservationNextPollAtValues = append(f.savedObservationNextPollAtValues, nextPollAt)
-	if tracking.LastError != "" {
-		f.savedPollingErrorPaymentAddressID = append(f.savedPollingErrorPaymentAddressID, tracking.PaymentAddressID)
-		f.savedPollingErrorReasons = append(f.savedPollingErrorReasons, tracking.LastError)
-		f.savedPollingErrorPolledAt = append(f.savedPollingErrorPolledAt, now)
-		f.savedPollingErrorNextPollAt = append(f.savedPollingErrorNextPollAt, nextPollAt)
+	if !tracking.LastFailureReason.IsZero() {
+		f.savedPollingFailurePaymentAddressID = append(f.savedPollingFailurePaymentAddressID, tracking.PaymentAddressID)
+		f.savedPollingFailureReasons = append(f.savedPollingFailureReasons, tracking.LastFailureReason)
+		f.savedPollingFailurePolledAt = append(f.savedPollingFailurePolledAt, now)
+		f.savedPollingFailureNextPollAt = append(f.savedPollingFailureNextPollAt, nextPollAt)
 		return f.savePollErr
 	}
 	return f.saveErr
@@ -338,14 +338,14 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 	if output.ProcessingErrorCount != 1 {
 		t.Fatalf("unexpected processing error count: got %d", output.ProcessingErrorCount)
 	}
-	if got := len(trackingStore.savedPollingErrorPaymentAddressID); got != 1 {
+	if got := len(trackingStore.savedPollingFailurePaymentAddressID); got != 1 {
 		t.Fatalf("unexpected saved polling errors: got %d", got)
 	}
-	if trackingStore.savedPollingErrorPaymentAddressID[0] != 202 {
-		t.Fatalf("unexpected saved payment address id: got %d", trackingStore.savedPollingErrorPaymentAddressID[0])
+	if trackingStore.savedPollingFailurePaymentAddressID[0] != 202 {
+		t.Fatalf("unexpected saved payment address id: got %d", trackingStore.savedPollingFailurePaymentAddressID[0])
 	}
-	if trackingStore.savedPollingErrorReasons[0] != "rpc timeout" {
-		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingErrorReasons[0])
+	if trackingStore.savedPollingFailureReasons[0] != valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed {
+		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingFailureReasons[0])
 	}
 	if unitOfWork.calls != 2 {
 		t.Fatalf("unexpected uow calls: got %d, want 2", unitOfWork.calls)
@@ -497,11 +497,11 @@ func TestRunReceiptPollingCycleUseCaseExecuteLatestBlockHeightError(t *testing.T
 	if got := len(observer.lastInputs); got != 0 {
 		t.Fatalf("expected no observer address calls after tip-height failure, got %d", got)
 	}
-	if got := len(trackingStore.savedPollingErrorReasons); got != 1 {
+	if got := len(trackingStore.savedPollingFailureReasons); got != 1 {
 		t.Fatalf("unexpected polling error count: got %d", got)
 	}
-	if trackingStore.savedPollingErrorReasons[0] != "tip height timeout" {
-		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingErrorReasons[0])
+	if trackingStore.savedPollingFailureReasons[0] != valueobjects.PaymentReceiptTrackingFailureReasonLatestBlockHeightUnavailable {
+		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingFailureReasons[0])
 	}
 }
 
@@ -660,8 +660,8 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 	if trackingStore.savedObservationTrackings[0].Status != valueobjects.PaymentReceiptStatusFailedExpired {
 		t.Fatalf("unexpected saved status: got %q", trackingStore.savedObservationTrackings[0].Status)
 	}
-	if trackingStore.savedObservationTrackings[0].LastError != "payment window expired" {
-		t.Fatalf("unexpected saved error: got %q", trackingStore.savedObservationTrackings[0].LastError)
+	if trackingStore.savedObservationTrackings[0].LastFailureReason != valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired {
+		t.Fatalf("unexpected saved error: got %q", trackingStore.savedObservationTrackings[0].LastFailureReason)
 	}
 	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
@@ -815,11 +815,11 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTrackingObserverErrorRemains
 	if got := len(observer.lastInputs); got != 1 {
 		t.Fatalf("unexpected observer calls: got %d", got)
 	}
-	if got := len(trackingStore.savedPollingErrorReasons); got != 1 {
+	if got := len(trackingStore.savedPollingFailureReasons); got != 1 {
 		t.Fatalf("unexpected polling errors: got %d", got)
 	}
-	if trackingStore.savedPollingErrorReasons[0] != "rpc timeout" {
-		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingErrorReasons[0])
+	if trackingStore.savedPollingFailureReasons[0] != valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed {
+		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingFailureReasons[0])
 	}
 	if got := len(notificationOutbox.enqueueInputs); got != 0 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
@@ -1050,11 +1050,11 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 	if got := len(observer.lastInputs); got != 0 {
 		t.Fatalf("unexpected observer calls: got %d", got)
 	}
-	if got := len(trackingStore.savedPollingErrorReasons); got != 1 {
+	if got := len(trackingStore.savedPollingFailureReasons); got != 1 {
 		t.Fatalf("unexpected polling errors: got %d", got)
 	}
-	if trackingStore.savedPollingErrorReasons[0] != "issued at is required" {
-		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingErrorReasons[0])
+	if trackingStore.savedPollingFailureReasons[0] != valueobjects.PaymentReceiptTrackingFailureReasonTrackingInvalid {
+		t.Fatalf("unexpected polling error reason: got %q", trackingStore.savedPollingFailureReasons[0])
 	}
 	if got := len(notificationOutbox.enqueueInputs); got != 0 {
 		t.Fatalf("unexpected enqueue count: got %d", got)

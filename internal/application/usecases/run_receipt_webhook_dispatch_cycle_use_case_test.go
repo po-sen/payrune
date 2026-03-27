@@ -216,6 +216,9 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteRetry(t *testing.T) {
 	if outbox.savedResults[0].Attempts != 2 {
 		t.Fatalf("unexpected attempts: got %d", outbox.savedResults[0].Attempts)
 	}
+	if outbox.savedResults[0].LastFailureReason != valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+		t.Fatalf("unexpected delivery failure reason: got %q", outbox.savedResults[0].LastFailureReason)
+	}
 	expectedNextAttemptAt := failedAt.Add(2 * time.Minute)
 	if outbox.savedResults[0].NextAttemptAt == nil || !outbox.savedResults[0].NextAttemptAt.Equal(expectedNextAttemptAt) {
 		t.Fatalf("unexpected next attempt at: got %v want %s", outbox.savedResults[0].NextAttemptAt, expectedNextAttemptAt)
@@ -270,6 +273,9 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteTerminalFailure(t *testing.
 	}
 	if outbox.savedResults[0].Attempts != 3 {
 		t.Fatalf("unexpected attempts: got %d", outbox.savedResults[0].Attempts)
+	}
+	if outbox.savedResults[0].LastFailureReason != valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+		t.Fatalf("unexpected delivery failure reason: got %q", outbox.savedResults[0].LastFailureReason)
 	}
 }
 

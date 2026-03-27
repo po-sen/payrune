@@ -141,7 +141,13 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 	latestBlockHeightErrs map[receiptPollingScopeKey]error,
 ) (receiptPollingTrackingResult, error) {
 	if tracking.IssuedAt.IsZero() {
-		if err := uc.savePollingError(ctx, tracking, "issued at is required", now, nextPollAt); err != nil {
+		if err := uc.savePollingFailure(
+			ctx,
+			tracking,
+			valueobjects.PaymentReceiptTrackingFailureReasonTrackingInvalid,
+			now,
+			nextPollAt,
+		); err != nil {
 			return 0, err
 		}
 		return receiptPollingTrackingProcessingError, nil
@@ -154,7 +160,13 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 		latestBlockHeightErrs,
 	)
 	if err != nil {
-		if saveErr := uc.savePollingError(ctx, tracking, err.Error(), now, nextPollAt); saveErr != nil {
+		if saveErr := uc.savePollingFailure(
+			ctx,
+			tracking,
+			valueobjects.PaymentReceiptTrackingFailureReasonLatestBlockHeightUnavailable,
+			now,
+			nextPollAt,
+		); saveErr != nil {
 			return 0, saveErr
 		}
 		return receiptPollingTrackingProcessingError, nil
@@ -170,7 +182,13 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 		SinceBlockHeight:      tracking.LastObservedBlockHeight,
 	})
 	if err != nil {
-		if saveErr := uc.savePollingError(ctx, tracking, err.Error(), now, nextPollAt); saveErr != nil {
+		if saveErr := uc.savePollingFailure(
+			ctx,
+			tracking,
+			valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed,
+			now,
+			nextPollAt,
+		); saveErr != nil {
 			return 0, saveErr
 		}
 		return receiptPollingTrackingProcessingError, nil
@@ -183,7 +201,13 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 		LatestBlockHeight:     observation.LatestBlockHeight,
 	}, now)
 	if err != nil {
-		if saveErr := uc.savePollingError(ctx, tracking, err.Error(), now, nextPollAt); saveErr != nil {
+		if saveErr := uc.savePollingFailure(
+			ctx,
+			tracking,
+			valueobjects.PaymentReceiptTrackingFailureReasonTrackingUpdateFailed,
+			now,
+			nextPollAt,
+		); saveErr != nil {
 			return 0, saveErr
 		}
 		return receiptPollingTrackingProcessingError, nil
@@ -218,14 +242,14 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 	return receiptPollingTrackingUpdated, nil
 }
 
-func (uc *runReceiptPollingCycleUseCase) savePollingError(
+func (uc *runReceiptPollingCycleUseCase) savePollingFailure(
 	ctx context.Context,
 	tracking entities.PaymentReceiptTracking,
-	reason string,
+	reason valueobjects.PaymentReceiptTrackingFailureReason,
 	now time.Time,
 	nextPollAt time.Time,
 ) error {
-	trackingWithError, err := tracking.MarkPollingError(reason)
+	trackingWithFailureReason, err := tracking.MarkPollingFailure(reason)
 	if err != nil {
 		return inport.ErrInternalFailure
 	}
@@ -235,7 +259,7 @@ func (uc *runReceiptPollingCycleUseCase) savePollingError(
 		if trackingStore == nil {
 			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
-		if err := trackingStore.Save(ctx, trackingWithError, now, nextPollAt); err != nil {
+		if err := trackingStore.Save(ctx, trackingWithFailureReason, now, nextPollAt); err != nil {
 			return inport.ErrDependencyFailure
 		}
 		return nil

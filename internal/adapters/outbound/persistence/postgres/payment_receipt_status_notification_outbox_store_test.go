@@ -343,11 +343,11 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultPendingSuccess(
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
 		policies.PaymentReceiptStatusNotificationDeliveryResult{
-			NotificationID: 99,
-			Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
-			Attempts:       2,
-			LastError:      "timeout",
-			NextAttemptAt:  &nextAttemptAt,
+			NotificationID:    99,
+			Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
+			Attempts:          2,
+			LastFailureReason: valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			NextAttemptAt:     &nextAttemptAt,
 		},
 	)
 	if err != nil {
@@ -367,10 +367,10 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultFailedSuccess(t
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
 		policies.PaymentReceiptStatusNotificationDeliveryResult{
-			NotificationID: 99,
-			Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
-			Attempts:       3,
-			LastError:      "webhook returned status 500",
+			NotificationID:    99,
+			Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
+			Attempts:          3,
+			LastFailureReason: valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 	)
 	if err != nil {

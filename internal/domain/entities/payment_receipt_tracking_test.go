@@ -211,7 +211,7 @@ func TestPaymentReceiptTrackingApplyObservationValidation(t *testing.T) {
 	}
 }
 
-func TestPaymentReceiptTrackingMarkPollingError(t *testing.T) {
+func TestPaymentReceiptTrackingMarkPollingFailure(t *testing.T) {
 	tracking, err := NewPaymentReceiptTracking(
 		22,
 		"bitcoin-testnet4-native-segwit",
@@ -226,15 +226,15 @@ func TestPaymentReceiptTrackingMarkPollingError(t *testing.T) {
 		t.Fatalf("setup failed: %v", err)
 	}
 
-	updated, err := tracking.MarkPollingError("observer timeout")
+	updated, err := tracking.MarkPollingFailure(valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
-	if updated.LastError != "observer timeout" {
-		t.Fatalf("unexpected last error: got %q", updated.LastError)
+	if updated.LastFailureReason != valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed {
+		t.Fatalf("unexpected last failure reason: got %q", updated.LastFailureReason)
 	}
 
-	if _, err := tracking.MarkPollingError("   "); !errors.Is(err, ErrPollingErrorReasonRequired) {
+	if _, err := tracking.MarkPollingFailure(""); !errors.Is(err, ErrPaymentReceiptFailureReasonRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
@@ -274,18 +274,18 @@ func TestPaymentReceiptTrackingExpirationHelpers(t *testing.T) {
 	}
 	tracking.PaidAt = nil
 
-	expired, err := tracking.MarkExpired("payment window expired")
+	expired, err := tracking.MarkExpired(valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired)
 	if err != nil {
 		t.Fatalf("MarkExpired returned error: %v", err)
 	}
 	if expired.Status != valueobjects.PaymentReceiptStatusFailedExpired {
 		t.Fatalf("unexpected status: got %q", expired.Status)
 	}
-	if expired.LastError != "payment window expired" {
-		t.Fatalf("unexpected last error: got %q", expired.LastError)
+	if expired.LastFailureReason != valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired {
+		t.Fatalf("unexpected last failure reason: got %q", expired.LastFailureReason)
 	}
 
-	if _, err := tracking.MarkExpired("   "); !errors.Is(err, ErrExpiredReasonRequired) {
+	if _, err := tracking.MarkExpired(""); !errors.Is(err, ErrPaymentReceiptFailureReasonRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

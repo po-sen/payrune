@@ -41,7 +41,7 @@ type PaymentAddressStatusRecord struct {
 	PaidAt                  *time.Time
 	ConfirmedAt             *time.Time
 	ExpiresAt               *time.Time
-	LastError               string
+	LastFailureReason       valueobjects.PaymentReceiptTrackingFailureReason
 }
 
 type PaymentAddressStatusFinder interface {

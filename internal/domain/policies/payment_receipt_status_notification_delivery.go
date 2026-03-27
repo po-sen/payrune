@@ -1,19 +1,18 @@
 package policies
 
 import (
-	"strings"
 	"time"
 
 	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentReceiptStatusNotificationDeliveryResult struct {
-	NotificationID int64
-	Status         valueobjects.PaymentReceiptNotificationDeliveryStatus
-	Attempts       int32
-	LastError      string
-	NextAttemptAt  *time.Time
-	DeliveredAt    *time.Time
+	NotificationID    int64
+	Status            valueobjects.PaymentReceiptNotificationDeliveryStatus
+	Attempts          int32
+	LastFailureReason valueobjects.PaymentReceiptNotificationDeliveryFailureReason
+	NextAttemptAt     *time.Time
+	DeliveredAt       *time.Time
 }
 
 func MarkPaymentReceiptStatusNotificationSent(
@@ -41,7 +40,7 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	maxAttempts int32,
 	now time.Time,
 	retryDelay time.Duration,
-	lastError string,
+	failureReason valueobjects.PaymentReceiptNotificationDeliveryFailureReason,
 ) (PaymentReceiptStatusNotificationDeliveryResult, error) {
 	if notificationID <= 0 {
 		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationIDInvalid
@@ -55,18 +54,17 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	if now.IsZero() {
 		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationNowRequired
 	}
-	normalizedError := strings.TrimSpace(lastError)
-	if normalizedError == "" {
-		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationLastErrorRequired
+	if failureReason.IsZero() {
+		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationFailureReasonRequired
 	}
 
 	attempts := currentAttempts + 1
 	if attempts >= maxAttempts {
 		return PaymentReceiptStatusNotificationDeliveryResult{
-			NotificationID: notificationID,
-			Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
-			Attempts:       attempts,
-			LastError:      normalizedError,
+			NotificationID:    notificationID,
+			Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
+			Attempts:          attempts,
+			LastFailureReason: failureReason,
 		}, nil
 	}
 
@@ -76,10 +74,10 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 
 	nextAttemptAt := now.Add(retryDelay).UTC()
 	return PaymentReceiptStatusNotificationDeliveryResult{
-		NotificationID: notificationID,
-		Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
-		Attempts:       attempts,
-		LastError:      normalizedError,
-		NextAttemptAt:  &nextAttemptAt,
+		NotificationID:    notificationID,
+		Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
+		Attempts:          attempts,
+		LastFailureReason: failureReason,
+		NextAttemptAt:     &nextAttemptAt,
 	}, nil
 }

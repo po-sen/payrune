@@ -90,7 +90,7 @@ func TestPaymentAddressStatusFinderFindByIDSuccess(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		"",
+		"payment_window_expired",
 	)
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
@@ -112,6 +112,9 @@ func TestPaymentAddressStatusFinderFindByIDSuccess(t *testing.T) {
 	}
 	if record.FirstObservedAt == nil || !record.FirstObservedAt.Equal(firstObservedAt) {
 		t.Fatalf("unexpected first observed at: got %v", record.FirstObservedAt)
+	}
+	if record.LastFailureReason != valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired {
+		t.Fatalf("unexpected last failure reason: got %q", record.LastFailureReason)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectations: %v", err)
