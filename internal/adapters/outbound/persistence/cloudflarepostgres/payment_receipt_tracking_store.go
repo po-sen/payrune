@@ -13,10 +13,10 @@ import (
 )
 
 type PaymentReceiptTrackingStore struct {
-	executor Executor
+	executor executor
 }
 
-func NewPaymentReceiptTrackingStore(executor Executor) *PaymentReceiptTrackingStore {
+func NewPaymentReceiptTrackingStore(executor executor) *PaymentReceiptTrackingStore {
 	return &PaymentReceiptTrackingStore{executor: executor}
 }
 
@@ -78,12 +78,12 @@ func (r *PaymentReceiptTrackingStore) Create(
 		nextPollAt.UTC(),
 	)
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptTrackingStoreFailed
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptTrackingStoreFailed
 	}
 	if rowsAffected == 0 {
 		return outport.ErrPaymentReceiptTrackingAlreadyExists
@@ -172,7 +172,7 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 
 	rows, err := r.executor.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, outport.ErrPaymentReceiptTrackingStoreFailed
 	}
 	defer rows.Close()
 
@@ -185,7 +185,7 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 		trackings = append(trackings, tracking)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, outport.ErrPaymentReceiptTrackingStoreFailed
 	}
 
 	return trackings, nil
@@ -237,12 +237,12 @@ func (r *PaymentReceiptTrackingStore) Save(
 		nextPollAt.UTC(),
 	)
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptTrackingStoreFailed
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptTrackingStoreFailed
 	}
 	if rowsAffected == 0 {
 		return outport.ErrPaymentReceiptTrackingNotFound
@@ -295,20 +295,20 @@ func scanPaymentReceiptTracking(scanner interface {
 		&expiresAt,
 		&lastError,
 	); err != nil {
-		return entities.PaymentReceiptTracking{}, err
+		return entities.PaymentReceiptTracking{}, outport.ErrPaymentReceiptTrackingStoreFailed
 	}
 
 	chain, ok := valueobjects.ParseChainID(chainRaw)
 	if !ok {
-		return entities.PaymentReceiptTracking{}, fmt.Errorf("invalid chain in receipt tracking: %s", chainRaw)
+		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedChainInvalid, chainRaw)
 	}
 	network, ok := valueobjects.ParseNetworkID(networkRaw)
 	if !ok {
-		return entities.PaymentReceiptTracking{}, fmt.Errorf("invalid network in receipt tracking: %s", networkRaw)
+		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedNetworkInvalid, networkRaw)
 	}
 	status, ok := valueobjects.ParsePaymentReceiptStatus(receiptStatusRaw)
 	if !ok {
-		return entities.PaymentReceiptTracking{}, fmt.Errorf("unsupported receipt status: %s", receiptStatusRaw)
+		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedStatusInvalid, receiptStatusRaw)
 	}
 
 	tracking := entities.PaymentReceiptTracking{

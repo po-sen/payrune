@@ -13,7 +13,7 @@ import (
 type stubAllocationExecutor struct {
 	execCalls         []stubExecCall
 	queryRowCalls     []stubQueryRowCall
-	queryRowResponses []Row
+	queryRowResponses []row
 }
 
 type stubExecCall struct {
@@ -26,16 +26,16 @@ type stubQueryRowCall struct {
 	args  []any
 }
 
-func (s *stubAllocationExecutor) ExecContext(_ context.Context, query string, args ...any) (Result, error) {
+func (s *stubAllocationExecutor) ExecContext(_ context.Context, query string, args ...any) (result, error) {
 	s.execCalls = append(s.execCalls, stubExecCall{query: query, args: args})
 	return execResult{rowsAffected: 1}, nil
 }
 
-func (s *stubAllocationExecutor) QueryContext(_ context.Context, _ string, _ ...any) (Rows, error) {
+func (s *stubAllocationExecutor) QueryContext(_ context.Context, _ string, _ ...any) (rows, error) {
 	return &sliceRows{}, nil
 }
 
-func (s *stubAllocationExecutor) QueryRowContext(_ context.Context, query string, args ...any) Row {
+func (s *stubAllocationExecutor) QueryRowContext(_ context.Context, query string, args ...any) row {
 	s.queryRowCalls = append(s.queryRowCalls, stubQueryRowCall{query: query, args: args})
 	if len(s.queryRowResponses) == 0 {
 		return errorRow{err: nil}
@@ -69,7 +69,7 @@ func newCloudflareReservePaymentAddressAllocationInput(customerReference string)
 
 func TestPaymentAddressAllocationStoreReopenFailedReservationUsesAddressSourceRef(t *testing.T) {
 	executor := &stubAllocationExecutor{
-		queryRowResponses: []Row{
+		queryRowResponses: []row{
 			valueRow{values: []any{int64(99), int64(11)}},
 		},
 	}
@@ -99,7 +99,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationUsesAddressSourceRe
 
 func TestPaymentAddressAllocationStoreReserveFreshUsesXPubOnlyCursorSeed(t *testing.T) {
 	executor := &stubAllocationExecutor{
-		queryRowResponses: []Row{
+		queryRowResponses: []row{
 			valueRow{values: []any{int64(21)}},
 			valueRow{values: []any{int64(144)}},
 		},

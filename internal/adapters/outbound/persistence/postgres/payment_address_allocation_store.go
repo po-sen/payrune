@@ -16,10 +16,10 @@ import (
 const maxNonHardenedIndex int64 = 0x7fffffff
 
 type PaymentAddressAllocationStore struct {
-	executor Executor
+	executor executor
 }
 
-func NewPaymentAddressAllocationStore(executor Executor) *PaymentAddressAllocationStore {
+func NewPaymentAddressAllocationStore(executor executor) *PaymentAddressAllocationStore {
 	return &PaymentAddressAllocationStore{executor: executor}
 }
 
@@ -80,7 +80,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		return entities.PaymentAddressAllocation{}, false, nil
 	}
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, false, err
+		return entities.PaymentAddressAllocation{}, false, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 	if derivationIndex < 0 || derivationIndex > maxNonHardenedIndex {
 		return entities.PaymentAddressAllocation{}, false, outport.ErrAddressIndexExhausted
@@ -149,12 +149,12 @@ func (r *PaymentAddressAllocationStore) Complete(
 		issuedAt.UTC(),
 	)
 	if err != nil {
-		return err
+		return outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return outport.ErrPaymentAddressAllocationStoreFailed
 	}
 	if rowsAffected == 0 {
 		return outport.ErrPaymentAddressAllocationNotReserved
@@ -177,12 +177,12 @@ func (r *PaymentAddressAllocationStore) MarkDerivationFailed(
 		nullIfEmpty(strings.TrimSpace(allocation.FailureReason)),
 	)
 	if err != nil {
-		return err
+		return outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return outport.ErrPaymentAddressAllocationStoreFailed
 	}
 	if rowsAffected == 0 {
 		return outport.ErrPaymentAddressAllocationNotReserved
@@ -217,7 +217,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		return entities.PaymentAddressAllocation{}, false, nil
 	}
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, false, err
+		return entities.PaymentAddressAllocation{}, false, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 	if derivationIndex < 0 || derivationIndex > maxNonHardenedIndex {
 		return entities.PaymentAddressAllocation{}, false, outport.ErrAddressIndexExhausted
@@ -242,7 +242,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
 	); err != nil {
-		return entities.PaymentAddressAllocation{}, false, err
+		return entities.PaymentAddressAllocation{}, false, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	return entities.PaymentAddressAllocation{
@@ -284,7 +284,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
 		addressSourceRef,
 	); err != nil {
-		return entities.PaymentAddressAllocation{}, err
+		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	var nextIndex int64
@@ -299,7 +299,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		addressSourceRef,
 	).Scan(&nextIndex)
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, err
+		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 	if nextIndex > maxNonHardenedIndex {
 		return entities.PaymentAddressAllocation{}, outport.ErrAddressIndexExhausted
@@ -325,7 +325,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		nullIfEmpty(customerReference),
 	).Scan(&paymentAddressID)
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, err
+		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	if _, err := r.executor.ExecContext(
@@ -338,7 +338,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
 		addressSourceRef,
 	); err != nil {
-		return entities.PaymentAddressAllocation{}, err
+		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	return entities.PaymentAddressAllocation{

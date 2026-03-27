@@ -137,8 +137,7 @@ func TestChainAddressDeriverRejectUnsupportedChain(t *testing.T) {
 }
 
 func TestChainAddressDeriverReturnsDeriverError(t *testing.T) {
-	expectedErr := errors.New("derive failed")
-	deriver := NewChainAddressDeriver(&fakeBitcoinAddressDeriver{err: expectedErr})
+	deriver := NewChainAddressDeriver(&fakeBitcoinAddressDeriver{err: errors.New("derive failed")})
 
 	_, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
 		Chain:            valueobjects.SupportedChainBitcoin,
@@ -147,8 +146,8 @@ func TestChainAddressDeriverReturnsDeriverError(t *testing.T) {
 		AddressSourceRef: "tpub-testnet4",
 		Index:            2,
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected %v, got %v", expectedErr, err)
+	if !errors.Is(err, outport.ErrChainAddressDerivationFailed) {
+		t.Fatalf("expected %v, got %v", outport.ErrChainAddressDerivationFailed, err)
 	}
 }
 

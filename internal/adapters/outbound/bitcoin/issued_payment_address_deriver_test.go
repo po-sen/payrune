@@ -101,9 +101,8 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 }
 
 func TestIssuedPaymentAddressDeriverPropagatesChainDeriverError(t *testing.T) {
-	expectedErr := errors.New("derive failed")
 	deriver := NewIssuedPaymentAddressDeriver(NewChainAddressDeriver(&fakeIssuedBitcoinAddressDeriver{
-		err: expectedErr,
+		err: errors.New("derive failed"),
 	}))
 
 	_, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
@@ -124,7 +123,7 @@ func TestIssuedPaymentAddressDeriverPropagatesChainDeriverError(t *testing.T) {
 			DerivationIndex:  11,
 		},
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected %v, got %v", expectedErr, err)
+	if !errors.Is(err, outport.ErrIssuedPaymentAddressDerivationFailed) {
+		t.Fatalf("expected %v, got %v", outport.ErrIssuedPaymentAddressDerivationFailed, err)
 	}
 }

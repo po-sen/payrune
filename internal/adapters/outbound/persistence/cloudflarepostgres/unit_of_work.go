@@ -2,7 +2,6 @@ package cloudflarepostgres
 
 import (
 	"context"
-	"errors"
 
 	outport "payrune/internal/application/ports/outbound"
 	cloudflarepostgresinfra "payrune/internal/infrastructure/cloudflarepostgres"
@@ -25,12 +24,12 @@ func (u *UnitOfWork) WithinTransaction(
 	fn func(txScope outport.TxScope) error,
 ) error {
 	if u.bridge == nil {
-		return errors.New("cloudflare postgres bridge is not configured")
+		return outport.ErrUnitOfWorkNotConfigured
 	}
 
 	txID, err := u.bridge.BeginTx(ctx, u.bridgeID)
 	if err != nil {
-		return err
+		return outport.ErrUnitOfWorkFailed
 	}
 
 	txExecutor := newTxExecutor(u.bridgeID, txID, u.bridge)
@@ -43,10 +42,13 @@ func (u *UnitOfWork) WithinTransaction(
 
 	if err := fn(txScope); err != nil {
 		if rollbackErr := u.bridge.RollbackTx(ctx, u.bridgeID, txID); rollbackErr != nil {
-			return rollbackErr
+			return outport.ErrUnitOfWorkFailed
 		}
 		return err
 	}
 
-	return u.bridge.CommitTx(ctx, u.bridgeID, txID)
+	if err := u.bridge.CommitTx(ctx, u.bridgeID, txID); err != nil {
+		return outport.ErrUnitOfWorkFailed
+	}
+	return nil
 }

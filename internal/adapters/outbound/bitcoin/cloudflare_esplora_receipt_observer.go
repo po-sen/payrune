@@ -2,8 +2,6 @@ package bitcoin
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
@@ -12,12 +10,12 @@ import (
 
 type CloudflareBitcoinEsploraReceiptObserver struct {
 	bridgeID string
-	bridge   CloudflareEsploraBridge
+	bridge   cloudflareEsploraBridge
 }
 
 func NewCloudflareBitcoinEsploraReceiptObserver(
 	bridgeID string,
-	bridge CloudflareEsploraBridge,
+	bridge cloudflareEsploraBridge,
 ) *CloudflareBitcoinEsploraReceiptObserver {
 	return &CloudflareBitcoinEsploraReceiptObserver{
 		bridgeID: strings.TrimSpace(bridgeID),
@@ -31,35 +29,35 @@ func (o *CloudflareBitcoinEsploraReceiptObserver) ObserveAddress(
 ) (outport.ObservePaymentAddressOutput, error) {
 	address := strings.TrimSpace(input.Address)
 	if address == "" {
-		return outport.ObservePaymentAddressOutput{}, errors.New("address is required")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.IssuedAt.IsZero() {
-		return outport.ObservePaymentAddressOutput{}, errors.New("issued at is required")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.RequiredConfirmations <= 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("required confirmations must be greater than zero")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.LatestBlockHeight <= 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("latest block height must be greater than zero")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.SinceBlockHeight < 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("since block height must be non-negative")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 
 	if _, err := o.validateNetwork(input.Network); err != nil {
 		return outport.ObservePaymentAddressOutput{}, err
 	}
 	if o.bridge == nil {
-		return outport.ObservePaymentAddressOutput{}, errors.New("cloudflare bitcoin esplora bridge is not configured")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverNotConfigured
 	}
 
 	chainTransactions, err := o.bridge.FetchAddressChainTransactions(ctx, o.bridgeID, input.Network, address)
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
 	mempoolTransactions, err := o.bridge.FetchAddressMempoolTransactions(ctx, o.bridgeID, input.Network, address)
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
 
 	confirmedTotalMinor, unconfirmedTotalMinor, err := aggregateInboundTotals(
@@ -71,7 +69,7 @@ func (o *CloudflareBitcoinEsploraReceiptObserver) ObserveAddress(
 		mempoolTransactions,
 	)
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
 
 	return outport.ObservePaymentAddressOutput{
@@ -90,21 +88,25 @@ func (o *CloudflareBitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 		return 0, err
 	}
 	if o.bridge == nil {
-		return 0, errors.New("cloudflare bitcoin esplora bridge is not configured")
+		return 0, outport.ErrBlockchainReceiptObserverNotConfigured
 	}
-	return o.bridge.FetchLatestBlockHeight(ctx, o.bridgeID, network)
+	latestBlockHeight, err := o.bridge.FetchLatestBlockHeight(ctx, o.bridgeID, network)
+	if err != nil {
+		return 0, outport.ErrBlockchainReceiptObserverFailed
+	}
+	return latestBlockHeight, nil
 }
 
 func (o *CloudflareBitcoinEsploraReceiptObserver) validateNetwork(
 	network valueobjects.NetworkID,
 ) (valueobjects.BitcoinNetwork, error) {
 	if strings.TrimSpace(o.bridgeID) == "" {
-		return "", errors.New("cloudflare bitcoin esplora bridge id is required")
+		return "", outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 
 	bitcoinNetwork, ok := valueobjects.ParseBitcoinNetwork(string(network))
 	if !ok {
-		return "", fmt.Errorf("bitcoin network is not supported: %s", network)
+		return "", outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	return bitcoinNetwork, nil
 }

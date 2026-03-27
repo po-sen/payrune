@@ -1,6 +1,14 @@
 package outbound
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var (
+	ErrUnitOfWorkNotConfigured = errors.New("unit of work is not configured")
+	ErrUnitOfWorkFailed        = errors.New("unit of work failed")
+)
 
 type TxScope struct {
 	PaymentAddressAllocation               PaymentAddressAllocationStore

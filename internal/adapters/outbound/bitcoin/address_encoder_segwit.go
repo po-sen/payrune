@@ -11,7 +11,7 @@ import (
 
 type segwitAddressEncoder struct{}
 
-func NewSegwitAddressEncoder() AddressEncoder {
+func NewSegwitAddressEncoder() addressEncoder {
 	return segwitAddressEncoder{}
 }
 

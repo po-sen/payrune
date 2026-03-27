@@ -2,7 +2,14 @@ package outbound
 
 import (
 	"context"
+	"errors"
 	"payrune/internal/domain/valueobjects"
+)
+
+var (
+	ErrChainAddressDeriverNotConfigured   = errors.New("chain address deriver is not configured")
+	ErrChainAddressDerivationInputInvalid = errors.New("chain address derivation input is invalid")
+	ErrChainAddressDerivationFailed       = errors.New("chain address derivation failed")
 )
 
 type DeriveChainAddressInput struct {

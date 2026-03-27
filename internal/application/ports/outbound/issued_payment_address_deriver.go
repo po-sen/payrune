@@ -2,9 +2,16 @@ package outbound
 
 import (
 	"context"
+	"errors"
 
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/valueobjects"
+)
+
+var (
+	ErrIssuedPaymentAddressDeriverNotConfigured   = errors.New("issued payment address deriver is not configured")
+	ErrIssuedPaymentAddressDerivationInputInvalid = errors.New("issued payment address derivation input is invalid")
+	ErrIssuedPaymentAddressDerivationFailed       = errors.New("issued payment address derivation failed")
 )
 
 type DeriveIssuedPaymentAddressInput struct {

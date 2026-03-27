@@ -65,22 +65,19 @@ func (d *MultiChainAddressDeriver) DeriveAddress(
 ) (outport.DeriveChainAddressOutput, error) {
 	normalizedChain, ok := normalizeSupportedChain(input.Chain)
 	if !ok {
-		return outport.DeriveChainAddressOutput{}, errors.New("chain is invalid")
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 	normalizedNetwork, ok := valueobjects.ParseNetworkID(string(input.Network))
 	if !ok {
-		return outport.DeriveChainAddressOutput{}, errors.New("network is invalid")
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
 	deriver, found := d.derivers[normalizedChain]
 	if !found {
-		return outport.DeriveChainAddressOutput{}, fmt.Errorf(
-			"chain address deriver is not configured for chain: %s",
-			normalizedChain,
-		)
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDeriverNotConfigured
 	}
 
-	return deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
+	output, err := deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
 		Chain:                    normalizedChain,
 		Network:                  normalizedNetwork,
 		Scheme:                   strings.TrimSpace(input.Scheme),
@@ -89,6 +86,17 @@ func (d *MultiChainAddressDeriver) DeriveAddress(
 		RelativeAddressReference: strings.TrimSpace(input.RelativeAddressReference),
 		Index:                    input.Index,
 	})
+	if err != nil {
+		switch {
+		case errors.Is(err, outport.ErrChainAddressDeriverNotConfigured):
+			return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDeriverNotConfigured
+		case errors.Is(err, outport.ErrChainAddressDerivationInputInvalid):
+			return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
+		default:
+			return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationFailed
+		}
+	}
+	return output, nil
 }
 
 func normalizeSupportedChain(chain valueobjects.SupportedChain) (valueobjects.SupportedChain, bool) {

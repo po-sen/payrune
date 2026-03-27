@@ -10,7 +10,7 @@ import (
 
 type nativeSegwitAddressEncoder struct{}
 
-func NewNativeSegwitAddressEncoder() AddressEncoder {
+func NewNativeSegwitAddressEncoder() addressEncoder {
 	return nativeSegwitAddressEncoder{}
 }
 

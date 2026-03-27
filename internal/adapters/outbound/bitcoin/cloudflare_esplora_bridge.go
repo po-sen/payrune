@@ -6,7 +6,7 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-type CloudflareEsploraBridge interface {
+type cloudflareEsploraBridge interface {
 	FetchLatestBlockHeight(ctx context.Context, bridgeID string, network valueobjects.NetworkID) (int64, error)
 	FetchAddressChainTransactions(
 		ctx context.Context,

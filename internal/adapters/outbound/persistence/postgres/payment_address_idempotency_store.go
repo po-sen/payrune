@@ -15,10 +15,10 @@ import (
 const paymentAddressIdempotencyPrimaryKey = "pk_payment_address_idempotency_keys"
 
 type PaymentAddressIdempotencyStore struct {
-	executor Executor
+	executor executor
 }
 
-func NewPaymentAddressIdempotencyStore(executor Executor) *PaymentAddressIdempotencyStore {
+func NewPaymentAddressIdempotencyStore(executor executor) *PaymentAddressIdempotencyStore {
 	return &PaymentAddressIdempotencyStore{executor: executor}
 }
 
@@ -63,7 +63,7 @@ func (r *PaymentAddressIdempotencyStore) FindByKey(
 		return outport.PaymentAddressIdempotencyRecord{}, false, nil
 	}
 	if err != nil {
-		return outport.PaymentAddressIdempotencyRecord{}, false, err
+		return outport.PaymentAddressIdempotencyRecord{}, false, outport.ErrPaymentAddressIdempotencyStoreFailed
 	}
 
 	chain, ok := valueobjects.ParseSupportedChain(rawChain)
@@ -122,7 +122,7 @@ func (r *PaymentAddressIdempotencyStore) Claim(
 		if isPaymentAddressIdempotencyDuplicateKey(err) {
 			return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyKeyExists
 		}
-		return outport.PaymentAddressIdempotencyRecord{}, err
+		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyStoreFailed
 	}
 
 	return outport.PaymentAddressIdempotencyRecord{
@@ -162,12 +162,12 @@ func (r *PaymentAddressIdempotencyStore) Complete(
 		input.PaymentAddressID,
 	)
 	if err != nil {
-		return err
+		return outport.ErrPaymentAddressIdempotencyStoreFailed
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return outport.ErrPaymentAddressIdempotencyStoreFailed
 	}
 	if rowsAffected == 0 {
 		return outport.ErrPaymentAddressIdempotencyClaimNotFound
@@ -197,12 +197,12 @@ func (r *PaymentAddressIdempotencyStore) Release(
 		idempotencyKey,
 	)
 	if err != nil {
-		return err
+		return outport.ErrPaymentAddressIdempotencyStoreFailed
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return outport.ErrPaymentAddressIdempotencyStoreFailed
 	}
 	if rowsAffected == 0 {
 		return outport.ErrPaymentAddressIdempotencyClaimNotFound

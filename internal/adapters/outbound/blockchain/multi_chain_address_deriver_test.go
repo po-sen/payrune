@@ -187,10 +187,9 @@ func TestMultiChainAddressDeriverDeriveAddressValidation(t *testing.T) {
 }
 
 func TestMultiChainAddressDeriverPassesThroughErrors(t *testing.T) {
-	expectedErr := errors.New("boom")
 	deriver, err := NewMultiChainAddressDeriver(&fakeChainSpecificAddressDeriver{
 		chain: valueobjects.SupportedChainBitcoin,
-		err:   expectedErr,
+		err:   errors.New("boom"),
 	})
 	if err != nil {
 		t.Fatalf("setup deriver: %v", err)
@@ -200,7 +199,7 @@ func TestMultiChainAddressDeriverPassesThroughErrors(t *testing.T) {
 		Chain:   valueobjects.SupportedChainBitcoin,
 		Network: valueobjects.NetworkID("mainnet"),
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected downstream error, got %v", err)
+	if !errors.Is(err, outport.ErrChainAddressDerivationFailed) {
+		t.Fatalf("expected %v, got %v", outport.ErrChainAddressDerivationFailed, err)
 	}
 }

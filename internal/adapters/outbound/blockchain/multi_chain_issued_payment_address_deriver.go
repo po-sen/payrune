@@ -68,21 +68,29 @@ func (d *MultiChainIssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	policy := input.Policy.Normalize()
 	normalizedChain, ok := normalizeSupportedChain(policy.AddressPolicy.Chain)
 	if !ok {
-		return outport.DeriveIssuedPaymentAddressOutput{}, errors.New("chain is invalid")
+		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationInputInvalid
 	}
 
 	deriver, found := d.derivers[normalizedChain]
 	if !found {
-		return outport.DeriveIssuedPaymentAddressOutput{}, fmt.Errorf(
-			"issued payment address deriver is not configured for chain: %s",
-			normalizedChain,
-		)
+		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDeriverNotConfigured
 	}
 
-	return deriver.DeriveIssuedAddress(ctx, outport.DeriveIssuedPaymentAddressInput{
+	output, err := deriver.DeriveIssuedAddress(ctx, outport.DeriveIssuedPaymentAddressInput{
 		Policy:     policy,
 		Allocation: input.Allocation,
 	})
+	if err != nil {
+		switch {
+		case errors.Is(err, outport.ErrIssuedPaymentAddressDeriverNotConfigured):
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDeriverNotConfigured
+		case errors.Is(err, outport.ErrIssuedPaymentAddressDerivationInputInvalid):
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationInputInvalid
+		default:
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationFailed
+		}
+	}
+	return output, nil
 }
 
 func isNilChainSpecificIssuedPaymentAddressDeriver(deriver chainSpecificIssuedPaymentAddressDeriver) bool {

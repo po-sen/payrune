@@ -11,13 +11,17 @@ import (
 )
 
 var (
-	ErrPaymentReceiptStatusNotificationClaimNowRequired      = errors.New("claim now is required")
-	ErrPaymentReceiptStatusNotificationClaimUntilRequired    = errors.New("claim until is required")
-	ErrPaymentReceiptStatusNotificationClaimLimitInvalid     = errors.New("claim limit must be greater than zero")
-	ErrPaymentReceiptStatusNotificationDeliveredAtRequired   = errors.New("delivered at is required")
-	ErrPaymentReceiptStatusNotificationNextAttemptRequired   = errors.New("next attempt at is required")
-	ErrPaymentReceiptStatusNotificationDeliveryStatusInvalid = errors.New("delivery result status is invalid")
-	ErrPaymentReceiptStatusNotificationNotFound              = errors.New("payment receipt status notification is not found")
+	ErrPaymentReceiptStatusNotificationOutboxFailed                   = errors.New("payment receipt status notification outbox failed")
+	ErrPaymentReceiptStatusNotificationClaimNowRequired               = errors.New("claim now is required")
+	ErrPaymentReceiptStatusNotificationClaimUntilRequired             = errors.New("claim until is required")
+	ErrPaymentReceiptStatusNotificationClaimLimitInvalid              = errors.New("claim limit must be greater than zero")
+	ErrPaymentReceiptStatusNotificationDeliveredAtRequired            = errors.New("delivered at is required")
+	ErrPaymentReceiptStatusNotificationNextAttemptRequired            = errors.New("next attempt at is required")
+	ErrPaymentReceiptStatusNotificationDeliveryStatusInvalid          = errors.New("delivery result status is invalid")
+	ErrPaymentReceiptStatusNotificationNotFound                       = errors.New("payment receipt status notification is not found")
+	ErrPaymentReceiptStatusNotificationPersistedPreviousStatusInvalid = errors.New("persisted previous receipt status is invalid")
+	ErrPaymentReceiptStatusNotificationPersistedCurrentStatusInvalid  = errors.New("persisted current receipt status is invalid")
+	ErrPaymentReceiptStatusNotificationPersistedDeliveryStatusInvalid = errors.New("persisted receipt notification delivery status is invalid")
 )
 
 type PaymentReceiptStatusNotificationOutbox interface {

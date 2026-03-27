@@ -66,40 +66,34 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	input outport.DeriveChainAddressInput,
 ) (outport.DeriveChainAddressOutput, error) {
 	if input.Chain != valueobjects.SupportedChainEthereum {
-		return outport.DeriveChainAddressOutput{}, fmt.Errorf(
-			"ethereum address deriver does not support chain: %s",
-			input.Chain,
-		)
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 	if strings.TrimSpace(input.Scheme) != "create2" {
-		return outport.DeriveChainAddressOutput{}, fmt.Errorf(
-			"ethereum address scheme is invalid: %s",
-			input.Scheme,
-		)
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
 	sourceRef, err := parseCreate2SourceRef(input.AddressSourceRef)
 	if err != nil {
-		return outport.DeriveChainAddressOutput{}, err
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
 	addressReferencePrefix := normalizeAddressReferencePrefix(input.AddressReferencePrefix)
 	if addressReferencePrefix == "" {
-		return outport.DeriveChainAddressOutput{}, errors.New("ethereum address reference prefix is required")
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
 	factoryAddress, err := mustDecodeFixedHex(sourceRef.factoryAddress, 20)
 	if err != nil {
-		return outport.DeriveChainAddressOutput{}, err
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 	initCodeHash, err := mustDecodeFixedHex(sourceRef.initCodeHash, 32)
 	if err != nil {
-		return outport.DeriveChainAddressOutput{}, err
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
 	normalizedSaltHex, salt, err := normalizeCreate2Salt(input.RelativeAddressReference)
 	if err != nil {
-		return outport.DeriveChainAddressOutput{}, err
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 	predictedAddress := predictCreate2Address(factoryAddress, salt, initCodeHash)
 

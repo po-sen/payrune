@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 
 	outport "payrune/internal/application/ports/outbound"
 )
@@ -23,12 +22,12 @@ func (u *UnitOfWork) WithinTransaction(
 	fn func(txScope outport.TxScope) error,
 ) error {
 	if u.db == nil {
-		return errors.New("database is not configured")
+		return outport.ErrUnitOfWorkNotConfigured
 	}
 
 	tx, err := u.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return outport.ErrUnitOfWorkFailed
 	}
 
 	txScope := outport.TxScope{
@@ -42,5 +41,8 @@ func (u *UnitOfWork) WithinTransaction(
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return outport.ErrUnitOfWorkFailed
+	}
+	return nil
 }

@@ -11,7 +11,7 @@ import (
 
 type unsupportedCloudflareEsploraBridge struct{}
 
-func NewCloudflareEsploraBridge() CloudflareEsploraBridge {
+func NewCloudflareEsploraBridge() cloudflareEsploraBridge {
 	return &unsupportedCloudflareEsploraBridge{}
 }
 

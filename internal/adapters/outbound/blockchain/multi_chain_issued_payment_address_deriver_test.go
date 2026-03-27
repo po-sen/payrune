@@ -117,10 +117,9 @@ func TestMultiChainIssuedPaymentAddressDeriverDispatchesByChain(t *testing.T) {
 }
 
 func TestMultiChainIssuedPaymentAddressDeriverPropagatesChainSpecificError(t *testing.T) {
-	expectedErr := errors.New("derive failed")
 	bitcoinDeriver := &fakeChainSpecificIssuedPaymentAddressDeriver{
 		chain: valueobjects.SupportedChainBitcoin,
-		err:   expectedErr,
+		err:   errors.New("derive failed"),
 	}
 
 	deriver, err := NewMultiChainIssuedPaymentAddressDeriver(bitcoinDeriver)
@@ -138,7 +137,7 @@ func TestMultiChainIssuedPaymentAddressDeriverPropagatesChainSpecificError(t *te
 			},
 		},
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected %v, got %v", expectedErr, err)
+	if !errors.Is(err, outport.ErrIssuedPaymentAddressDerivationFailed) {
+		t.Fatalf("expected %v, got %v", outport.ErrIssuedPaymentAddressDerivationFailed, err)
 	}
 }

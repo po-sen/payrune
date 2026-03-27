@@ -445,7 +445,7 @@ func deriveExpectedAddress(
 	t *testing.T,
 	xpub string,
 	params *chaincfg.Params,
-	encoder AddressEncoder,
+	encoder addressEncoder,
 	index uint32,
 	useExternalBranch bool,
 ) string {

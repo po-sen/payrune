@@ -80,10 +80,10 @@ func (n *cloudflarePaymentReceiptStatusWebhookNotifier) NotifyStatusChanged(
 		StatusChangedAt:       input.StatusChangedAt.UTC(),
 	})
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptStatusNotificationFailed
 	}
 
-	return n.bridge.PostJSON(ctx, cloudflarewebhookinfra.PostInput{
+	if err := n.bridge.PostJSON(ctx, cloudflarewebhookinfra.PostInput{
 		Binding: n.binding,
 		Path:    n.path,
 		Timeout: n.timeout,
@@ -95,5 +95,8 @@ func (n *cloudflarePaymentReceiptStatusWebhookNotifier) NotifyStatusChanged(
 			"X-Payrune-Signature-256":   "sha256=" + computeWebhookSignature(n.secret, body),
 		},
 		Body: body,
-	})
+	}); err != nil {
+		return outport.ErrPaymentReceiptStatusNotificationFailed
+	}
+	return nil
 }

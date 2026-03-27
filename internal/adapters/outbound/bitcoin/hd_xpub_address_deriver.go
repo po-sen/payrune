@@ -13,17 +13,17 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 )
 
-type AddressEncoder interface {
+type addressEncoder interface {
 	Scheme() valueobjects.BitcoinAddressScheme
 	Encode(publicKey *btcec.PublicKey, params *chaincfg.Params) (btcutil.Address, error)
 }
 
 type HDXPubAddressDeriver struct {
-	encoders map[valueobjects.BitcoinAddressScheme]AddressEncoder
+	encoders map[valueobjects.BitcoinAddressScheme]addressEncoder
 }
 
-func NewHDXPubAddressDeriver(encoders ...AddressEncoder) *HDXPubAddressDeriver {
-	registry := make(map[valueobjects.BitcoinAddressScheme]AddressEncoder, len(encoders))
+func NewHDXPubAddressDeriver(encoders ...addressEncoder) *HDXPubAddressDeriver {
+	registry := make(map[valueobjects.BitcoinAddressScheme]addressEncoder, len(encoders))
 	for _, encoder := range encoders {
 		registry[encoder.Scheme()] = encoder
 	}

@@ -20,7 +20,7 @@ const (
 
 type jsCloudflareEsploraBridge struct{}
 
-func NewCloudflareEsploraBridge() CloudflareEsploraBridge {
+func NewCloudflareEsploraBridge() cloudflareEsploraBridge {
 	return &jsCloudflareEsploraBridge{}
 }
 

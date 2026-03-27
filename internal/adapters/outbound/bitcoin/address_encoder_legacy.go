@@ -10,7 +10,7 @@ import (
 
 type legacyAddressEncoder struct{}
 
-func NewLegacyAddressEncoder() AddressEncoder {
+func NewLegacyAddressEncoder() addressEncoder {
 	return legacyAddressEncoder{}
 }
 

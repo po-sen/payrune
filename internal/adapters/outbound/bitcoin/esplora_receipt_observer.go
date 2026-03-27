@@ -88,19 +88,19 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 ) (outport.ObservePaymentAddressOutput, error) {
 	address := strings.TrimSpace(input.Address)
 	if address == "" {
-		return outport.ObservePaymentAddressOutput{}, errors.New("address is required")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.IssuedAt.IsZero() {
-		return outport.ObservePaymentAddressOutput{}, errors.New("issued at is required")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.RequiredConfirmations <= 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("required confirmations must be greater than zero")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.LatestBlockHeight <= 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("latest block height must be greater than zero")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.SinceBlockHeight < 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("since block height must be non-negative")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 
 	client, err := o.selectClient(input.Network)
@@ -110,11 +110,11 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 
 	chainTransactions, err := client.fetchAddressChainTransactions(ctx, address)
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
 	mempoolTransactions, err := client.fetchAddressMempoolTransactions(ctx, address)
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
 
 	confirmedTotalMinor, unconfirmedTotalMinor, err := aggregateInboundTotals(
@@ -126,7 +126,7 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 		mempoolTransactions,
 	)
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
 
 	return outport.ObservePaymentAddressOutput{
@@ -145,7 +145,11 @@ func (o *BitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 	if err != nil {
 		return 0, err
 	}
-	return client.fetchLatestBlockHeight(ctx)
+	latestBlockHeight, err := client.fetchLatestBlockHeight(ctx)
+	if err != nil {
+		return 0, outport.ErrBlockchainReceiptObserverFailed
+	}
+	return latestBlockHeight, nil
 }
 
 func (o *BitcoinEsploraReceiptObserver) selectClient(
@@ -153,12 +157,12 @@ func (o *BitcoinEsploraReceiptObserver) selectClient(
 ) (*bitcoinAPIClient, error) {
 	bitcoinNetwork, ok := valueobjects.ParseBitcoinNetwork(string(network))
 	if !ok {
-		return nil, fmt.Errorf("bitcoin network is not supported: %s", network)
+		return nil, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 
 	client, ok := o.clients[valueobjects.NetworkID(bitcoinNetwork)]
 	if !ok || client == nil {
-		return nil, fmt.Errorf("bitcoin %s endpoint is not configured", bitcoinNetwork)
+		return nil, outport.ErrBlockchainReceiptObserverNotConfigured
 	}
 	return client, nil
 }

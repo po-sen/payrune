@@ -101,12 +101,12 @@ func (n *paymentReceiptStatusWebhookNotifier) NotifyStatusChanged(
 		StatusChangedAt:       input.StatusChangedAt.UTC(),
 	})
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptStatusNotificationFailed
 	}
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, n.endpoint, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptStatusNotificationFailed
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-Payrune-Event", outport.PaymentReceiptStatusChangedEventType)
@@ -116,13 +116,13 @@ func (n *paymentReceiptStatusWebhookNotifier) NotifyStatusChanged(
 
 	response, err := n.client.Do(request)
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptStatusNotificationFailed
 	}
 	defer response.Body.Close()
 	_, _ = io.Copy(io.Discard, response.Body)
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("webhook returned status %d", response.StatusCode)
+		return outport.ErrPaymentReceiptStatusNotificationFailed
 	}
 	return nil
 }

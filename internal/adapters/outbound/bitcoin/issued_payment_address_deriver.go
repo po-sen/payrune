@@ -32,7 +32,7 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (outport.DeriveIssuedPaymentAddressOutput, error) {
 	if d == nil || d.chainAddressDeriver == nil {
-		return outport.DeriveIssuedPaymentAddressOutput{}, errors.New("bitcoin address deriver is not configured")
+		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDeriverNotConfigured
 	}
 
 	policy := input.Policy.Normalize()
@@ -45,7 +45,14 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 		Index:                  input.Allocation.DerivationIndex,
 	})
 	if err != nil {
-		return outport.DeriveIssuedPaymentAddressOutput{}, err
+		switch {
+		case errors.Is(err, outport.ErrChainAddressDeriverNotConfigured):
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDeriverNotConfigured
+		case errors.Is(err, outport.ErrChainAddressDerivationInputInvalid):
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationInputInvalid
+		default:
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationFailed
+		}
 	}
 
 	addressReference := strings.TrimSpace(output.AddressReference)

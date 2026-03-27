@@ -2,9 +2,16 @@ package outbound
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"payrune/internal/domain/valueobjects"
+)
+
+var (
+	ErrBlockchainReceiptObserverNotConfigured = errors.New("blockchain receipt observer is not configured")
+	ErrBlockchainReceiptObserverInputInvalid  = errors.New("blockchain receipt observer input is invalid")
+	ErrBlockchainReceiptObserverFailed        = errors.New("blockchain receipt observer failed")
 )
 
 type ObservePaymentAddressInput struct {

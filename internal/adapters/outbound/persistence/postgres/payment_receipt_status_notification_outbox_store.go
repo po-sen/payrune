@@ -14,10 +14,10 @@ import (
 )
 
 type PaymentReceiptStatusNotificationOutboxStore struct {
-	executor Executor
+	executor executor
 }
 
-func NewPaymentReceiptStatusNotificationOutboxStore(executor Executor) *PaymentReceiptStatusNotificationOutboxStore {
+func NewPaymentReceiptStatusNotificationOutboxStore(executor executor) *PaymentReceiptStatusNotificationOutboxStore {
 	return &PaymentReceiptStatusNotificationOutboxStore{executor: executor}
 }
 
@@ -58,7 +58,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) EnqueueStatusChanged(
 		event.StatusChangedAt.UTC(),
 	)
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 	}
 
 	rowsAffected, err := result.RowsAffected()
@@ -123,7 +123,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 		input.ClaimUntil,
 	)
 	if err != nil {
-		return nil, err
+		return nil, outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 	}
 	defer rows.Close()
 
@@ -136,7 +136,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 		notifications = append(notifications, notification)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 	}
 
 	return notifications, nil
@@ -164,7 +164,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			result.DeliveredAt.UTC(),
 		)
 		if err != nil {
-			return err
+			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 		}
 		return ensureNotificationRowsAffected(execResult)
 	case valueobjects.PaymentReceiptNotificationDeliveryStatusPending:
@@ -187,7 +187,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			result.LastError,
 		)
 		if err != nil {
-			return err
+			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 		}
 		return ensureNotificationRowsAffected(execResult)
 	case valueobjects.PaymentReceiptNotificationDeliveryStatusFailed:
@@ -205,7 +205,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			result.LastError,
 		)
 		if err != nil {
-			return err
+			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 		}
 		return ensureNotificationRowsAffected(execResult)
 	default:
@@ -249,20 +249,20 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		&lastError,
 		&deliveredAt,
 	); err != nil {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, err
+		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 	}
 
 	previousStatus, ok := valueobjects.ParsePaymentReceiptStatus(previousStatusRaw)
 	if !ok {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("unsupported previous status: %s", previousStatusRaw)
+		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedPreviousStatusInvalid, previousStatusRaw)
 	}
 	currentStatus, ok := valueobjects.ParsePaymentReceiptStatus(currentStatusRaw)
 	if !ok {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("unsupported current status: %s", currentStatusRaw)
+		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedCurrentStatusInvalid, currentStatusRaw)
 	}
 	deliveryStatus, ok := valueobjects.ParsePaymentReceiptNotificationDeliveryStatus(deliveryStatusRaw)
 	if !ok {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("unsupported delivery status: %s", deliveryStatusRaw)
+		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedDeliveryStatusInvalid, deliveryStatusRaw)
 	}
 
 	notification := applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
@@ -291,7 +291,7 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 func ensureNotificationRowsAffected(result sql.Result) error {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 	}
 	if rowsAffected == 0 {
 		return outport.ErrPaymentReceiptStatusNotificationNotFound

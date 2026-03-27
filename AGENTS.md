@@ -119,9 +119,15 @@ This section is the direct architecture and workflow contract for this repositor
 - Keep shared outbound port contract errors in `internal/application/ports/outbound` only when the
   application must branch on them or multiple implementations of the same outbound port must return
   the same contract error.
+- Treat methods that implement interfaces from `internal/application/ports/outbound` as strict
+  application boundaries: they should return only `outport.Err...` contract errors, or success.
 - Keep adapter-private technical, vendor, scan, parse, and runtime errors inside the adapter
   package; do not promote them to `inport` or `outport` unless they are part of a stable port
   contract.
+- Constructors, bootstrap/configuration paths, and adapter-private collaborators are not outbound
+  port boundaries; they may use package-local errors when that keeps the code clearer.
+- Prefer unexported names for adapter-private interfaces and collaborators so code review can
+  distinguish them from application ports quickly.
 - Inbound adapters map `inport.Err...` to transport-specific responses; use cases may branch on
   `outport.Err...`, but must not depend on adapter-private error strings.
 
@@ -172,6 +178,8 @@ Stop and reconsider if any of these are true:
 - A use case defines a reusable contract error locally instead of reusing `inport`.
 - Two implementations of the same outbound port duplicate the same contract error string instead of
   sharing `outport.Err...`.
+- An adapter-private collaborator looks like an application port because it stays exported or its
+  boundary is unclear in review.
 - Adapter-private technical errors are being promoted to shared error catalogs without a real port
   contract need.
 

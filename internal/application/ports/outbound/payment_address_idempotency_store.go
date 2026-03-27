@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	ErrPaymentAddressIdempotencyStoreFailed             = errors.New("payment address idempotency store failed")
 	ErrPaymentAddressIdempotencyKeyExists               = errors.New("payment address idempotency key already exists")
 	ErrPaymentAddressIdempotencyPersistedChainInvalid   = errors.New("persisted idempotency chain is invalid")
 	ErrPaymentAddressIdempotencyChainRequired           = errors.New("chain is required")

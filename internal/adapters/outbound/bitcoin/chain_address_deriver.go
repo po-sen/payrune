@@ -2,8 +2,6 @@ package bitcoin
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/valueobjects"
@@ -41,18 +39,18 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	input outport.DeriveChainAddressInput,
 ) (outport.DeriveChainAddressOutput, error) {
 	if g.deriver == nil {
-		return outport.DeriveChainAddressOutput{}, errors.New("bitcoin address deriver is not configured")
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDeriverNotConfigured
 	}
 	if input.Chain != valueobjects.SupportedChainBitcoin {
-		return outport.DeriveChainAddressOutput{}, fmt.Errorf("bitcoin address deriver does not support chain: %s", input.Chain)
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 	network, ok := valueobjects.ParseBitcoinNetwork(string(input.Network))
 	if !ok {
-		return outport.DeriveChainAddressOutput{}, fmt.Errorf("bitcoin network is invalid: %s", input.Network)
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 	scheme, ok := valueobjects.ParseBitcoinAddressScheme(input.Scheme)
 	if !ok {
-		return outport.DeriveChainAddressOutput{}, fmt.Errorf("bitcoin address scheme is invalid: %s", input.Scheme)
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
 	address, err := g.deriver.DeriveAddress(
@@ -62,7 +60,7 @@ func (g *ChainAddressDeriver) DeriveAddress(
 		input.Index,
 	)
 	if err != nil {
-		return outport.DeriveChainAddressOutput{}, err
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationFailed
 	}
 
 	absoluteDerivationPath, err := g.deriver.AbsoluteDerivationPath(
@@ -71,12 +69,12 @@ func (g *ChainAddressDeriver) DeriveAddress(
 		input.Index,
 	)
 	if err != nil {
-		return outport.DeriveChainAddressOutput{}, err
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationFailed
 	}
 
 	relativeDerivationPath, err := g.deriver.DerivationPath(input.AddressSourceRef, input.Index)
 	if err != nil {
-		return outport.DeriveChainAddressOutput{}, err
+		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationFailed
 	}
 
 	return outport.DeriveChainAddressOutput{

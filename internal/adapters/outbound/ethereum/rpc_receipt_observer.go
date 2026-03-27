@@ -105,19 +105,19 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 ) (outport.ObservePaymentAddressOutput, error) {
 	address, _, err := normalizeFixedHex(input.Address, 20, "address")
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.IssuedAt.IsZero() {
-		return outport.ObservePaymentAddressOutput{}, errors.New("issued at is required")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.RequiredConfirmations <= 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("required confirmations must be greater than zero")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.LatestBlockHeight <= 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("latest block height must be greater than zero")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 	if input.SinceBlockHeight < 0 {
-		return outport.ObservePaymentAddressOutput{}, errors.New("since block height must be non-negative")
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 
 	client, err := o.selectClient(input.Network)
@@ -127,7 +127,7 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 
 	startBlockHeight, err := client.findFirstBlockOnOrAfter(ctx, input.IssuedAt.UTC(), input.LatestBlockHeight)
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
 	if startBlockHeight > input.LatestBlockHeight {
 		return outport.ObservePaymentAddressOutput{
@@ -143,15 +143,15 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 	for blockHeight := startBlockHeight; blockHeight <= input.LatestBlockHeight; blockHeight++ {
 		block, found, err := client.fetchBlockByNumber(ctx, blockHeight, true)
 		if err != nil {
-			return outport.ObservePaymentAddressOutput{}, err
+			return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 		}
 		if !found {
-			return outport.ObservePaymentAddressOutput{}, fmt.Errorf("ethereum block %d is not found", blockHeight)
+			return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 		}
 
 		blockTimestamp, err := parseEthereumHexQuantityToInt64(block.Timestamp, "block timestamp")
 		if err != nil {
-			return outport.ObservePaymentAddressOutput{}, err
+			return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 		}
 		if blockTimestamp < input.IssuedAt.UTC().Unix() {
 			continue
@@ -172,7 +172,7 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 
 			valueMinor, err := parseEthereumHexQuantityToInt64(tx.Value, "transaction value")
 			if err != nil {
-				return outport.ObservePaymentAddressOutput{}, err
+				return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 			}
 			if valueMinor <= 0 {
 				continue
@@ -182,21 +182,21 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 			if confirmations >= int64(input.RequiredConfirmations) {
 				confirmedTotalMinor, err = safeAddInt64(confirmedTotalMinor, valueMinor)
 				if err != nil {
-					return outport.ObservePaymentAddressOutput{}, err
+					return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 				}
 				continue
 			}
 
 			unconfirmedTotalMinor, err = safeAddInt64(unconfirmedTotalMinor, valueMinor)
 			if err != nil {
-				return outport.ObservePaymentAddressOutput{}, err
+				return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 			}
 		}
 	}
 
 	observedTotalMinor, err := safeAddInt64(confirmedTotalMinor, unconfirmedTotalMinor)
 	if err != nil {
-		return outport.ObservePaymentAddressOutput{}, err
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
 
 	return outport.ObservePaymentAddressOutput{
@@ -215,7 +215,11 @@ func (o *EthereumRPCReceiptObserver) FetchLatestBlockHeight(
 	if err != nil {
 		return 0, err
 	}
-	return client.fetchLatestBlockHeight(ctx)
+	latestBlockHeight, err := client.fetchLatestBlockHeight(ctx)
+	if err != nil {
+		return 0, outport.ErrBlockchainReceiptObserverFailed
+	}
+	return latestBlockHeight, nil
 }
 
 func (o *EthereumRPCReceiptObserver) selectClient(
@@ -223,12 +227,12 @@ func (o *EthereumRPCReceiptObserver) selectClient(
 ) (*ethereumRPCClient, error) {
 	normalizedNetwork, ok := valueobjects.ParseNetworkID(string(network))
 	if !ok {
-		return nil, fmt.Errorf("ethereum network is invalid: %s", network)
+		return nil, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 
 	client, ok := o.clients[normalizedNetwork]
 	if !ok || client == nil {
-		return nil, fmt.Errorf("ethereum %s rpc endpoint is not configured", normalizedNetwork)
+		return nil, outport.ErrBlockchainReceiptObserverNotConfigured
 	}
 	return client, nil
 }

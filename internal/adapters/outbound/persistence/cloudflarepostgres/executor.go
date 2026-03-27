@@ -8,25 +8,25 @@ import (
 	cloudflarepostgresinfra "payrune/internal/infrastructure/cloudflarepostgres"
 )
 
-type Result interface {
+type result interface {
 	RowsAffected() (int64, error)
 }
 
-type Rows interface {
+type rows interface {
 	Next() bool
 	Scan(dest ...any) error
 	Err() error
 	Close() error
 }
 
-type Row interface {
+type row interface {
 	Scan(dest ...any) error
 }
 
-type Executor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) Row
+type executor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) row
 }
 
 type bridgeExecutor struct {
@@ -35,14 +35,14 @@ type bridgeExecutor struct {
 	txID     string
 }
 
-func NewExecutor(bridgeID string, bridge cloudflarepostgresinfra.Bridge) Executor {
+func NewExecutor(bridgeID string, bridge cloudflarepostgresinfra.Bridge) executor {
 	return &bridgeExecutor{
 		bridge:   bridge,
 		bridgeID: bridgeID,
 	}
 }
 
-func newTxExecutor(bridgeID string, txID string, bridge cloudflarepostgresinfra.Bridge) Executor {
+func newTxExecutor(bridgeID string, txID string, bridge cloudflarepostgresinfra.Bridge) executor {
 	return &bridgeExecutor{
 		bridge:   bridge,
 		bridgeID: bridgeID,
@@ -50,7 +50,7 @@ func newTxExecutor(bridgeID string, txID string, bridge cloudflarepostgresinfra.
 	}
 }
 
-func (e *bridgeExecutor) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
+func (e *bridgeExecutor) ExecContext(ctx context.Context, query string, args ...any) (result, error) {
 	if e.bridge == nil {
 		return nil, errors.New("cloudflare postgres bridge is not configured")
 	}
@@ -61,7 +61,7 @@ func (e *bridgeExecutor) ExecContext(ctx context.Context, query string, args ...
 	return execResult{rowsAffected: rowsAffected}, nil
 }
 
-func (e *bridgeExecutor) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
+func (e *bridgeExecutor) QueryContext(ctx context.Context, query string, args ...any) (rows, error) {
 	if e.bridge == nil {
 		return nil, errors.New("cloudflare postgres bridge is not configured")
 	}
@@ -72,7 +72,7 @@ func (e *bridgeExecutor) QueryContext(ctx context.Context, query string, args ..
 	return &sliceRows{rows: rows}, nil
 }
 
-func (e *bridgeExecutor) QueryRowContext(ctx context.Context, query string, args ...any) Row {
+func (e *bridgeExecutor) QueryRowContext(ctx context.Context, query string, args ...any) row {
 	if e.bridge == nil {
 		return errorRow{err: errors.New("cloudflare postgres bridge is not configured")}
 	}

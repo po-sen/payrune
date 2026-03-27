@@ -12,7 +12,7 @@ import (
 
 type taprootAddressEncoder struct{}
 
-func NewTaprootAddressEncoder() AddressEncoder {
+func NewTaprootAddressEncoder() addressEncoder {
 	return taprootAddressEncoder{}
 }
 

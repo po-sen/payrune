@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	ErrPaymentAddressStatusFindFailed                    = errors.New("payment address status finder failed")
 	ErrPaymentAddressStatusIncomplete                    = errors.New("payment address status is incomplete")
 	ErrPaymentAddressStatusPersistedChainInvalid         = errors.New("persisted payment address chain is invalid")
 	ErrPaymentAddressStatusPersistedNetworkInvalid       = errors.New("persisted payment address network is invalid")

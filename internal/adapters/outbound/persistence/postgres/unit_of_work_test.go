@@ -16,7 +16,7 @@ func TestUnitOfWorkWithinTransactionValidation(t *testing.T) {
 	err := uow.WithinTransaction(context.Background(), func(outport.TxScope) error {
 		return nil
 	})
-	if err == nil || err.Error() != "database is not configured" {
+	if !errors.Is(err, outport.ErrUnitOfWorkNotConfigured) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

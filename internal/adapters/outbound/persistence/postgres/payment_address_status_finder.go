@@ -12,10 +12,10 @@ import (
 )
 
 type PaymentAddressStatusFinder struct {
-	executor Executor
+	executor executor
 }
 
-func NewPaymentAddressStatusFinder(executor Executor) *PaymentAddressStatusFinder {
+func NewPaymentAddressStatusFinder(executor executor) *PaymentAddressStatusFinder {
 	return &PaymentAddressStatusFinder{executor: executor}
 }
 
@@ -111,7 +111,7 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		return outport.PaymentAddressStatusRecord{}, false, nil
 	}
 	if err != nil {
-		return outport.PaymentAddressStatusRecord{}, false, err
+		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusFindFailed
 	}
 
 	if !issuedAt.Valid || !trackingID.Valid {

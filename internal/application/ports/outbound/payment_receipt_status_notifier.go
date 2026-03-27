@@ -2,6 +2,7 @@ package outbound
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -9,6 +10,8 @@ const (
 	PaymentReceiptStatusChangedEventType    = "payment_receipt.status_changed"
 	PaymentReceiptStatusChangedEventVersion = 1
 )
+
+var ErrPaymentReceiptStatusNotificationFailed = errors.New("payment receipt status notification failed")
 
 type NotifyPaymentReceiptStatusChangedInput struct {
 	NotificationID        int64

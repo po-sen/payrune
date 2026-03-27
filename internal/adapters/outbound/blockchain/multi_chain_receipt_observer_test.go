@@ -188,7 +188,7 @@ func TestMultiChainReceiptObserverObserveAddressPassThroughError(t *testing.T) {
 		Address:               "bc1qexample",
 		RequiredConfirmations: 1,
 	})
-	if err == nil {
-		t.Fatal("expected downstream observer error")
+	if !errors.Is(err, outport.ErrBlockchainReceiptObserverFailed) {
+		t.Fatalf("expected %v, got %v", outport.ErrBlockchainReceiptObserverFailed, err)
 	}
 }

@@ -39,7 +39,7 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (outport.DeriveIssuedPaymentAddressOutput, error) {
 	if d == nil || d.chainAddressDeriver == nil {
-		return outport.DeriveIssuedPaymentAddressOutput{}, errors.New("ethereum address deriver is not configured")
+		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDeriverNotConfigured
 	}
 
 	policy := input.Policy.Normalize()
@@ -58,7 +58,14 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 		Index:                    input.Allocation.DerivationIndex,
 	})
 	if err != nil {
-		return outport.DeriveIssuedPaymentAddressOutput{}, err
+		switch {
+		case errors.Is(err, outport.ErrChainAddressDeriverNotConfigured):
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDeriverNotConfigured
+		case errors.Is(err, outport.ErrChainAddressDerivationInputInvalid):
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationInputInvalid
+		default:
+			return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationFailed
+		}
 	}
 
 	addressReference := strings.TrimSpace(output.AddressReference)
@@ -81,13 +88,17 @@ func (d *IssuedPaymentAddressDeriver) deriveRelativeAddressReference(
 		return "", nil
 	}
 	if d.create2SaltDeriver == nil {
-		return "", errors.New("ethereum create2 salt deriver is not configured")
+		return "", outport.ErrIssuedPaymentAddressDeriverNotConfigured
 	}
 
-	return d.create2SaltDeriver.DeriveAllocationSalt(ctx, DeriveCreate2AllocationSaltInput{
+	relativeAddressReference, err := d.create2SaltDeriver.DeriveAllocationSalt(ctx, DeriveCreate2AllocationSaltInput{
 		Network:          policy.AddressPolicy.Network,
 		AddressPolicyID:  policy.AddressPolicy.AddressPolicyID,
 		PaymentAddressID: input.Allocation.PaymentAddressID,
 		DerivationIndex:  input.Allocation.DerivationIndex,
 	})
+	if err != nil {
+		return "", outport.ErrIssuedPaymentAddressDerivationFailed
+	}
+	return relativeAddressReference, nil
 }
