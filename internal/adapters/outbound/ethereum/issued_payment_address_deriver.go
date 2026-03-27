@@ -1,34 +1,37 @@
-package blockchain
+package ethereum
 
 import (
 	"context"
 	"errors"
 	"strings"
 
-	ethereumadapter "payrune/internal/adapters/outbound/ethereum"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/valueobjects"
 )
 
 type IssuedPaymentAddressDeriver struct {
-	chainAddressDeriver        outport.ChainAddressDeriver
-	ethereumCreate2SaltDeriver *ethereumadapter.Create2SaltDeriver
+	chainAddressDeriver *ChainAddressDeriver
+	create2SaltDeriver  *Create2SaltDeriver
 }
 
 var _ outport.IssuedPaymentAddressDeriver = (*IssuedPaymentAddressDeriver)(nil)
 
 func NewIssuedPaymentAddressDeriver(
-	chainAddressDeriver outport.ChainAddressDeriver,
-	ethereumCreate2SaltDeriver *ethereumadapter.Create2SaltDeriver,
+	chainAddressDeriver *ChainAddressDeriver,
+	create2SaltDeriver *Create2SaltDeriver,
 ) *IssuedPaymentAddressDeriver {
 	return &IssuedPaymentAddressDeriver{
-		chainAddressDeriver:        chainAddressDeriver,
-		ethereumCreate2SaltDeriver: ethereumCreate2SaltDeriver,
+		chainAddressDeriver: chainAddressDeriver,
+		create2SaltDeriver:  create2SaltDeriver,
 	}
 }
 
+func (d *IssuedPaymentAddressDeriver) Chain() valueobjects.SupportedChain {
+	return valueobjects.SupportedChainEthereum
+}
+
 func (d *IssuedPaymentAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
-	return d != nil && d.chainAddressDeriver != nil && d.chainAddressDeriver.SupportsChain(chain)
+	return chain == valueobjects.SupportedChainEthereum
 }
 
 func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
@@ -36,7 +39,7 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (outport.DeriveIssuedPaymentAddressOutput, error) {
 	if d == nil || d.chainAddressDeriver == nil {
-		return outport.DeriveIssuedPaymentAddressOutput{}, errors.New("chain address deriver is not configured")
+		return outport.DeriveIssuedPaymentAddressOutput{}, errors.New("ethereum address deriver is not configured")
 	}
 
 	policy := input.Policy.Normalize()
@@ -74,14 +77,14 @@ func (d *IssuedPaymentAddressDeriver) deriveRelativeAddressReference(
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (string, error) {
 	policy := input.Policy.Normalize()
-	if policy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum || policy.AddressPolicy.Scheme != "create2" {
+	if policy.AddressPolicy.Scheme != "create2" {
 		return "", nil
 	}
-	if d.ethereumCreate2SaltDeriver == nil {
+	if d.create2SaltDeriver == nil {
 		return "", errors.New("ethereum create2 salt deriver is not configured")
 	}
 
-	return d.ethereumCreate2SaltDeriver.DeriveAllocationSalt(ctx, ethereumadapter.DeriveCreate2AllocationSaltInput{
+	return d.create2SaltDeriver.DeriveAllocationSalt(ctx, DeriveCreate2AllocationSaltInput{
 		Network:          policy.AddressPolicy.Network,
 		AddressPolicyID:  policy.AddressPolicy.AddressPolicyID,
 		PaymentAddressID: input.Allocation.PaymentAddressID,

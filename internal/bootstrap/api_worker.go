@@ -102,9 +102,11 @@ func buildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		bitcoin.NewNativeSegwitAddressEncoder(),
 		bitcoin.NewTaprootAddressEncoder(),
 	)
+	bitcoinChainAddressDeriver := bitcoin.NewChainAddressDeriver(bitcoinDeriver)
+	ethereumChainAddressDeriver := ethereum.NewChainAddressDeriver()
 	chainAddressDeriver, err := blockchain.NewMultiChainAddressDeriver(
-		bitcoin.NewChainAddressDeriver(bitcoinDeriver),
-		ethereum.NewChainAddressDeriver(),
+		bitcoinChainAddressDeriver,
+		ethereumChainAddressDeriver,
 	)
 	if err != nil {
 		return nil, err
@@ -131,9 +133,16 @@ func buildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 		requiredConfirmationsByScope,
 		receiptExpiresAfterByScope,
 	)
+	issuedAddressDeriver, err := blockchain.NewMultiChainIssuedPaymentAddressDeriver(
+		bitcoin.NewIssuedPaymentAddressDeriver(bitcoinChainAddressDeriver),
+		ethereum.NewIssuedPaymentAddressDeriver(ethereumChainAddressDeriver, ethereumCreate2SaltDeriver),
+	)
+	if err != nil {
+		return nil, err
+	}
 	allocatePaymentAddressUseCase := usecases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
-		blockchain.NewIssuedPaymentAddressDeriver(chainAddressDeriver, ethereumCreate2SaltDeriver),
+		issuedAddressDeriver,
 		addressPolicyReader,
 		allocationIssuancePolicy,
 		clock,
