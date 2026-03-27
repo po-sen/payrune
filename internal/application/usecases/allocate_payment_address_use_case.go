@@ -67,7 +67,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 
 	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, input.AddressPolicyID)
 	if err != nil {
-		return dto.AllocatePaymentAddressResponse{}, err
+		return dto.AllocatePaymentAddressResponse{}, inport.ErrDependencyFailure
 	}
 	if !ok {
 		return dto.AllocatePaymentAddressResponse{}, inport.ErrAddressPolicyNotFound
@@ -90,7 +90,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 		case errors.Is(err, entities.ErrExpectedAmountMinorInvalid):
 			return dto.AllocatePaymentAddressResponse{}, inport.ErrInvalidExpectedAmount
 		default:
-			return dto.AllocatePaymentAddressResponse{}, err
+			return dto.AllocatePaymentAddressResponse{}, inport.ErrInternalFailure
 		}
 	}
 
@@ -159,7 +159,7 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 			},
 		)
 		if err != nil {
-			return err
+			return inport.ErrDependencyFailure
 		}
 		if !recordFound {
 			return nil
@@ -178,7 +178,7 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 			outport.FindIssuedPaymentAddressAllocationByIDInput{PaymentAddressID: record.PaymentAddressID},
 		)
 		if err != nil {
-			return err
+			return inport.ErrDependencyFailure
 		}
 		if !allocationFound {
 			return inport.ErrCompletedIdempotencyRecordMissingIssuedAllocation
@@ -189,7 +189,20 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 		return nil
 	})
 	if err != nil {
-		return dto.AllocatePaymentAddressResponse{}, false, err
+		switch {
+		case errors.Is(err, inport.ErrPaymentAddressAllocationStoreNotConfigured):
+			return dto.AllocatePaymentAddressResponse{}, false, err
+		case errors.Is(err, inport.ErrPaymentAddressIdempotencyStoreNotConfigured):
+			return dto.AllocatePaymentAddressResponse{}, false, err
+		case errors.Is(err, inport.ErrPaymentAddressIdempotencyRecordIncomplete):
+			return dto.AllocatePaymentAddressResponse{}, false, err
+		case errors.Is(err, inport.ErrIdempotencyKeyConflict):
+			return dto.AllocatePaymentAddressResponse{}, false, err
+		case errors.Is(err, inport.ErrCompletedIdempotencyRecordMissingIssuedAllocation):
+			return dto.AllocatePaymentAddressResponse{}, false, err
+		default:
+			return dto.AllocatePaymentAddressResponse{}, false, inport.ErrDependencyFailure
+		}
 	}
 	if !found {
 		return dto.AllocatePaymentAddressResponse{}, false, nil
@@ -197,7 +210,7 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 
 	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, allocation.AddressPolicyID)
 	if err != nil {
-		return dto.AllocatePaymentAddressResponse{}, false, err
+		return dto.AllocatePaymentAddressResponse{}, false, inport.ErrDependencyFailure
 	}
 	if !ok {
 		return dto.AllocatePaymentAddressResponse{}, false, inport.ErrAddressPolicyNotFound
@@ -263,7 +276,10 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 				CustomerReference:   issuancePlan.Reservation.CustomerReference,
 			})
 			if err != nil {
-				return err
+				if errors.Is(err, outport.ErrPaymentAddressIdempotencyKeyExists) {
+					return err
+				}
+				return inport.ErrDependencyFailure
 			}
 		}
 
@@ -277,7 +293,7 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			Allocation: allocation,
 		})
 		if err != nil {
-			derivationFailureErr = err
+			derivationFailureErr = inport.ErrDependencyFailure
 			return persistDerivationFailure(ctx, allocationStore, idempotencyStore, input, allocation, err)
 		}
 
@@ -287,12 +303,12 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			derived.AddressReference,
 		)
 		if err != nil {
-			derivationFailureErr = err
+			derivationFailureErr = inport.ErrInternalFailure
 			return persistDerivationFailure(ctx, allocationStore, idempotencyStore, input, allocation, err)
 		}
 
 		if err := allocationStore.Complete(ctx, issuedAllocation, issuedAt); err != nil {
-			return err
+			return inport.ErrDependencyFailure
 		}
 
 		receiptTracking, err := issuedAllocation.IssueReceiptTracking(
@@ -301,10 +317,10 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			issuancePlan.ReceiptTerms.ExpiresAt,
 		)
 		if err != nil {
-			return err
+			return inport.ErrInternalFailure
 		}
 		if err := receiptTrackingStore.Create(ctx, receiptTracking, issuedAt); err != nil {
-			return err
+			return inport.ErrDependencyFailure
 		}
 		if idempotencyKey != "" {
 			if err := idempotencyStore.Complete(ctx, outport.CompletePaymentAddressIdempotencyInput{
@@ -312,14 +328,35 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 				IdempotencyKey:   idempotencyKey,
 				PaymentAddressID: issuedAllocation.PaymentAddressID,
 			}); err != nil {
-				return err
+				return inport.ErrDependencyFailure
 			}
 		}
 
 		return nil
 	})
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, err
+		switch {
+		case errors.Is(err, outport.ErrPaymentAddressIdempotencyKeyExists):
+			return entities.PaymentAddressAllocation{}, err
+		case errors.Is(err, outport.ErrAddressIndexExhausted):
+			return entities.PaymentAddressAllocation{}, err
+		case errors.Is(err, inport.ErrPaymentAddressAllocationStoreNotConfigured):
+			return entities.PaymentAddressAllocation{}, err
+		case errors.Is(err, inport.ErrPaymentAddressIdempotencyStoreNotConfigured):
+			return entities.PaymentAddressAllocation{}, err
+		case errors.Is(err, inport.ErrPaymentReceiptTrackingStoreNotConfigured):
+			return entities.PaymentAddressAllocation{}, err
+		case errors.Is(err, inport.ErrPaymentAddressAllocationReservationAttemptInvalid):
+			return entities.PaymentAddressAllocation{}, err
+		case errors.Is(err, inport.ErrPaymentAddressAllocationReservationAttemptsRequired):
+			return entities.PaymentAddressAllocation{}, err
+		case errors.Is(err, inport.ErrDependencyFailure):
+			return entities.PaymentAddressAllocation{}, err
+		case errors.Is(err, inport.ErrInternalFailure):
+			return entities.PaymentAddressAllocation{}, err
+		default:
+			return entities.PaymentAddressAllocation{}, inport.ErrDependencyFailure
+		}
 	}
 	if derivationFailureErr != nil {
 		return entities.PaymentAddressAllocation{}, derivationFailureErr
@@ -338,13 +375,20 @@ func reserveAllocation(
 		case policies.PaymentAddressAllocationReservationAttemptReopenFailed:
 			reopenedAllocation, reopened, err := allocationStore.ReopenFailedReservation(ctx, reserveInput)
 			if err != nil {
-				return entities.PaymentAddressAllocation{}, err
+				return entities.PaymentAddressAllocation{}, inport.ErrDependencyFailure
 			}
 			if reopened {
 				return reopenedAllocation, nil
 			}
 		case policies.PaymentAddressAllocationReservationAttemptReserveFresh:
-			return allocationStore.ReserveFresh(ctx, reserveInput)
+			allocation, err := allocationStore.ReserveFresh(ctx, reserveInput)
+			if err != nil {
+				if errors.Is(err, outport.ErrAddressIndexExhausted) {
+					return entities.PaymentAddressAllocation{}, err
+				}
+				return entities.PaymentAddressAllocation{}, inport.ErrDependencyFailure
+			}
+			return allocation, nil
 		default:
 			return entities.PaymentAddressAllocation{}, inport.ErrPaymentAddressAllocationReservationAttemptInvalid
 		}
@@ -363,16 +407,19 @@ func persistDerivationFailure(
 ) error {
 	failedAllocation, err := allocation.MarkDerivationFailed(deriveErr.Error())
 	if err != nil {
-		return err
+		return inport.ErrInternalFailure
 	}
 	if err := allocationStore.MarkDerivationFailed(ctx, failedAllocation); err != nil {
-		return err
+		return inport.ErrDependencyFailure
 	}
 	if input.IdempotencyKey == "" {
 		return nil
 	}
-	return idempotencyStore.Release(ctx, outport.ReleasePaymentAddressIdempotencyInput{
+	if err := idempotencyStore.Release(ctx, outport.ReleasePaymentAddressIdempotencyInput{
 		Chain:          input.Chain,
 		IdempotencyKey: input.IdempotencyKey,
-	})
+	}); err != nil {
+		return inport.ErrDependencyFailure
+	}
+	return nil
 }

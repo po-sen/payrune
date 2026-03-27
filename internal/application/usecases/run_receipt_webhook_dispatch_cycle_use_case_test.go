@@ -291,3 +291,41 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteValidation(t *testing.T) {
 		t.Fatalf("unexpected validation error: got %v", err)
 	}
 }
+
+func TestRunReceiptWebhookDispatchCycleUseCaseMapsOutboxFailure(t *testing.T) {
+	claimNow := time.Date(2026, 3, 6, 18, 20, 0, 0, time.UTC)
+	outbox := &fakeWebhookDispatchNotificationOutbox{
+		claimRows: []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
+			{
+				NotificationID:        7,
+				PaymentAddressID:      707,
+				PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
+				CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
+				ObservedTotalMinor:    500,
+				ConfirmedTotalMinor:   500,
+				UnconfirmedTotalMinor: 0,
+				StatusChangedAt:       claimNow.Add(-time.Minute),
+				DeliveryAttempts:      0,
+			},
+		},
+		saveResultErr: errors.New("save failed"),
+	}
+	useCase := NewRunReceiptWebhookDispatchCycleUseCase(
+		&fakeReceiptWebhookDispatchUnitOfWork{notificationOutbox: outbox},
+		&fakeReceiptStatusNotifier{errorsByNotificationID: map[int64]error{}},
+		&fakeReceiptWebhookDispatchClock{
+			now:   claimNow.Add(2 * time.Second),
+			times: []time.Time{claimNow, claimNow.Add(2 * time.Second)},
+		},
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.RunReceiptWebhookDispatchCycleInput{
+		BatchSize:   1,
+		DispatchTTL: 15 * time.Second,
+		RetryDelay:  time.Minute,
+		MaxAttempts: 3,
+	})
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"payrune/internal/application/dto"
+	inport "payrune/internal/application/ports/inbound"
 )
 
 type fakeRunReceiptWebhookDispatchCycleUseCase struct {
@@ -59,11 +60,11 @@ func TestWebhookDispatcherHandlerHandle(t *testing.T) {
 
 func TestWebhookDispatcherHandlerHandleReturnsUseCaseError(t *testing.T) {
 	handler := NewWebhookDispatcherHandler(WebhookDispatcherDependencies{
-		RunReceiptWebhookDispatchCycleUseCase: &fakeRunReceiptWebhookDispatchCycleUseCase{err: errors.New("boom")},
+		RunReceiptWebhookDispatchCycleUseCase: &fakeRunReceiptWebhookDispatchCycleUseCase{err: inport.ErrDependencyFailure},
 	})
 
 	_, err := handler.Handle(context.Background(), WebhookDispatcherRequest{BatchSize: 1})
-	if err == nil {
-		t.Fatal("expected error but got nil")
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 }

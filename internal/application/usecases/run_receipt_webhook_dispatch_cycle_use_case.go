@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 
 	"payrune/internal/application/dto"
 	applicationoutbox "payrune/internal/application/outbox"
@@ -67,14 +68,21 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 			ClaimUntil: claimNow.Add(input.DispatchTTL),
 		})
 		if err != nil {
-			return err
+			return inport.ErrDependencyFailure
 		}
 
 		claimedNotifications = notifications
 		return nil
 	})
 	if err != nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, err
+		switch {
+		case errors.Is(err, inport.ErrPaymentReceiptStatusOutboxNotConfigured):
+			return dto.RunReceiptWebhookDispatchCycleOutput{}, err
+		case errors.Is(err, inport.ErrDependencyFailure):
+			return dto.RunReceiptWebhookDispatchCycleOutput{}, err
+		default:
+			return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrDependencyFailure
+		}
 	}
 
 	output := dto.RunReceiptWebhookDispatchCycleOutput{ClaimedCount: len(claimedNotifications)}
@@ -123,7 +131,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 			err.Error(),
 		)
 		if resultErr != nil {
-			return "", resultErr
+			return "", inport.ErrInternalFailure
 		}
 		if err := uc.saveDeliveryResult(ctx, deliveryResult); err != nil {
 			return "", err
@@ -136,7 +144,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 		uc.clock.NowUTC(),
 	)
 	if err != nil {
-		return "", err
+		return "", inport.ErrInternalFailure
 	}
 	if err := uc.saveDeliveryResult(ctx, deliveryResult); err != nil {
 		return "", err
@@ -148,11 +156,25 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) saveDeliveryResult(
 	ctx context.Context,
 	deliveryResult policies.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
-	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		outbox := txScope.PaymentReceiptStatusNotificationOutbox
 		if outbox == nil {
 			return inport.ErrPaymentReceiptStatusOutboxNotConfigured
 		}
-		return outbox.SaveDeliveryResult(ctx, deliveryResult)
+		if err := outbox.SaveDeliveryResult(ctx, deliveryResult); err != nil {
+			return inport.ErrDependencyFailure
+		}
+		return nil
 	})
+	if err != nil {
+		switch {
+		case errors.Is(err, inport.ErrPaymentReceiptStatusOutboxNotConfigured):
+			return err
+		case errors.Is(err, inport.ErrDependencyFailure):
+			return err
+		default:
+			return inport.ErrDependencyFailure
+		}
+	}
+	return nil
 }

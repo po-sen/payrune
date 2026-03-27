@@ -27,7 +27,7 @@ func (uc *listAddressPoliciesUseCase) Execute(
 
 	policyEntities, err := uc.policyReader.ListByChain(ctx, chain)
 	if err != nil {
-		return dto.ListAddressPoliciesResponse{}, err
+		return dto.ListAddressPoliciesResponse{}, inport.ErrDependencyFailure
 	}
 
 	policies := make([]dto.AddressPolicy, 0)

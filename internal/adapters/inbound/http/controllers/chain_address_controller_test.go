@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -348,7 +347,7 @@ func TestChainAddressControllerGenerateErrorMapping(t *testing.T) {
 		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented},
 		{name: "preview not supported", err: inport.ErrAddressPreviewNotSupported, statusCode: http.StatusNotFound},
 		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound},
-		{name: "internal", err: errors.New("boom"), statusCode: http.StatusInternalServerError},
+		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError},
 	}
 
 	for _, tc := range tests {
@@ -628,7 +627,7 @@ func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) 
 		{name: "pool exhausted", err: inport.ErrAddressPoolExhausted, statusCode: http.StatusConflict},
 		{name: "idempotency key conflict", err: inport.ErrIdempotencyKeyConflict, statusCode: http.StatusConflict},
 		{name: "invalid expected amount", err: inport.ErrInvalidExpectedAmount, statusCode: http.StatusBadRequest},
-		{name: "internal", err: errors.New("boom"), statusCode: http.StatusInternalServerError},
+		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError},
 	}
 
 	for _, tc := range tests {
@@ -658,7 +657,7 @@ func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) 
 
 func TestChainAddressControllerListInternalError(t *testing.T) {
 	controller := NewChainAddressController(
-		&fakeListAddressPoliciesUseCase{err: errors.New("boom")},
+		&fakeListAddressPoliciesUseCase{err: inport.ErrDependencyFailure},
 		&fakeGenerateAddressUseCase{},
 		&fakeAllocatePaymentAddressUseCase{},
 		&fakeGetPaymentAddressStatusUseCase{},
@@ -780,7 +779,7 @@ func TestChainAddressControllerGetPaymentStatusErrorMapping(t *testing.T) {
 		statusCode int
 	}{
 		{name: "not found", err: inport.ErrPaymentAddressNotFound, statusCode: http.StatusNotFound},
-		{name: "internal", err: errors.New("boom"), statusCode: http.StatusInternalServerError},
+		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError},
 	}
 
 	for _, tc := range tests {

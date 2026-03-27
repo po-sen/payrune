@@ -157,7 +157,6 @@ func TestGenerateAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 }
 
 func TestGenerateAddressUseCaseDerivationError(t *testing.T) {
-	expectedErr := errors.New("derive failed")
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newAddressIssuancePolicy(
 			"bitcoin-testnet4-native-segwit",
@@ -171,7 +170,7 @@ func TestGenerateAddressUseCaseDerivationError(t *testing.T) {
 		),
 	})
 	deriver := newFakeChainAddressDeriver()
-	deriver.err = expectedErr
+	deriver.err = errors.New("derive failed")
 	useCase := NewGenerateAddressUseCase(deriver, catalog)
 
 	_, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
@@ -179,8 +178,23 @@ func TestGenerateAddressUseCaseDerivationError(t *testing.T) {
 		AddressPolicyID: "bitcoin-testnet4-native-segwit",
 		Index:           3,
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected %v, got %v", expectedErr, err)
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
+	}
+}
+
+func TestGenerateAddressUseCaseMapsPolicyReaderFailure(t *testing.T) {
+	reader := newInMemoryAddressPolicyReader(nil)
+	reader.findErr = errors.New("query failed")
+	useCase := NewGenerateAddressUseCase(newFakeChainAddressDeriver(), reader)
+
+	_, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
+		Chain:           valueobjects.SupportedChainBitcoin,
+		AddressPolicyID: "bitcoin-mainnet-legacy",
+		Index:           1,
+	})
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 }
 

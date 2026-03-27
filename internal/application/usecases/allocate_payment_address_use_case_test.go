@@ -379,8 +379,8 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenIssuedAddress
 		ExpectedAmountMinor: 15000000000000000,
 		CustomerReference:   "order-eth-salt-error",
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected issued-address derivation error, got %v", err)
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 	if deriver.calls != 1 {
 		t.Fatalf("expected issued deriver to be called once, got %d calls", deriver.calls)
@@ -884,8 +884,8 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected %v, got %v", expectedErr, err)
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 	if allocator.reopenCalls != 0 {
 		t.Fatalf("expected reopen not to be called when transaction manager fails, got %d", allocator.reopenCalls)
@@ -932,8 +932,8 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 500,
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected %v, got %v", expectedErr, err)
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 	if allocator.completeCalls != 1 {
 		t.Fatalf("expected complete allocation call count 1, got %d", allocator.completeCalls)
@@ -1087,8 +1087,8 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 		ExpectedAmountMinor: 1,
 		IdempotencyKey:      "idem-derive-failed",
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected %v, got %v", expectedErr, err)
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 	if allocator.markFailedCalls != 1 {
 		t.Fatalf("expected mark failed to be called once, got %d", allocator.markFailedCalls)
@@ -1158,8 +1158,8 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 	})
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected %v, got %v", expectedErr, err)
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 	if allocator.markFailedCalls != 1 {
 		t.Fatalf("expected mark failed to be called once, got %d", allocator.markFailedCalls)

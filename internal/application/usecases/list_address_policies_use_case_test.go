@@ -89,3 +89,14 @@ func TestListAddressPoliciesUseCaseValidationMissingPolicyReader(t *testing.T) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
+
+func TestListAddressPoliciesUseCaseMapsReaderFailure(t *testing.T) {
+	reader := newInMemoryAddressPolicyReader(nil)
+	reader.listErr = errors.New("query failed")
+	useCase := NewListAddressPoliciesUseCase(reader)
+
+	_, err := useCase.Execute(context.Background(), valueobjects.SupportedChainBitcoin)
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"payrune/internal/application/dto"
+	inport "payrune/internal/application/ports/inbound"
 )
 
 type fakeRunReceiptPollingCycleUseCase struct {
@@ -59,11 +60,11 @@ func TestPollerHandlerHandle(t *testing.T) {
 
 func TestPollerHandlerHandleReturnsUseCaseError(t *testing.T) {
 	handler := NewPollerHandler(PollerDependencies{
-		RunReceiptPollingCycleUseCase: &fakeRunReceiptPollingCycleUseCase{err: errors.New("boom")},
+		RunReceiptPollingCycleUseCase: &fakeRunReceiptPollingCycleUseCase{err: inport.ErrDependencyFailure},
 	})
 
 	_, err := handler.Handle(context.Background(), PollerRequest{BatchSize: 1})
-	if err == nil {
-		t.Fatal("expected error but got nil")
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 }

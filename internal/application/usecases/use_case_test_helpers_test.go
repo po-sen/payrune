@@ -17,6 +17,8 @@ import (
 type inMemoryAddressPolicyReader struct {
 	ordered      []entities.AddressPolicy
 	issuanceByID map[string]entities.AddressIssuancePolicy
+	listErr      error
+	findErr      error
 }
 
 var _ outport.AddressPolicyReader = (*inMemoryAddressPolicyReader)(nil)
@@ -91,6 +93,9 @@ func (r *inMemoryAddressPolicyReader) ListByChain(
 	_ context.Context,
 	chain valueobjects.SupportedChain,
 ) ([]entities.AddressPolicy, error) {
+	if r.listErr != nil {
+		return nil, r.listErr
+	}
 	policies := make([]entities.AddressPolicy, 0)
 	for _, policy := range r.ordered {
 		if policy.Chain != chain {
@@ -105,6 +110,9 @@ func (r *inMemoryAddressPolicyReader) FindIssuanceByID(
 	_ context.Context,
 	addressPolicyID string,
 ) (entities.AddressIssuancePolicy, bool, error) {
+	if r.findErr != nil {
+		return entities.AddressIssuancePolicy{}, false, r.findErr
+	}
 	policy, ok := r.issuanceByID[strings.TrimSpace(addressPolicyID)]
 	if !ok {
 		return entities.AddressIssuancePolicy{}, false, nil

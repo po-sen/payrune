@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"payrune/internal/application/dto"
@@ -84,14 +85,21 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			Statuses:   entities.PollablePaymentReceiptStatuses(),
 		})
 		if err != nil {
-			return err
+			return inport.ErrDependencyFailure
 		}
 
 		trackings = claimedTrackings
 		return nil
 	})
 	if err != nil {
-		return dto.RunReceiptPollingCycleOutput{}, err
+		switch {
+		case errors.Is(err, inport.ErrPaymentReceiptTrackingStoreNotConfigured):
+			return dto.RunReceiptPollingCycleOutput{}, err
+		case errors.Is(err, inport.ErrDependencyFailure):
+			return dto.RunReceiptPollingCycleOutput{}, err
+		default:
+			return dto.RunReceiptPollingCycleOutput{}, inport.ErrDependencyFailure
+		}
 	}
 
 	output := dto.RunReceiptPollingCycleOutput{ClaimedCount: len(trackings)}
@@ -183,7 +191,7 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 
 	finalTracking, expired, err := uc.lifecyclePolicy.ExpireIfDue(updatedTracking, now)
 	if err != nil {
-		return 0, err
+		return 0, inport.ErrInternalFailure
 	}
 	if expired {
 		if err := uc.saveTrackingAndMaybeEnqueueStatusChanged(
@@ -219,16 +227,30 @@ func (uc *runReceiptPollingCycleUseCase) savePollingError(
 ) error {
 	trackingWithError, err := tracking.MarkPollingError(reason)
 	if err != nil {
-		return err
+		return inport.ErrInternalFailure
 	}
 
-	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+	err = uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		trackingStore := txScope.PaymentReceiptTracking
 		if trackingStore == nil {
 			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
-		return trackingStore.Save(ctx, trackingWithError, now, nextPollAt)
+		if err := trackingStore.Save(ctx, trackingWithError, now, nextPollAt); err != nil {
+			return inport.ErrDependencyFailure
+		}
+		return nil
 	})
+	if err != nil {
+		switch {
+		case errors.Is(err, inport.ErrPaymentReceiptTrackingStoreNotConfigured):
+			return err
+		case errors.Is(err, inport.ErrDependencyFailure):
+			return err
+		default:
+			return inport.ErrDependencyFailure
+		}
+	}
+	return nil
 }
 
 func (uc *runReceiptPollingCycleUseCase) saveTrackingAndMaybeEnqueueStatusChanged(
@@ -240,16 +262,16 @@ func (uc *runReceiptPollingCycleUseCase) saveTrackingAndMaybeEnqueueStatusChange
 ) error {
 	statusChangedEvent, statusChanged, err := tracking.StatusChangedEvent(previousStatus, now)
 	if err != nil {
-		return err
+		return inport.ErrInternalFailure
 	}
 
-	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+	err = uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		trackingStore := txScope.PaymentReceiptTracking
 		if trackingStore == nil {
 			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
 		if err := trackingStore.Save(ctx, tracking, now, nextPollAt); err != nil {
-			return err
+			return inport.ErrDependencyFailure
 		}
 		if !statusChanged {
 			return nil
@@ -258,8 +280,24 @@ func (uc *runReceiptPollingCycleUseCase) saveTrackingAndMaybeEnqueueStatusChange
 		if notificationOutbox == nil {
 			return inport.ErrPaymentReceiptStatusOutboxNotConfigured
 		}
-		return notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent)
+		if err := notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent); err != nil {
+			return inport.ErrDependencyFailure
+		}
+		return nil
 	})
+	if err != nil {
+		switch {
+		case errors.Is(err, inport.ErrPaymentReceiptTrackingStoreNotConfigured):
+			return err
+		case errors.Is(err, inport.ErrPaymentReceiptStatusOutboxNotConfigured):
+			return err
+		case errors.Is(err, inport.ErrDependencyFailure):
+			return err
+		default:
+			return inport.ErrDependencyFailure
+		}
+	}
+	return nil
 }
 
 func (uc *runReceiptPollingCycleUseCase) fetchLatestBlockHeightForTracking(

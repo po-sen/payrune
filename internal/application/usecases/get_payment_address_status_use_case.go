@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 	"strconv"
 
 	"payrune/internal/application/dto"
@@ -40,7 +41,18 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 		PaymentAddressID: input.PaymentAddressID,
 	})
 	if err != nil {
-		return dto.GetPaymentAddressStatusResponse{}, err
+		switch {
+		case errors.Is(err, outport.ErrPaymentAddressStatusIncomplete):
+			return dto.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
+		case errors.Is(err, outport.ErrPaymentAddressStatusPersistedChainInvalid):
+			return dto.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
+		case errors.Is(err, outport.ErrPaymentAddressStatusPersistedNetworkInvalid):
+			return dto.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
+		case errors.Is(err, outport.ErrPaymentAddressStatusPersistedReceiptStatusInvalid):
+			return dto.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
+		default:
+			return dto.GetPaymentAddressStatusResponse{}, inport.ErrDependencyFailure
+		}
 	}
 	if !found {
 		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressNotFound
@@ -48,7 +60,7 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 
 	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, record.AddressPolicyID)
 	if err != nil {
-		return dto.GetPaymentAddressStatusResponse{}, err
+		return dto.GetPaymentAddressStatusResponse{}, inport.ErrDependencyFailure
 	}
 	if !ok || policy.AddressPolicy.Chain != input.Chain {
 		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressPolicyNotConfigured

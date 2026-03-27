@@ -107,8 +107,23 @@ func TestGetPaymentAddressStatusUseCaseFinderError(t *testing.T) {
 		Chain:            valueobjects.SupportedChainBitcoin,
 		PaymentAddressID: 101,
 	})
-	if !errors.Is(err, outport.ErrPaymentAddressStatusIncomplete) {
-		t.Fatalf("expected ErrPaymentAddressStatusIncomplete, got %v", err)
+	if !errors.Is(err, inport.ErrInternalFailure) {
+		t.Fatalf("expected ErrInternalFailure, got %v", err)
+	}
+}
+
+func TestGetPaymentAddressStatusUseCaseMapsFinderDependencyFailure(t *testing.T) {
+	useCase := NewGetPaymentAddressStatusUseCase(
+		&fakePaymentAddressStatusFinder{err: errors.New("query failed")},
+		newInMemoryAddressPolicyReader(nil),
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.GetPaymentAddressStatusInput{
+		Chain:            valueobjects.SupportedChainBitcoin,
+		PaymentAddressID: 101,
+	})
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 }
 

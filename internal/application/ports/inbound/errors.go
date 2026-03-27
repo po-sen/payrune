@@ -12,6 +12,8 @@ var (
 	ErrInvalidExpectedAmount      = errors.New("expected amount is invalid")
 	ErrIdempotencyKeyConflict     = errors.New("idempotency key conflicts with existing payment address")
 	ErrPaymentAddressNotFound     = errors.New("payment address is not found")
+	ErrDependencyFailure          = errors.New("dependency failure")
+	ErrInternalFailure            = errors.New("internal failure")
 
 	// Use case dependency / configuration errors.
 	ErrUnitOfWorkNotConfigured                     = errors.New("unit of work is not configured")

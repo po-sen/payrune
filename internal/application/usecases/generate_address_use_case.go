@@ -41,7 +41,7 @@ func (uc *generateAddressUseCase) Execute(
 
 	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, input.AddressPolicyID)
 	if err != nil {
-		return dto.GenerateAddressResponse{}, err
+		return dto.GenerateAddressResponse{}, inport.ErrDependencyFailure
 	}
 	if !ok {
 		return dto.GenerateAddressResponse{}, inport.ErrAddressPolicyNotFound
@@ -56,7 +56,7 @@ func (uc *generateAddressUseCase) Execute(
 		case errors.Is(err, entities.ErrAddressPolicyPreviewNotSupported):
 			return dto.GenerateAddressResponse{}, inport.ErrAddressPreviewNotSupported
 		default:
-			return dto.GenerateAddressResponse{}, err
+			return dto.GenerateAddressResponse{}, inport.ErrInternalFailure
 		}
 	}
 
@@ -69,7 +69,7 @@ func (uc *generateAddressUseCase) Execute(
 		Index:                  input.Index,
 	})
 	if err != nil {
-		return dto.GenerateAddressResponse{}, err
+		return dto.GenerateAddressResponse{}, inport.ErrDependencyFailure
 	}
 
 	return dto.GenerateAddressResponse{

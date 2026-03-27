@@ -554,14 +554,37 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 		BatchSize:          10,
 		RescheduleInterval: 30 * time.Second,
 	})
-	if err == nil {
-		t.Fatal("expected enqueue error but got nil")
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 	if output.UpdatedCount != 0 {
 		t.Fatalf("unexpected updated count: got %d", output.UpdatedCount)
 	}
 	if got := len(notificationOutbox.enqueueInputs); got != 1 {
 		t.Fatalf("unexpected enqueue count: got %d", got)
+	}
+}
+
+func TestRunReceiptPollingCycleUseCaseMapsTransactionFailure(t *testing.T) {
+	useCase := NewRunReceiptPollingCycleUseCase(
+		&fakeReceiptPollingUnitOfWork{
+			trackingStore:      &fakePaymentReceiptTrackingStore{},
+			notificationOutbox: &fakePaymentReceiptStatusNotificationOutbox{},
+			err:                errors.New("transaction failed"),
+		},
+		&fakeBlockchainReceiptObserver{
+			outputsByAddress: map[string]outport.ObservePaymentAddressOutput{},
+			errorsByAddress:  map[string]error{},
+		},
+		&fakeReceiptPollingClock{now: time.Now().UTC()},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
+		BatchSize: 1,
+	})
+	if !errors.Is(err, inport.ErrDependencyFailure) {
+		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}
 }
 
