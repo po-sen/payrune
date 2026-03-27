@@ -7,14 +7,15 @@ import (
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type PollerRequest struct {
 	BatchSize          int
 	RescheduleInterval time.Duration
 	ClaimTTL           time.Duration
-	Chain              string
-	Network            string
+	Chain              valueobjects.ChainID
+	Network            valueobjects.NetworkID
 }
 
 type PollerResponse struct {

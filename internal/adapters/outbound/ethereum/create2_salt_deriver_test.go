@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -13,7 +12,7 @@ func TestCreate2SaltDeriverDeriveAllocationSaltDeterministically(t *testing.T) {
 		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 
-	input := outport.DeriveEthereumCreate2SaltInput{
+	input := DeriveCreate2AllocationSaltInput{
 		Network:          valueobjects.NetworkID("mainnet"),
 		AddressPolicyID:  "ethereum-mainnet-create2",
 		PaymentAddressID: 42,
@@ -42,7 +41,7 @@ func TestCreate2SaltDeriverDeriveAllocationSaltVariesByAllocationIdentity(t *tes
 		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 
-	first, err := deriver.DeriveAllocationSalt(context.Background(), outport.DeriveEthereumCreate2SaltInput{
+	first, err := deriver.DeriveAllocationSalt(context.Background(), DeriveCreate2AllocationSaltInput{
 		Network:          valueobjects.NetworkID("mainnet"),
 		AddressPolicyID:  "ethereum-mainnet-create2",
 		PaymentAddressID: 42,
@@ -51,7 +50,7 @@ func TestCreate2SaltDeriverDeriveAllocationSaltVariesByAllocationIdentity(t *tes
 	if err != nil {
 		t.Fatalf("DeriveAllocationSalt returned error: %v", err)
 	}
-	second, err := deriver.DeriveAllocationSalt(context.Background(), outport.DeriveEthereumCreate2SaltInput{
+	second, err := deriver.DeriveAllocationSalt(context.Background(), DeriveCreate2AllocationSaltInput{
 		Network:          valueobjects.NetworkID("mainnet"),
 		AddressPolicyID:  "ethereum-mainnet-create2",
 		PaymentAddressID: 43,
@@ -71,7 +70,7 @@ func TestCreate2SaltDeriverRequiresConfiguredNetwork(t *testing.T) {
 		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 
-	_, err := deriver.DeriveAllocationSalt(context.Background(), outport.DeriveEthereumCreate2SaltInput{
+	_, err := deriver.DeriveAllocationSalt(context.Background(), DeriveCreate2AllocationSaltInput{
 		Network:          valueobjects.NetworkID("sepolia"),
 		AddressPolicyID:  "ethereum-sepolia-create2",
 		PaymentAddressID: 42,

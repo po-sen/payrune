@@ -7,9 +7,10 @@ import (
 )
 
 var (
-	ErrAddressPolicyChainMismatch = errors.New("address policy chain mismatch")
-	ErrAddressPolicyNotEnabled    = errors.New("address policy is not enabled")
-	ErrExpectedAmountMinorInvalid = errors.New("expected amount minor must be greater than zero")
+	ErrAddressPolicyChainMismatch       = errors.New("address policy chain mismatch")
+	ErrAddressPolicyNotEnabled          = errors.New("address policy is not enabled")
+	ErrAddressPolicyPreviewNotSupported = errors.New("address preview is not supported for this address policy")
+	ErrExpectedAmountMinorInvalid       = errors.New("expected amount minor must be greater than zero")
 )
 
 type AddressIssuancePolicy struct {
@@ -44,6 +45,31 @@ func (p AddressIssuancePolicy) ValidateForAllocationIssuance(
 	}
 	if expectedAmountMinor <= 0 {
 		return AddressIssuancePolicy{}, ErrExpectedAmountMinorInvalid
+	}
+	return normalized, nil
+}
+
+func (p AddressIssuancePolicy) SupportsAddressPreview() bool {
+	normalized := p.Normalize()
+	return !(normalized.AddressPolicy.Chain == valueobjects.SupportedChainEthereum &&
+		normalized.AddressPolicy.Scheme == "create2")
+}
+
+func (p AddressIssuancePolicy) ValidateForAddressPreview(
+	requestedChain valueobjects.SupportedChain,
+) (AddressIssuancePolicy, error) {
+	normalized := p.Normalize()
+	if normalized.AddressPolicy.AddressPolicyID == "" {
+		return AddressIssuancePolicy{}, errors.New("address policy id is required")
+	}
+	if normalized.AddressPolicy.Chain != requestedChain {
+		return AddressIssuancePolicy{}, ErrAddressPolicyChainMismatch
+	}
+	if !normalized.IsEnabled() {
+		return AddressIssuancePolicy{}, ErrAddressPolicyNotEnabled
+	}
+	if !normalized.SupportsAddressPreview() {
+		return AddressIssuancePolicy{}, ErrAddressPolicyPreviewNotSupported
 	}
 	return normalized, nil
 }

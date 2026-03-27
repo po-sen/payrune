@@ -13,11 +13,6 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-const (
-	defaultRescheduleInterval     = 15 * time.Second
-	defaultReceiptPollingClaimTTL = 30 * time.Second
-)
-
 type runReceiptPollingCycleUseCase struct {
 	unitOfWork      outport.UnitOfWork
 	observer        outport.BlockchainReceiptObserver
@@ -29,6 +24,14 @@ type receiptPollingScopeKey struct {
 	chain   valueobjects.ChainID
 	network valueobjects.NetworkID
 }
+
+type receiptPollingTrackingResult int
+
+const (
+	receiptPollingTrackingUpdated receiptPollingTrackingResult = iota + 1
+	receiptPollingTrackingTerminalFailed
+	receiptPollingTrackingProcessingError
+)
 
 func NewRunReceiptPollingCycleUseCase(
 	unitOfWork outport.UnitOfWork,
@@ -62,21 +65,12 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 	}
 
 	now := uc.clock.NowUTC()
-	rescheduleInterval := input.RescheduleInterval
-	if rescheduleInterval <= 0 {
-		rescheduleInterval = defaultRescheduleInterval
-	}
-	claimTTL := input.ClaimTTL
-	if claimTTL <= 0 {
-		claimTTL = defaultReceiptPollingClaimTTL
-	}
-	chainFilter, networkFilter, err := resolveReceiptPollingScope(input.Chain, input.Network)
-	if err != nil {
-		return dto.RunReceiptPollingCycleOutput{}, err
+	if input.Network != "" && input.Chain == "" {
+		return dto.RunReceiptPollingCycleOutput{}, errors.New("poll chain is required when poll network is set")
 	}
 
 	var trackings []entities.PaymentReceiptTracking
-	err = uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		trackingStore := txScope.PaymentReceiptTracking
 		if trackingStore == nil {
 			return errors.New("payment receipt tracking store is not configured")
@@ -85,9 +79,9 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 		claimedTrackings, err := trackingStore.ClaimDue(ctx, outport.ClaimPaymentReceiptTrackingsInput{
 			Now:        now,
 			Limit:      input.BatchSize,
-			ClaimUntil: now.Add(claimTTL),
-			Chain:      chainFilter,
-			Network:    networkFilter,
+			ClaimUntil: now.Add(input.ClaimTTL),
+			Chain:      string(input.Chain),
+			Network:    string(input.Network),
 			Statuses:   entities.PollablePaymentReceiptStatuses(),
 		})
 		if err != nil {
@@ -104,167 +98,169 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 	output := dto.RunReceiptPollingCycleOutput{ClaimedCount: len(trackings)}
 	latestBlockHeights := make(map[receiptPollingScopeKey]int64)
 	latestBlockHeightErrs := make(map[receiptPollingScopeKey]error)
+	nextPollAt := now.Add(input.RescheduleInterval)
 
 	for _, tracking := range trackings {
-		if tracking.IssuedAt.IsZero() {
-			trackingWithError, markErr := tracking.MarkPollingError("issued at is required")
-			if markErr != nil {
-				return output, markErr
-			}
-			if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-				trackingStore := txScope.PaymentReceiptTracking
-				if trackingStore == nil {
-					return errors.New("payment receipt tracking store is not configured")
-				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(rescheduleInterval))
-			}); err != nil {
-				return output, err
-			}
-			output.ProcessingErrorCount++
-			continue
-		}
-
-		latestBlockHeight, tipHeightErr := uc.fetchLatestBlockHeightForTracking(
+		result, err := uc.processTracking(
 			ctx,
 			tracking,
+			now,
+			nextPollAt,
 			latestBlockHeights,
 			latestBlockHeightErrs,
 		)
-		if tipHeightErr != nil {
-			trackingWithError, markErr := tracking.MarkPollingError(tipHeightErr.Error())
-			if markErr != nil {
-				return output, markErr
-			}
-			if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-				trackingStore := txScope.PaymentReceiptTracking
-				if trackingStore == nil {
-					return errors.New("payment receipt tracking store is not configured")
-				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(rescheduleInterval))
-			}); err != nil {
-				return output, err
-			}
-			output.ProcessingErrorCount++
-			continue
-		}
-
-		observation, observeErr := uc.observer.ObserveAddress(ctx, outport.ObserveChainPaymentAddressInput{
-			Chain:                 tracking.Chain,
-			Network:               tracking.Network,
-			Address:               tracking.Address,
-			IssuedAt:              tracking.IssuedAt,
-			RequiredConfirmations: tracking.RequiredConfirmations,
-			LatestBlockHeight:     latestBlockHeight,
-			SinceBlockHeight:      tracking.LastObservedBlockHeight,
-		})
-		if observeErr != nil {
-			trackingWithError, markErr := tracking.MarkPollingError(observeErr.Error())
-			if markErr != nil {
-				return output, markErr
-			}
-			if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-				trackingStore := txScope.PaymentReceiptTracking
-				if trackingStore == nil {
-					return errors.New("payment receipt tracking store is not configured")
-				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(rescheduleInterval))
-			}); err != nil {
-				return output, err
-			}
-			output.ProcessingErrorCount++
-			continue
-		}
-
-		updatedTracking, err := uc.lifecyclePolicy.ApplyObservation(tracking, valueobjects.PaymentReceiptObservation{
-			ObservedTotalMinor:    observation.ObservedTotalMinor,
-			ConfirmedTotalMinor:   observation.ConfirmedTotalMinor,
-			UnconfirmedTotalMinor: observation.UnconfirmedTotalMinor,
-			LatestBlockHeight:     observation.LatestBlockHeight,
-		}, now)
-		if err != nil {
-			trackingWithError, markErr := tracking.MarkPollingError(err.Error())
-			if markErr != nil {
-				return output, markErr
-			}
-			if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-				trackingStore := txScope.PaymentReceiptTracking
-				if trackingStore == nil {
-					return errors.New("payment receipt tracking store is not configured")
-				}
-				return trackingStore.Save(ctx, trackingWithError, now, now.Add(rescheduleInterval))
-			}); err != nil {
-				return output, err
-			}
-			output.ProcessingErrorCount++
-			continue
-		}
-
-		finalTracking, expired, err := uc.lifecyclePolicy.ExpireIfDue(updatedTracking, now)
 		if err != nil {
 			return output, err
 		}
-		if expired {
-			statusChangedEvent, statusChanged, err := finalTracking.StatusChangedEvent(tracking.Status, now)
-			if err != nil {
-				return output, err
-			}
-			if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-				trackingStore := txScope.PaymentReceiptTracking
-				if trackingStore == nil {
-					return errors.New("payment receipt tracking store is not configured")
-				}
-				if err := trackingStore.Save(
-					ctx,
-					finalTracking,
-					now,
-					now.Add(rescheduleInterval),
-				); err != nil {
-					return err
-				}
-				if !statusChanged {
-					return nil
-				}
-				notificationOutbox := txScope.PaymentReceiptStatusNotificationOutbox
-				if notificationOutbox == nil {
-					return errors.New("payment receipt status notification outbox is not configured")
-				}
-				return notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent)
-			}); err != nil {
-				return output, err
-			}
+		switch result {
+		case receiptPollingTrackingUpdated:
+			output.UpdatedCount++
+		case receiptPollingTrackingTerminalFailed:
 			output.TerminalFailedCount++
-			continue
+		case receiptPollingTrackingProcessingError:
+			output.ProcessingErrorCount++
 		}
-		statusChangedEvent, statusChanged, err := updatedTracking.StatusChangedEvent(tracking.Status, now)
-		if err != nil {
-			return output, err
-		}
-
-		nextPollAt := now.Add(rescheduleInterval)
-
-		if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-			trackingStore := txScope.PaymentReceiptTracking
-			if trackingStore == nil {
-				return errors.New("payment receipt tracking store is not configured")
-			}
-			if err := trackingStore.Save(ctx, updatedTracking, now, nextPollAt); err != nil {
-				return err
-			}
-			if !statusChanged {
-				return nil
-			}
-			notificationOutbox := txScope.PaymentReceiptStatusNotificationOutbox
-			if notificationOutbox == nil {
-				return errors.New("payment receipt status notification outbox is not configured")
-			}
-			return notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent)
-		}); err != nil {
-			return output, err
-		}
-		output.UpdatedCount++
 	}
 
 	return output, nil
+}
+
+func (uc *runReceiptPollingCycleUseCase) processTracking(
+	ctx context.Context,
+	tracking entities.PaymentReceiptTracking,
+	now time.Time,
+	nextPollAt time.Time,
+	latestBlockHeights map[receiptPollingScopeKey]int64,
+	latestBlockHeightErrs map[receiptPollingScopeKey]error,
+) (receiptPollingTrackingResult, error) {
+	if tracking.IssuedAt.IsZero() {
+		if err := uc.savePollingError(ctx, tracking, "issued at is required", now, nextPollAt); err != nil {
+			return 0, err
+		}
+		return receiptPollingTrackingProcessingError, nil
+	}
+
+	latestBlockHeight, err := uc.fetchLatestBlockHeightForTracking(
+		ctx,
+		tracking,
+		latestBlockHeights,
+		latestBlockHeightErrs,
+	)
+	if err != nil {
+		if saveErr := uc.savePollingError(ctx, tracking, err.Error(), now, nextPollAt); saveErr != nil {
+			return 0, saveErr
+		}
+		return receiptPollingTrackingProcessingError, nil
+	}
+
+	observation, err := uc.observer.ObserveAddress(ctx, outport.ObserveChainPaymentAddressInput{
+		Chain:                 tracking.Chain,
+		Network:               tracking.Network,
+		Address:               tracking.Address,
+		IssuedAt:              tracking.IssuedAt,
+		RequiredConfirmations: tracking.RequiredConfirmations,
+		LatestBlockHeight:     latestBlockHeight,
+		SinceBlockHeight:      tracking.LastObservedBlockHeight,
+	})
+	if err != nil {
+		if saveErr := uc.savePollingError(ctx, tracking, err.Error(), now, nextPollAt); saveErr != nil {
+			return 0, saveErr
+		}
+		return receiptPollingTrackingProcessingError, nil
+	}
+
+	updatedTracking, err := uc.lifecyclePolicy.ApplyObservation(tracking, valueobjects.PaymentReceiptObservation{
+		ObservedTotalMinor:    observation.ObservedTotalMinor,
+		ConfirmedTotalMinor:   observation.ConfirmedTotalMinor,
+		UnconfirmedTotalMinor: observation.UnconfirmedTotalMinor,
+		LatestBlockHeight:     observation.LatestBlockHeight,
+	}, now)
+	if err != nil {
+		if saveErr := uc.savePollingError(ctx, tracking, err.Error(), now, nextPollAt); saveErr != nil {
+			return 0, saveErr
+		}
+		return receiptPollingTrackingProcessingError, nil
+	}
+
+	finalTracking, expired, err := uc.lifecyclePolicy.ExpireIfDue(updatedTracking, now)
+	if err != nil {
+		return 0, err
+	}
+	if expired {
+		if err := uc.saveTrackingAndMaybeEnqueueStatusChanged(
+			ctx,
+			finalTracking,
+			tracking.Status,
+			now,
+			nextPollAt,
+		); err != nil {
+			return 0, err
+		}
+		return receiptPollingTrackingTerminalFailed, nil
+	}
+
+	if err := uc.saveTrackingAndMaybeEnqueueStatusChanged(
+		ctx,
+		updatedTracking,
+		tracking.Status,
+		now,
+		nextPollAt,
+	); err != nil {
+		return 0, err
+	}
+	return receiptPollingTrackingUpdated, nil
+}
+
+func (uc *runReceiptPollingCycleUseCase) savePollingError(
+	ctx context.Context,
+	tracking entities.PaymentReceiptTracking,
+	reason string,
+	now time.Time,
+	nextPollAt time.Time,
+) error {
+	trackingWithError, err := tracking.MarkPollingError(reason)
+	if err != nil {
+		return err
+	}
+
+	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+		trackingStore := txScope.PaymentReceiptTracking
+		if trackingStore == nil {
+			return errors.New("payment receipt tracking store is not configured")
+		}
+		return trackingStore.Save(ctx, trackingWithError, now, nextPollAt)
+	})
+}
+
+func (uc *runReceiptPollingCycleUseCase) saveTrackingAndMaybeEnqueueStatusChanged(
+	ctx context.Context,
+	tracking entities.PaymentReceiptTracking,
+	previousStatus valueobjects.PaymentReceiptStatus,
+	now time.Time,
+	nextPollAt time.Time,
+) error {
+	statusChangedEvent, statusChanged, err := tracking.StatusChangedEvent(previousStatus, now)
+	if err != nil {
+		return err
+	}
+
+	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+		trackingStore := txScope.PaymentReceiptTracking
+		if trackingStore == nil {
+			return errors.New("payment receipt tracking store is not configured")
+		}
+		if err := trackingStore.Save(ctx, tracking, now, nextPollAt); err != nil {
+			return err
+		}
+		if !statusChanged {
+			return nil
+		}
+		notificationOutbox := txScope.PaymentReceiptStatusNotificationOutbox
+		if notificationOutbox == nil {
+			return errors.New("payment receipt status notification outbox is not configured")
+		}
+		return notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent)
+	})
 }
 
 func (uc *runReceiptPollingCycleUseCase) fetchLatestBlockHeightForTracking(
@@ -293,33 +289,4 @@ func (uc *runReceiptPollingCycleUseCase) fetchLatestBlockHeightForTracking(
 
 	cache[scopeKey] = latestBlockHeight
 	return latestBlockHeight, nil
-}
-
-func resolveReceiptPollingScope(rawChain string, rawNetwork string) (string, string, error) {
-	var (
-		chainFilter   string
-		networkFilter string
-	)
-
-	if rawChain != "" {
-		chain, ok := valueobjects.ParseChainID(rawChain)
-		if !ok {
-			return "", "", errors.New("poll chain is invalid")
-		}
-		chainFilter = string(chain)
-	}
-
-	if rawNetwork != "" {
-		network, ok := valueobjects.ParseNetworkID(rawNetwork)
-		if !ok {
-			return "", "", errors.New("poll network is invalid")
-		}
-		networkFilter = string(network)
-	}
-
-	if networkFilter != "" && chainFilter == "" {
-		return "", "", errors.New("poll chain is required when poll network is set")
-	}
-
-	return chainFilter, networkFilter, nil
 }

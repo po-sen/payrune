@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 	"errors"
-	"time"
 
 	"payrune/internal/application/dto"
 	applicationoutbox "payrune/internal/application/outbox"
@@ -12,8 +11,6 @@ import (
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
-
-const defaultReceiptWebhookDispatchClaimTTL = 30 * time.Second
 
 type runReceiptWebhookDispatchCycleUseCase struct {
 	unitOfWork outport.UnitOfWork
@@ -56,11 +53,6 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 		return dto.RunReceiptWebhookDispatchCycleOutput{}, errors.New("retry delay must be greater than zero")
 	}
 
-	claimTTL := input.DispatchTTL
-	if claimTTL <= 0 {
-		claimTTL = defaultReceiptWebhookDispatchClaimTTL
-	}
-
 	claimNow := uc.clock.NowUTC()
 
 	var claimedNotifications []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage
@@ -73,7 +65,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 		notifications, err := outbox.ClaimPending(ctx, outport.ClaimPaymentReceiptStatusNotificationsInput{
 			Now:        claimNow,
 			Limit:      input.BatchSize,
-			ClaimUntil: claimNow.Add(claimTTL),
+			ClaimUntil: claimNow.Add(input.DispatchTTL),
 		})
 		if err != nil {
 			return err
@@ -89,66 +81,79 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 	output := dto.RunReceiptWebhookDispatchCycleOutput{ClaimedCount: len(claimedNotifications)}
 
 	for _, notification := range claimedNotifications {
-		err := uc.notifier.NotifyStatusChanged(ctx, outport.NotifyPaymentReceiptStatusChangedInput{
-			NotificationID:        notification.NotificationID,
-			PaymentAddressID:      notification.PaymentAddressID,
-			CustomerReference:     notification.CustomerReference,
-			PreviousStatus:        string(notification.PreviousStatus),
-			CurrentStatus:         string(notification.CurrentStatus),
-			ObservedTotalMinor:    notification.ObservedTotalMinor,
-			ConfirmedTotalMinor:   notification.ConfirmedTotalMinor,
-			UnconfirmedTotalMinor: notification.UnconfirmedTotalMinor,
-			StatusChangedAt:       notification.StatusChangedAt,
-		})
+		outcome, err := uc.processNotification(ctx, notification, input)
 		if err != nil {
-			deliveryResult, resultErr := policies.ResolvePaymentReceiptStatusNotificationDeliveryFailure(
-				notification.NotificationID,
-				notification.DeliveryAttempts,
-				input.MaxAttempts,
-				uc.clock.NowUTC(),
-				input.RetryDelay,
-				err.Error(),
-			)
-			if resultErr != nil {
-				return output, resultErr
-			}
-			saveErr := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-				outbox := txScope.PaymentReceiptStatusNotificationOutbox
-				if outbox == nil {
-					return errors.New("payment receipt status notification outbox is not configured")
-				}
-				return outbox.SaveDeliveryResult(ctx, deliveryResult)
-			})
-			if saveErr != nil {
-				return output, saveErr
-			}
-			if deliveryResult.Status == valueobjects.PaymentReceiptNotificationDeliveryStatusFailed {
-				output.FailedCount++
-			} else {
-				output.RetriedCount++
-			}
-			continue
-		}
-
-		deliveryResult, resultErr := policies.MarkPaymentReceiptStatusNotificationSent(
-			notification.NotificationID,
-			uc.clock.NowUTC(),
-		)
-		if resultErr != nil {
-			return output, resultErr
-		}
-
-		if err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
-			outbox := txScope.PaymentReceiptStatusNotificationOutbox
-			if outbox == nil {
-				return errors.New("payment receipt status notification outbox is not configured")
-			}
-			return outbox.SaveDeliveryResult(ctx, deliveryResult)
-		}); err != nil {
 			return output, err
 		}
-		output.SentCount++
+		switch outcome {
+		case valueobjects.PaymentReceiptNotificationDeliveryStatusSent:
+			output.SentCount++
+		case valueobjects.PaymentReceiptNotificationDeliveryStatusPending:
+			output.RetriedCount++
+		case valueobjects.PaymentReceiptNotificationDeliveryStatusFailed:
+			output.FailedCount++
+		}
 	}
 
 	return output, nil
+}
+
+func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
+	ctx context.Context,
+	notification applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage,
+	input dto.RunReceiptWebhookDispatchCycleInput,
+) (valueobjects.PaymentReceiptNotificationDeliveryStatus, error) {
+	err := uc.notifier.NotifyStatusChanged(ctx, outport.NotifyPaymentReceiptStatusChangedInput{
+		NotificationID:        notification.NotificationID,
+		PaymentAddressID:      notification.PaymentAddressID,
+		CustomerReference:     notification.CustomerReference,
+		PreviousStatus:        string(notification.PreviousStatus),
+		CurrentStatus:         string(notification.CurrentStatus),
+		ObservedTotalMinor:    notification.ObservedTotalMinor,
+		ConfirmedTotalMinor:   notification.ConfirmedTotalMinor,
+		UnconfirmedTotalMinor: notification.UnconfirmedTotalMinor,
+		StatusChangedAt:       notification.StatusChangedAt,
+	})
+	if err != nil {
+		deliveryResult, resultErr := policies.ResolvePaymentReceiptStatusNotificationDeliveryFailure(
+			notification.NotificationID,
+			notification.DeliveryAttempts,
+			input.MaxAttempts,
+			uc.clock.NowUTC(),
+			input.RetryDelay,
+			err.Error(),
+		)
+		if resultErr != nil {
+			return "", resultErr
+		}
+		if err := uc.saveDeliveryResult(ctx, deliveryResult); err != nil {
+			return "", err
+		}
+		return deliveryResult.Status, nil
+	}
+
+	deliveryResult, err := policies.MarkPaymentReceiptStatusNotificationSent(
+		notification.NotificationID,
+		uc.clock.NowUTC(),
+	)
+	if err != nil {
+		return "", err
+	}
+	if err := uc.saveDeliveryResult(ctx, deliveryResult); err != nil {
+		return "", err
+	}
+	return deliveryResult.Status, nil
+}
+
+func (uc *runReceiptWebhookDispatchCycleUseCase) saveDeliveryResult(
+	ctx context.Context,
+	deliveryResult policies.PaymentReceiptStatusNotificationDeliveryResult,
+) error {
+	return uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
+		outbox := txScope.PaymentReceiptStatusNotificationOutbox
+		if outbox == nil {
+			return errors.New("payment receipt status notification outbox is not configured")
+		}
+		return outbox.SaveDeliveryResult(ctx, deliveryResult)
+	})
 }

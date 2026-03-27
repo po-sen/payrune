@@ -120,27 +120,38 @@ type fakeChainAddressDeriver struct {
 	calls           int
 }
 
-type fakeEthereumCreate2SaltDeriver struct {
-	output    string
-	err       error
-	lastInput outport.DeriveEthereumCreate2SaltInput
-	calls     int
+type fakeIssuedPaymentAddressDeriver struct {
+	supportedChains map[valueobjects.SupportedChain]bool
+	output          outport.DeriveIssuedPaymentAddressOutput
+	err             error
+	lastInput       outport.DeriveIssuedPaymentAddressInput
+	calls           int
 }
 
-func newFakeEthereumCreate2SaltDeriver() *fakeEthereumCreate2SaltDeriver {
-	return &fakeEthereumCreate2SaltDeriver{
-		output: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+func newFakeIssuedPaymentAddressDeriver() *fakeIssuedPaymentAddressDeriver {
+	return &fakeIssuedPaymentAddressDeriver{
+		supportedChains: map[valueobjects.SupportedChain]bool{
+			valueobjects.SupportedChainBitcoin: true,
+		},
+		output: outport.DeriveIssuedPaymentAddressOutput{
+			Address:          "bc1qdefault",
+			AddressReference: "0/0",
+		},
 	}
 }
 
-func (f *fakeEthereumCreate2SaltDeriver) DeriveAllocationSalt(
+func (f *fakeIssuedPaymentAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
+	return f.supportedChains[chain]
+}
+
+func (f *fakeIssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	_ context.Context,
-	input outport.DeriveEthereumCreate2SaltInput,
-) (string, error) {
+	input outport.DeriveIssuedPaymentAddressInput,
+) (outport.DeriveIssuedPaymentAddressOutput, error) {
 	f.calls++
 	f.lastInput = input
 	if f.err != nil {
-		return "", f.err
+		return outport.DeriveIssuedPaymentAddressOutput{}, f.err
 	}
 	return f.output, nil
 }

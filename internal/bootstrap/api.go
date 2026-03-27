@@ -140,8 +140,7 @@ func newAPIContainer() (*apiContainer, error) {
 	)
 	allocatePaymentAddressUseCase := usecases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
-		chainAddressDeriver,
-		ethereumCreate2SaltDeriver,
+		blockchain.NewIssuedPaymentAddressDeriver(chainAddressDeriver, ethereumCreate2SaltDeriver),
 		addressPolicyReader,
 		allocationIssuancePolicy,
 		clock,

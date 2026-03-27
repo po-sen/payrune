@@ -1073,23 +1073,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected missing chain error but got nil")
 	}
-
-	_, err = useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize: 10,
-		Chain:     "eth/mainnet",
-	})
-	if err == nil {
-		t.Fatal("expected invalid chain error but got nil")
-	}
-
-	_, err = useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
-		BatchSize: 10,
-		Chain:     "eth",
-		Network:   "main/net",
-	})
-	if err == nil {
-		t.Fatal("expected invalid network error but got nil")
-	}
 }
 
 func TestRunReceiptPollingCycleUseCaseExecuteWithScope(t *testing.T) {

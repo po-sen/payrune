@@ -63,8 +63,8 @@ type PollerConfig struct {
 	RescheduleInterval time.Duration
 	BatchSize          int
 	ClaimTTL           time.Duration
-	Chain              string
-	Network            string
+	Chain              valueobjects.ChainID
+	Network            valueobjects.NetworkID
 }
 
 type pollerContainer struct {
@@ -76,8 +76,8 @@ type pollerDispatchConfig struct {
 	RescheduleInterval time.Duration
 	BatchSize          int
 	ClaimTTL           time.Duration
-	Chain              string
-	Network            string
+	Chain              valueobjects.ChainID
+	Network            valueobjects.NetworkID
 }
 
 type pollerDispatchDefaults struct {
@@ -334,7 +334,7 @@ func parsePollerPositiveIntLookupWithDefault(
 	return value, nil
 }
 
-func parsePollerChainLookup(lookup func(string) string, key string) (string, error) {
+func parsePollerChainLookup(lookup func(string) string, key string) (valueobjects.ChainID, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return "", nil
@@ -344,10 +344,10 @@ func parsePollerChainLookup(lookup func(string) string, key string) (string, err
 	if !ok {
 		return "", fmt.Errorf("%s is invalid", key)
 	}
-	return string(chain), nil
+	return chain, nil
 }
 
-func parsePollerNetworkLookup(lookup func(string) string, key string) (string, error) {
+func parsePollerNetworkLookup(lookup func(string) string, key string) (valueobjects.NetworkID, error) {
 	raw := strings.TrimSpace(lookup(key))
 	if raw == "" {
 		return "", nil
@@ -357,7 +357,7 @@ func parsePollerNetworkLookup(lookup func(string) string, key string) (string, e
 	if !ok {
 		return "", fmt.Errorf("%s is invalid", key)
 	}
-	return string(network), nil
+	return network, nil
 }
 
 func loadConfiguredPollerChainFromEnv() (valueobjects.ChainID, bool, error) {
@@ -374,7 +374,7 @@ func loadConfiguredPollerChainFromLookup(
 	if chain == "" {
 		return "", false, nil
 	}
-	return valueobjects.ChainID(chain), true, nil
+	return chain, true, nil
 }
 
 func loadBitcoinMainnetEsploraConfigFromEnv() *bitcoin.BitcoinEsploraObserverConfig {

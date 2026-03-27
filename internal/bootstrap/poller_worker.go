@@ -83,13 +83,13 @@ func buildCloudflarePollerRuntime(
 	clock := system.NewClock()
 	unitOfWork := cloudflarepostgresadapter.NewUnitOfWork(postgresBridgeID, cloudflarepostgresinfra.NewJSBridge())
 	chainObservers := make(map[valueobjects.ChainID]outport.ChainReceiptObserver, 2)
-	if request.Chain == "" || request.Chain == string(valueobjects.ChainIDBitcoin) {
+	if request.Chain == "" || request.Chain == valueobjects.ChainIDBitcoin {
 		chainObservers[valueobjects.ChainIDBitcoin] = bitcoin.NewCloudflareBitcoinEsploraReceiptObserver(
 			bitcoinBridgeID,
 			bitcoin.NewCloudflareEsploraBridge(),
 		)
 	}
-	if request.Chain == "" || request.Chain == string(valueobjects.ChainIDEthereum) {
+	if request.Chain == "" || request.Chain == valueobjects.ChainIDEthereum {
 		if ethereumConfigs := loadEthereumRPCConfigsFromLookup(func(key string) string {
 			return env[key]
 		}); len(ethereumConfigs) > 0 {

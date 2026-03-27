@@ -36,11 +36,10 @@ func (f *fakeAllocatePaymentAddressClock) NowUTC() time.Time {
 	return f.times[f.calls-1]
 }
 
-func newAllocateDeriveOutput(address string, path string) outport.DeriveChainAddressOutput {
-	return outport.DeriveChainAddressOutput{
-		Address:                  address,
-		AddressReference:         path,
-		RelativeAddressReference: path,
+func newAllocateDeriveOutput(address string, path string) outport.DeriveIssuedPaymentAddressOutput {
+	return outport.DeriveIssuedPaymentAddressOutput{
+		Address:          address,
+		AddressReference: path,
 	}
 }
 
@@ -65,20 +64,14 @@ func newAllocationPolicy(
 
 func newAllocatePaymentAddressUseCaseForTest(
 	txManager *fakeUnitOfWork,
-	deriver outport.ChainAddressDeriver,
+	deriver outport.IssuedPaymentAddressDeriver,
 	policyReader outport.AddressPolicyReader,
 	issuancePolicy policies.PaymentAddressAllocationIssuancePolicy,
 	clock outport.Clock,
-	saltDeriver ...outport.EthereumCreate2SaltDeriver,
 ) inport.AllocatePaymentAddressUseCase {
-	var resolvedSaltDeriver outport.EthereumCreate2SaltDeriver
-	if len(saltDeriver) > 0 {
-		resolvedSaltDeriver = saltDeriver[0]
-	}
 	return NewAllocatePaymentAddressUseCase(
 		txManager,
 		deriver,
-		resolvedSaltDeriver,
 		policyReader,
 		issuancePolicy,
 		clock,
@@ -88,7 +81,7 @@ func newAllocatePaymentAddressUseCaseForTest(
 func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qallocatedaddress", "m/84'/0'/0'/0/11")
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newAllocationPolicy(
@@ -118,8 +111,8 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 		Chain:               valueobjects.SupportedChainBitcoin,
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 120000,
-		CustomerReference:   " order-001 ",
-		IdempotencyKey:      " idem-001 ",
+		CustomerReference:   "order-001",
+		IdempotencyKey:      "idem-001",
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -213,20 +206,20 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.lastCompleteInput.AddressReference != "m/84'/0'/0'/0/11" {
 		t.Fatalf("unexpected address reference in complete input: got %q", allocator.lastCompleteInput.AddressReference)
 	}
-	if deriver.lastInput.Index != 11 {
-		t.Fatalf("unexpected index passed to deriver: got %d", deriver.lastInput.Index)
+	if deriver.lastInput.Allocation.DerivationIndex != 11 {
+		t.Fatalf("unexpected derivation index passed to issued deriver: got %d", deriver.lastInput.Allocation.DerivationIndex)
 	}
-	if deriver.lastInput.Network != valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet) {
-		t.Fatalf("unexpected network passed to deriver: got %q", deriver.lastInput.Network)
+	if deriver.lastInput.Policy.AddressPolicy.Network != valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet) {
+		t.Fatalf("unexpected network passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Network)
 	}
-	if deriver.lastInput.Scheme != string(valueobjects.BitcoinAddressSchemeNativeSegwit) {
-		t.Fatalf("unexpected scheme passed to deriver: got %q", deriver.lastInput.Scheme)
+	if deriver.lastInput.Policy.AddressPolicy.Scheme != string(valueobjects.BitcoinAddressSchemeNativeSegwit) {
+		t.Fatalf("unexpected scheme passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Scheme)
 	}
-	if deriver.lastInput.AddressSourceRef != "xpub-main" {
-		t.Fatalf("unexpected address source ref passed to deriver: got %q", deriver.lastInput.AddressSourceRef)
+	if deriver.lastInput.Policy.IssuanceConfig.AddressSourceRef != "xpub-main" {
+		t.Fatalf("unexpected address source ref passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.AddressSourceRef)
 	}
-	if deriver.lastInput.AddressReferencePrefix != "m/84'/0'/0'" {
-		t.Fatalf("unexpected address reference prefix passed to deriver: got %q", deriver.lastInput.AddressReferencePrefix)
+	if deriver.lastInput.Policy.IssuanceConfig.AddressReferencePrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected address reference prefix passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.AddressReferencePrefix)
 	}
 	if response.Address != "bc1qallocatedaddress" {
 		t.Fatalf("unexpected address: got %q", response.Address)
@@ -251,9 +244,8 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
-	saltDeriver := newFakeEthereumCreate2SaltDeriver()
 	deriver.output = newAllocateDeriveOutput(
 		"0x1234567890abcdef1234567890abcdef12345678",
 		"ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -287,7 +279,6 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 			nil,
 		),
 		newAllocatePaymentAddressClock(),
-		saltDeriver,
 	)
 
 	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
@@ -308,26 +299,23 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	if allocator.lastCompleteInput.AddressReference != "ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 		t.Fatalf("unexpected address reference persisted on allocation: got %q", allocator.lastCompleteInput.AddressReference)
 	}
-	if deriver.lastInput.Chain != valueobjects.SupportedChainEthereum {
-		t.Fatalf("unexpected chain passed to deriver: got %q", deriver.lastInput.Chain)
+	if deriver.lastInput.Policy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Chain)
 	}
-	if deriver.lastInput.AddressReferencePrefix != "ethereum-mainnet-create2" {
-		t.Fatalf("unexpected address reference prefix passed to deriver: got %q", deriver.lastInput.AddressReferencePrefix)
-	}
-	if deriver.lastInput.RelativeAddressReference != "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+	if deriver.lastInput.Policy.IssuanceConfig.AddressReferencePrefix != "ethereum-mainnet-create2" {
 		t.Fatalf(
-			"unexpected relative address reference passed to deriver: got %q",
-			deriver.lastInput.RelativeAddressReference,
+			"unexpected address reference prefix passed to issued deriver: got %q",
+			deriver.lastInput.Policy.IssuanceConfig.AddressReferencePrefix,
 		)
 	}
-	if saltDeriver.calls != 1 {
-		t.Fatalf("expected ethereum salt deriver call count 1, got %d", saltDeriver.calls)
+	if deriver.lastInput.Allocation.PaymentAddressID != 145 {
+		t.Fatalf("unexpected payment address id passed to issued deriver: got %d", deriver.lastInput.Allocation.PaymentAddressID)
 	}
-	if saltDeriver.lastInput.PaymentAddressID != 145 {
-		t.Fatalf("unexpected payment address id passed to salt deriver: got %d", saltDeriver.lastInput.PaymentAddressID)
-	}
-	if saltDeriver.lastInput.DerivationIndex != 11 {
-		t.Fatalf("unexpected derivation index passed to salt deriver: got %d", saltDeriver.lastInput.DerivationIndex)
+	if deriver.lastInput.Allocation.DerivationIndex != 11 {
+		t.Fatalf(
+			"unexpected derivation index passed to issued deriver: got %d",
+			deriver.lastInput.Allocation.DerivationIndex,
+		)
 	}
 	trackingStore, ok := txManager.receiptTrackingStore.(*fakeAllocatePaymentReceiptTrackingStore)
 	if !ok {
@@ -347,14 +335,13 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	}
 }
 
-func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenEthereumSaltDerivationFails(t *testing.T) {
-	expectedErr := errors.New("salt derivation failed")
+func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenIssuedAddressDerivationFails(t *testing.T) {
+	expectedErr := errors.New("issued address derivation failed")
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
-	saltDeriver := newFakeEthereumCreate2SaltDeriver()
-	saltDeriver.err = expectedErr
+	deriver.err = expectedErr
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newEthereumCreate2IssuancePolicy(
 			"ethereum-mainnet-create2",
@@ -384,7 +371,6 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenEthereumSaltD
 			nil,
 		),
 		newAllocatePaymentAddressClock(),
-		saltDeriver,
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
@@ -394,10 +380,10 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenEthereumSaltD
 		CustomerReference:   "order-eth-salt-error",
 	})
 	if !errors.Is(err, expectedErr) {
-		t.Fatalf("expected salt derivation error, got %v", err)
+		t.Fatalf("expected issued-address derivation error, got %v", err)
 	}
-	if deriver.calls != 0 {
-		t.Fatalf("expected deriver not called when salt derivation fails, got %d calls", deriver.calls)
+	if deriver.calls != 1 {
+		t.Fatalf("expected issued deriver to be called once, got %d calls", deriver.calls)
 	}
 	if allocator.markFailedCalls != 1 {
 		t.Fatalf("expected derivation failure persisted once, got %d", allocator.markFailedCalls)
@@ -437,7 +423,7 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 	}
 	txManager := newFakeUnitOfWork(allocator)
 	txManager.idempotencyStore = idempotencyStore
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-native-segwit",
@@ -459,8 +445,8 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 		Chain:               valueobjects.SupportedChainBitcoin,
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 120000,
-		CustomerReference:   " order-duplicate ",
-		IdempotencyKey:      " idem-duplicate ",
+		CustomerReference:   "order-duplicate",
+		IdempotencyKey:      "idem-duplicate",
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -514,7 +500,7 @@ func TestAllocatePaymentAddressUseCaseRejectsConflictingDuplicateIdempotencyKey(
 	txManager.idempotencyStore = idempotencyStore
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		newFakeChainAddressDeriver(),
+		newFakeIssuedPaymentAddressDeriver(),
 		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 			newAllocationPolicy(
 				"bitcoin-mainnet-native-segwit",
@@ -585,7 +571,7 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 	}
 	txManager := newFakeUnitOfWork(allocator)
 	txManager.idempotencyStore = idempotencyStore
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qloserrace", "0/12")
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
@@ -649,7 +635,7 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qnetworkconfirmations", "0/15")
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newAllocationPolicy(
@@ -713,7 +699,7 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qnetworkexpiry", "0/16")
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newAllocationPolicy(
@@ -797,7 +783,7 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 		},
 	}
 	txManager := newFakeUnitOfWork(allocator)
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qreusedaddress", "0/7")
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newAllocationPolicy(
@@ -887,7 +873,7 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 	}
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		newFakeChainAddressDeriver(),
+		newFakeIssuedPaymentAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
 		newAllocatePaymentAddressClock(),
@@ -922,7 +908,7 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 		t.Fatal("expected fake receipt tracking store")
 	}
 	trackingStore.createErr = expectedErr
-	deriver := newFakeChainAddressDeriver()
+	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qtrackingerror", "0/4")
 	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
 		newAllocationPolicy(
@@ -962,7 +948,7 @@ func TestAllocatePaymentAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		newFakeChainAddressDeriver(),
+		newFakeIssuedPaymentAddressDeriver(),
 		newInMemoryAddressPolicyReader(nil),
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
 		newAllocatePaymentAddressClock(),
@@ -983,7 +969,7 @@ func TestAllocatePaymentAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		newFakeChainAddressDeriver(),
+		newFakeIssuedPaymentAddressDeriver(),
 		newInMemoryAddressPolicyReader(nil),
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
 		newAllocatePaymentAddressClock(),
@@ -1016,7 +1002,7 @@ func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		newFakeChainAddressDeriver(),
+		newFakeIssuedPaymentAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
 		newAllocatePaymentAddressClock(),
@@ -1046,7 +1032,7 @@ func TestAllocatePaymentAddressUseCaseMapsExhaustedError(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		newFakeChainAddressDeriver(),
+		newFakeIssuedPaymentAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
 		newAllocatePaymentAddressClock(),
@@ -1084,7 +1070,7 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		&fakeChainAddressDeriver{
+		&fakeIssuedPaymentAddressDeriver{
 			supportedChains: map[valueobjects.SupportedChain]bool{
 				valueobjects.SupportedChainBitcoin: true,
 			},
@@ -1156,7 +1142,7 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		&fakeChainAddressDeriver{
+		&fakeIssuedPaymentAddressDeriver{
 			supportedChains: map[valueobjects.SupportedChain]bool{
 				valueobjects.SupportedChainBitcoin: true,
 			},
@@ -1197,7 +1183,7 @@ func TestAllocatePaymentAddressUseCaseRejectInvalidExpectedAmount(t *testing.T) 
 	txManager := newFakeUnitOfWork(allocator)
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
-		newFakeChainAddressDeriver(),
+		newFakeIssuedPaymentAddressDeriver(),
 		catalog,
 		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
 		newAllocatePaymentAddressClock(),
@@ -1237,23 +1223,23 @@ func TestAllocatePaymentAddressUseCaseValidationMissingDependencies(t *testing.T
 				policyReader: newInMemoryAddressPolicyReader(nil),
 				clock:        newAllocatePaymentAddressClock(),
 			},
-			wantErr: "chain address deriver is not configured",
+			wantErr: "issued payment address deriver is not configured",
 		},
 		{
 			name: "missing policy reader",
 			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork: newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				deriver:    newFakeChainAddressDeriver(),
-				clock:      newAllocatePaymentAddressClock(),
+				unitOfWork:           newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				issuedAddressDeriver: newFakeIssuedPaymentAddressDeriver(),
+				clock:                newAllocatePaymentAddressClock(),
 			},
 			wantErr: "address policy reader is not configured",
 		},
 		{
 			name: "missing clock",
 			useCase: &allocatePaymentAddressUseCase{
-				unitOfWork:   newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
-				deriver:      newFakeChainAddressDeriver(),
-				policyReader: newInMemoryAddressPolicyReader(nil),
+				unitOfWork:           newFakeUnitOfWork(&fakePaymentAddressAllocationStore{}),
+				issuedAddressDeriver: newFakeIssuedPaymentAddressDeriver(),
+				policyReader:         newInMemoryAddressPolicyReader(nil),
 			},
 			wantErr: "clock is not configured",
 		},

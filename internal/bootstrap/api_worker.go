@@ -133,8 +133,7 @@ func buildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	)
 	allocatePaymentAddressUseCase := usecases.NewAllocatePaymentAddressUseCase(
 		unitOfWork,
-		chainAddressDeriver,
-		ethereumCreate2SaltDeriver,
+		blockchain.NewIssuedPaymentAddressDeriver(chainAddressDeriver, ethereumCreate2SaltDeriver),
 		addressPolicyReader,
 		allocationIssuancePolicy,
 		clock,

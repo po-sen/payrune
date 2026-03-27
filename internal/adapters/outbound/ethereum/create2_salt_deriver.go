@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -20,7 +19,12 @@ type Create2SaltDeriver struct {
 	keyByNetwork map[valueobjects.NetworkID][]byte
 }
 
-var _ outport.EthereumCreate2SaltDeriver = (*Create2SaltDeriver)(nil)
+type DeriveCreate2AllocationSaltInput struct {
+	Network          valueobjects.NetworkID
+	AddressPolicyID  string
+	PaymentAddressID int64
+	DerivationIndex  uint32
+}
 
 func NewCreate2SaltDeriver(rawSecretsByNetwork map[valueobjects.NetworkID]string) *Create2SaltDeriver {
 	keyByNetwork := make(map[valueobjects.NetworkID][]byte, len(rawSecretsByNetwork))
@@ -45,7 +49,7 @@ func (d *Create2SaltDeriver) HasNetwork(network valueobjects.NetworkID) bool {
 
 func (d *Create2SaltDeriver) DeriveAllocationSalt(
 	_ context.Context,
-	input outport.DeriveEthereumCreate2SaltInput,
+	input DeriveCreate2AllocationSaltInput,
 ) (string, error) {
 	if d == nil {
 		return "", errors.New("ethereum create2 salt deriver is not configured")

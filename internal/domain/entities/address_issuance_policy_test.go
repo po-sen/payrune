@@ -99,3 +99,40 @@ func TestAddressIssuancePolicyValidateForAllocationIssuanceRejectsInvalidInput(t
 		})
 	}
 }
+
+func TestAddressIssuancePolicyValidateForAddressPreview(t *testing.T) {
+	policy := newTestAddressIssuancePolicy()
+
+	validated, err := policy.ValidateForAddressPreview(valueobjects.SupportedChainBitcoin)
+	if err != nil {
+		t.Fatalf("ValidateForAddressPreview returned error: %v", err)
+	}
+	if !validated.SupportsAddressPreview() {
+		t.Fatal("expected validated policy to support preview")
+	}
+}
+
+func TestAddressIssuancePolicyValidateForAddressPreviewRejectsUnsupportedPolicy(t *testing.T) {
+	policy := AddressIssuancePolicy{
+		AddressPolicy: AddressPolicy{
+			AddressPolicyID: "ethereum-mainnet-create2",
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkID("mainnet"),
+			Scheme:          "create2",
+			MinorUnit:       "wei",
+			Decimals:        18,
+		},
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressSourceRef:       "configured",
+			AddressReferencePrefix: "ethereum-mainnet-create2",
+		},
+	}
+
+	_, err := policy.ValidateForAddressPreview(valueobjects.SupportedChainEthereum)
+	if !errors.Is(err, ErrAddressPolicyPreviewNotSupported) {
+		t.Fatalf("unexpected error: got %v want %v", err, ErrAddressPolicyPreviewNotSupported)
+	}
+	if policy.SupportsAddressPreview() {
+		t.Fatal("expected create2 policy preview to be unsupported")
+	}
+}
