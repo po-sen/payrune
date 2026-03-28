@@ -252,7 +252,6 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 	}
 
 	var issuedAllocation entities.PaymentAddressAllocation
-	var derivationFailureErr error
 
 	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		allocationStore := txScope.PaymentAddressAllocation
@@ -294,8 +293,14 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			Allocation: allocation,
 		})
 		if err != nil {
-			derivationFailureErr = inport.ErrDependencyFailure
-			return persistDerivationFailure(ctx, allocationStore, idempotencyStore, input, allocation)
+			return handleDerivationFailure(
+				ctx,
+				allocationStore,
+				idempotencyStore,
+				input,
+				allocation,
+				inport.ErrDependencyFailure,
+			)
 		}
 
 		issuedAllocation, err = allocation.MarkIssued(
@@ -304,8 +309,14 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			derived.AddressReference,
 		)
 		if err != nil {
-			derivationFailureErr = inport.ErrInternalFailure
-			return persistDerivationFailure(ctx, allocationStore, idempotencyStore, input, allocation)
+			return handleDerivationFailure(
+				ctx,
+				allocationStore,
+				idempotencyStore,
+				input,
+				allocation,
+				inport.ErrInternalFailure,
+			)
 		}
 
 		if err := allocationStore.Complete(ctx, issuedAllocation, issuedAt); err != nil {
@@ -359,9 +370,6 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			return entities.PaymentAddressAllocation{}, inport.ErrDependencyFailure
 		}
 	}
-	if derivationFailureErr != nil {
-		return entities.PaymentAddressAllocation{}, derivationFailureErr
-	}
 	return issuedAllocation, nil
 }
 
@@ -398,12 +406,13 @@ func reserveAllocation(
 	return entities.PaymentAddressAllocation{}, inport.ErrPaymentAddressAllocationReservationAttemptsRequired
 }
 
-func persistDerivationFailure(
+func handleDerivationFailure(
 	ctx context.Context,
 	allocationStore outport.PaymentAddressAllocationStore,
 	idempotencyStore outport.PaymentAddressIdempotencyStore,
 	input dto.AllocatePaymentAddressInput,
 	allocation entities.PaymentAddressAllocation,
+	finalErr error,
 ) error {
 	failedAllocation, err := allocation.MarkDerivationFailed(
 		valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
@@ -415,7 +424,7 @@ func persistDerivationFailure(
 		return inport.ErrDependencyFailure
 	}
 	if input.IdempotencyKey == "" {
-		return nil
+		return finalErr
 	}
 	if err := idempotencyStore.Release(ctx, outport.ReleasePaymentAddressIdempotencyInput{
 		Chain:          input.Chain,
@@ -423,5 +432,5 @@ func persistDerivationFailure(
 	}); err != nil {
 		return inport.ErrDependencyFailure
 	}
-	return nil
+	return finalErr
 }
