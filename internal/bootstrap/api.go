@@ -159,17 +159,15 @@ func newAPIContainer() (*apiContainer, error) {
 		postgresadapter.NewPaymentAddressStatusFinder(db),
 		addressPolicyReader,
 	)
-	chainAddressController := httpcontroller.NewChainAddressController(
-		listAddressPoliciesUseCase,
-		generateAddressUseCase,
-		allocatePaymentAddressUseCase,
-		getPaymentAddressStatusUseCase,
-	)
-
 	return &apiContainer{
 		APIHandler: httpadapter.NewPublicRouter(httpadapter.RouterControllers{
-			Health:       healthController,
-			ChainAddress: chainAddressController,
+			Health:                 healthController,
+			ListAddressPolicies:    httpcontroller.NewListAddressPoliciesController(listAddressPoliciesUseCase),
+			GenerateAddress:        httpcontroller.NewGenerateAddressController(generateAddressUseCase),
+			AllocatePaymentAddress: httpcontroller.NewAllocatePaymentAddressController(allocatePaymentAddressUseCase),
+			GetPaymentAddressStatus: httpcontroller.NewGetPaymentAddressStatusController(
+				getPaymentAddressStatusUseCase,
+			),
 		}),
 		closeFn: db.Close,
 	}, nil

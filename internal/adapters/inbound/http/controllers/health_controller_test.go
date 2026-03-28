@@ -19,18 +19,13 @@ func (f *fakeCheckHealthUseCase) Execute(_ context.Context) (dto.HealthResponse,
 	return f.response, f.err
 }
 
-func newHealthTestMux(controller *HealthController) *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", controller.HandleHealth)
-	return mux
-}
-
 func TestHealthControllerGetHealth(t *testing.T) {
 	controller := NewHealthController(&fakeCheckHealthUseCase{
 		response: dto.HealthResponse{Status: "up", Timestamp: "2026-03-03T11:00:00Z"},
 	})
 
-	mux := newHealthTestMux(controller)
+	mux := http.NewServeMux()
+	mux.Handle("/health", controller)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rr := httptest.NewRecorder()
@@ -53,7 +48,8 @@ func TestHealthControllerGetHealth(t *testing.T) {
 
 func TestHealthControllerRejectMethod(t *testing.T) {
 	controller := NewHealthController(&fakeCheckHealthUseCase{})
-	mux := newHealthTestMux(controller)
+	mux := http.NewServeMux()
+	mux.Handle("/health", controller)
 
 	req := httptest.NewRequest(http.MethodPost, "/health", nil)
 	rr := httptest.NewRecorder()

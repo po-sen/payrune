@@ -2,28 +2,35 @@ package httpadapter
 
 import (
 	"net/http"
-
-	"payrune/internal/adapters/inbound/http/controllers"
 	"payrune/internal/adapters/inbound/http/middleware"
 )
 
 type RouterControllers struct {
-	Health       *controllers.HealthController
-	ChainAddress *controllers.ChainAddressController
+	Health                  http.Handler
+	ListAddressPolicies     http.Handler
+	GenerateAddress         http.Handler
+	AllocatePaymentAddress  http.Handler
+	GetPaymentAddressStatus http.Handler
 }
 
 func newRouter(routeControllers RouterControllers) http.Handler {
 	mux := http.NewServeMux()
 	if routeControllers.Health != nil {
-		mux.HandleFunc("/health", routeControllers.Health.HandleHealth)
+		mux.Handle("/health", routeControllers.Health)
 	}
-	if routeControllers.ChainAddress != nil {
-		mux.HandleFunc("/v1/chains/{chain}/address-policies", routeControllers.ChainAddress.HandleListAddressPolicies)
-		mux.HandleFunc("/v1/chains/{chain}/addresses", routeControllers.ChainAddress.HandleGenerateAddress)
-		mux.HandleFunc("/v1/chains/{chain}/payment-addresses", routeControllers.ChainAddress.HandleAllocatePaymentAddress)
-		mux.HandleFunc(
+	if routeControllers.ListAddressPolicies != nil {
+		mux.Handle("/v1/chains/{chain}/address-policies", routeControllers.ListAddressPolicies)
+	}
+	if routeControllers.GenerateAddress != nil {
+		mux.Handle("/v1/chains/{chain}/addresses", routeControllers.GenerateAddress)
+	}
+	if routeControllers.AllocatePaymentAddress != nil {
+		mux.Handle("/v1/chains/{chain}/payment-addresses", routeControllers.AllocatePaymentAddress)
+	}
+	if routeControllers.GetPaymentAddressStatus != nil {
+		mux.Handle(
 			"/v1/chains/{chain}/payment-addresses/{paymentAddressId}",
-			routeControllers.ChainAddress.HandleGetPaymentAddressStatus,
+			routeControllers.GetPaymentAddressStatus,
 		)
 	}
 	return mux

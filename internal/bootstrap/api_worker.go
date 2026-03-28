@@ -153,11 +153,13 @@ func buildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 	)
 
 	return httpadapter.NewPublicRouter(httpadapter.RouterControllers{
-		Health: httpcontroller.NewHealthController(healthUseCase),
-		ChainAddress: httpcontroller.NewChainAddressController(
-			listAddressPoliciesUseCase,
-			generateAddressUseCase,
+		Health:              httpcontroller.NewHealthController(healthUseCase),
+		ListAddressPolicies: httpcontroller.NewListAddressPoliciesController(listAddressPoliciesUseCase),
+		GenerateAddress:     httpcontroller.NewGenerateAddressController(generateAddressUseCase),
+		AllocatePaymentAddress: httpcontroller.NewAllocatePaymentAddressController(
 			allocatePaymentAddressUseCase,
+		),
+		GetPaymentAddressStatus: httpcontroller.NewGetPaymentAddressStatusController(
 			getPaymentAddressStatusUseCase,
 		),
 	}), nil

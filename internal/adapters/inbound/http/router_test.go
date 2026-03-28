@@ -56,13 +56,8 @@ func (f *fakeGetPaymentAddressStatusUseCase) Execute(
 
 func TestNewPublicRouterRegistersRoutesAndAppliesCORS(t *testing.T) {
 	router := NewPublicRouter(RouterControllers{
-		Health: controllers.NewHealthController(&fakeCheckHealthUseCase{}),
-		ChainAddress: controllers.NewChainAddressController(
-			&fakeListAddressPoliciesUseCase{},
-			&fakeGenerateAddressUseCase{},
-			&fakeAllocatePaymentAddressUseCase{},
-			&fakeGetPaymentAddressStatusUseCase{},
-		),
+		Health:              controllers.NewHealthController(&fakeCheckHealthUseCase{}),
+		ListAddressPolicies: controllers.NewListAddressPoliciesController(&fakeListAddressPoliciesUseCase{}),
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -81,10 +76,10 @@ func TestNewPublicRouterRegistersRoutesAndAppliesCORS(t *testing.T) {
 
 func TestRouterRegistersChainAddressRoutes(t *testing.T) {
 	router := newRouter(RouterControllers{
-		ChainAddress: controllers.NewChainAddressController(
-			&fakeListAddressPoliciesUseCase{},
-			&fakeGenerateAddressUseCase{},
-			&fakeAllocatePaymentAddressUseCase{},
+		ListAddressPolicies:    controllers.NewListAddressPoliciesController(&fakeListAddressPoliciesUseCase{}),
+		GenerateAddress:        controllers.NewGenerateAddressController(&fakeGenerateAddressUseCase{}),
+		AllocatePaymentAddress: controllers.NewAllocatePaymentAddressController(&fakeAllocatePaymentAddressUseCase{}),
+		GetPaymentAddressStatus: controllers.NewGetPaymentAddressStatusController(
 			&fakeGetPaymentAddressStatusUseCase{},
 		),
 	})
