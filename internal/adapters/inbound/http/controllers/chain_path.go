@@ -5,9 +5,10 @@ import (
 	"strings"
 
 	"payrune/internal/application/dto"
-	inport "payrune/internal/application/ports/inbound"
 	"payrune/internal/domain/valueobjects"
 )
+
+const publicUnsupportedChainMessage = "chain is not supported"
 
 func parseSupportedChainPathValue(
 	w http.ResponseWriter,
@@ -16,7 +17,7 @@ func parseSupportedChainPathValue(
 	chainRaw := strings.TrimSpace(r.PathValue("chain"))
 	chain, ok := valueobjects.ParseSupportedChain(chainRaw)
 	if !ok {
-		writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: inport.ErrChainNotSupported.Error()})
+		writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: publicUnsupportedChainMessage})
 		return "", false
 	}
 	return chain, true

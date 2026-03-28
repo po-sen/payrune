@@ -104,6 +104,7 @@ func TestChainAddressControllerListRejectMethod(t *testing.T) {
 	if allow := rr.Header().Get("Allow"); allow != http.MethodGet {
 		t.Fatalf("unexpected Allow header: got %q", allow)
 	}
+	assertErrorResponse(t, rr, http.StatusMethodNotAllowed, "method not allowed")
 }
 
 func TestChainAddressControllerListInternalError(t *testing.T) {
@@ -117,7 +118,5 @@ func TestChainAddressControllerListInternalError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusInternalServerError {
-		t.Fatalf("unexpected status code: got %d", rr.Code)
-	}
+	assertErrorResponse(t, rr, http.StatusInternalServerError, "internal server error")
 }

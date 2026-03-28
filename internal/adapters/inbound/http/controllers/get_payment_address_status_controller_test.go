@@ -87,6 +87,7 @@ func TestChainAddressControllerGetPaymentStatusRejectMethod(t *testing.T) {
 	if allow := rr.Header().Get("Allow"); allow != http.MethodGet {
 		t.Fatalf("unexpected Allow header: got %q", allow)
 	}
+	assertErrorResponse(t, rr, http.StatusMethodNotAllowed, "method not allowed")
 }
 
 func TestChainAddressControllerGetPaymentStatusRejectInvalidPaymentAddressID(t *testing.T) {
@@ -100,9 +101,7 @@ func TestChainAddressControllerGetPaymentStatusRejectInvalidPaymentAddressID(t *
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("unexpected status code: got %d", rr.Code)
-	}
+	assertErrorResponse(t, rr, http.StatusBadRequest, "invalid paymentAddressId")
 }
 
 func TestChainAddressControllerGetPaymentStatusErrorMapping(t *testing.T) {
@@ -110,9 +109,10 @@ func TestChainAddressControllerGetPaymentStatusErrorMapping(t *testing.T) {
 		name       string
 		err        error
 		statusCode int
+		message    string
 	}{
-		{name: "not found", err: inport.ErrPaymentAddressNotFound, statusCode: http.StatusNotFound},
-		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError},
+		{name: "not found", err: inport.ErrPaymentAddressNotFound, statusCode: http.StatusNotFound, message: "payment address is not found"},
+		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError, message: "internal server error"},
 	}
 
 	for _, tc := range tests {
@@ -127,9 +127,7 @@ func TestChainAddressControllerGetPaymentStatusErrorMapping(t *testing.T) {
 			rr := httptest.NewRecorder()
 			mux.ServeHTTP(rr, req)
 
-			if rr.Code != tc.statusCode {
-				t.Fatalf("unexpected status code: got %d, want %d", rr.Code, tc.statusCode)
-			}
+			assertErrorResponse(t, rr, tc.statusCode, tc.message)
 		})
 	}
 }

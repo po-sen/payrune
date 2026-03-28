@@ -42,12 +42,8 @@ func (c *GetPaymentAddressStatusController) ServeHTTP(w http.ResponseWriter, r *
 		PaymentAddressID: paymentAddressID,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, inport.ErrPaymentAddressNotFound):
-			writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: err.Error()})
-		default:
-			writeJSON(w, http.StatusInternalServerError, dto.ErrorResponse{Error: "internal server error"})
-		}
+		statusCode, message := mapGetPaymentAddressStatusError(err)
+		writeJSON(w, statusCode, dto.ErrorResponse{Error: message})
 		return
 	}
 
@@ -63,4 +59,13 @@ func parsePositiveInt64Segment(raw string) (int64, error) {
 		return 0, errors.New("value must be greater than zero")
 	}
 	return parsed, nil
+}
+
+func mapGetPaymentAddressStatusError(err error) (int, string) {
+	switch {
+	case errors.Is(err, inport.ErrPaymentAddressNotFound):
+		return http.StatusNotFound, "payment address is not found"
+	default:
+		return http.StatusInternalServerError, "internal server error"
+	}
 }

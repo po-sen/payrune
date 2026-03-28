@@ -168,6 +168,7 @@ func TestChainAddressControllerAllocatePaymentAddressRejectMethod(t *testing.T) 
 	if allow := rr.Header().Get("Allow"); allow != http.MethodPost {
 		t.Fatalf("unexpected Allow header: got %q", allow)
 	}
+	assertErrorResponse(t, rr, http.StatusMethodNotAllowed, "method not allowed")
 }
 
 func TestChainAddressControllerAllocatePaymentAddressRejectInvalidBody(t *testing.T) {
@@ -185,9 +186,7 @@ func TestChainAddressControllerAllocatePaymentAddressRejectInvalidBody(t *testin
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("unexpected status code: got %d", rr.Code)
-	}
+	assertErrorResponse(t, rr, http.StatusBadRequest, "invalid request body")
 }
 
 func TestChainAddressControllerAllocatePaymentAddressRejectMissingAddressPolicyID(t *testing.T) {
@@ -205,9 +204,7 @@ func TestChainAddressControllerAllocatePaymentAddressRejectMissingAddressPolicyI
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("unexpected status code: got %d", rr.Code)
-	}
+	assertErrorResponse(t, rr, http.StatusBadRequest, "addressPolicyId is required")
 }
 
 func TestChainAddressControllerAllocatePaymentAddressRejectMissingExpectedAmountMinor(t *testing.T) {
@@ -225,9 +222,7 @@ func TestChainAddressControllerAllocatePaymentAddressRejectMissingExpectedAmount
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("unexpected status code: got %d", rr.Code)
-	}
+	assertErrorResponse(t, rr, http.StatusBadRequest, "expectedAmountMinor is required")
 }
 
 func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) {
@@ -235,14 +230,15 @@ func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) 
 		name       string
 		err        error
 		statusCode int
+		message    string
 	}{
-		{name: "policy not found", err: inport.ErrAddressPolicyNotFound, statusCode: http.StatusBadRequest},
-		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented},
-		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound},
-		{name: "pool exhausted", err: inport.ErrAddressPoolExhausted, statusCode: http.StatusConflict},
-		{name: "idempotency key conflict", err: inport.ErrIdempotencyKeyConflict, statusCode: http.StatusConflict},
-		{name: "invalid expected amount", err: inport.ErrInvalidExpectedAmount, statusCode: http.StatusBadRequest},
-		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError},
+		{name: "policy not found", err: inport.ErrAddressPolicyNotFound, statusCode: http.StatusBadRequest, message: "address policy is not supported"},
+		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented, message: "address policy is not enabled"},
+		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound, message: publicUnsupportedChainMessage},
+		{name: "pool exhausted", err: inport.ErrAddressPoolExhausted, statusCode: http.StatusConflict, message: "address pool is exhausted"},
+		{name: "idempotency key conflict", err: inport.ErrIdempotencyKeyConflict, statusCode: http.StatusConflict, message: "idempotency key conflicts with existing payment address"},
+		{name: "invalid expected amount", err: inport.ErrInvalidExpectedAmount, statusCode: http.StatusBadRequest, message: "expected amount is invalid"},
+		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError, message: "internal server error"},
 	}
 
 	for _, tc := range tests {
@@ -261,9 +257,7 @@ func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) 
 			rr := httptest.NewRecorder()
 			mux.ServeHTTP(rr, req)
 
-			if rr.Code != tc.statusCode {
-				t.Fatalf("unexpected status code: got %d, want %d", rr.Code, tc.statusCode)
-			}
+			assertErrorResponse(t, rr, tc.statusCode, tc.message)
 		})
 	}
 }

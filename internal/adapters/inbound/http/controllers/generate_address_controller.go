@@ -51,18 +51,8 @@ func (c *GenerateAddressController) ServeHTTP(w http.ResponseWriter, r *http.Req
 		Index:           index,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, inport.ErrChainNotSupported):
-			writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, inport.ErrAddressPolicyNotFound):
-			writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, inport.ErrAddressPolicyNotEnabled):
-			writeJSON(w, http.StatusNotImplemented, dto.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, inport.ErrAddressPreviewNotSupported):
-			writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: err.Error()})
-		default:
-			writeJSON(w, http.StatusInternalServerError, dto.ErrorResponse{Error: "internal server error"})
-		}
+		statusCode, message := mapGenerateAddressError(err)
+		writeJSON(w, statusCode, dto.ErrorResponse{Error: message})
 		return
 	}
 
@@ -83,4 +73,19 @@ func parseIndexQuery(raw string) (uint32, error) {
 	}
 
 	return uint32(parsed), nil
+}
+
+func mapGenerateAddressError(err error) (int, string) {
+	switch {
+	case errors.Is(err, inport.ErrChainNotSupported):
+		return http.StatusNotFound, publicUnsupportedChainMessage
+	case errors.Is(err, inport.ErrAddressPolicyNotFound):
+		return http.StatusBadRequest, "address policy is not supported"
+	case errors.Is(err, inport.ErrAddressPolicyNotEnabled):
+		return http.StatusNotImplemented, "address policy is not enabled"
+	case errors.Is(err, inport.ErrAddressPreviewNotSupported):
+		return http.StatusNotFound, "address preview is not supported for this address policy"
+	default:
+		return http.StatusInternalServerError, "internal server error"
+	}
 }

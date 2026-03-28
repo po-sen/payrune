@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"payrune/internal/application/dto"
-	inport "payrune/internal/application/ports/inbound"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -106,12 +105,26 @@ func TestChainAddressRoutesRejectUnknownChain(t *testing.T) {
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
+	assertErrorResponse(t, rr, http.StatusNotFound, publicUnsupportedChainMessage)
+}
+
+func assertErrorResponse(
+	t *testing.T,
+	rr *httptest.ResponseRecorder,
+	wantStatus int,
+	wantError string,
+) {
+	t.Helper()
+
+	if rr.Code != wantStatus {
+		t.Fatalf("unexpected status code: got %d, want %d", rr.Code, wantStatus)
+	}
 
 	var body dto.ErrorResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if body.Error != inport.ErrChainNotSupported.Error() {
-		t.Fatalf("unexpected error message: got %q", body.Error)
+	if body.Error != wantError {
+		t.Fatalf("unexpected error message: got %q, want %q", body.Error, wantError)
 	}
 }

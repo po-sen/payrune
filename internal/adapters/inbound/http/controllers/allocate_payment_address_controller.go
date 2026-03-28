@@ -71,22 +71,8 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 		IdempotencyKey:      strings.TrimSpace(r.Header.Get(idempotencyKeyHeader)),
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, inport.ErrChainNotSupported):
-			writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, inport.ErrAddressPolicyNotFound):
-			writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, inport.ErrAddressPolicyNotEnabled):
-			writeJSON(w, http.StatusNotImplemented, dto.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, inport.ErrAddressPoolExhausted):
-			writeJSON(w, http.StatusConflict, dto.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, inport.ErrIdempotencyKeyConflict):
-			writeJSON(w, http.StatusConflict, dto.ErrorResponse{Error: err.Error()})
-		case errors.Is(err, inport.ErrInvalidExpectedAmount):
-			writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
-		default:
-			writeJSON(w, http.StatusInternalServerError, dto.ErrorResponse{Error: "internal server error"})
-		}
+		statusCode, message := mapAllocatePaymentAddressError(err)
+		writeJSON(w, statusCode, dto.ErrorResponse{Error: message})
 		return
 	}
 
@@ -94,4 +80,23 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 		w.Header().Set(idempotencyReplayedHeader, "true")
 	}
 	writeJSON(w, http.StatusCreated, response)
+}
+
+func mapAllocatePaymentAddressError(err error) (int, string) {
+	switch {
+	case errors.Is(err, inport.ErrChainNotSupported):
+		return http.StatusNotFound, publicUnsupportedChainMessage
+	case errors.Is(err, inport.ErrAddressPolicyNotFound):
+		return http.StatusBadRequest, "address policy is not supported"
+	case errors.Is(err, inport.ErrAddressPolicyNotEnabled):
+		return http.StatusNotImplemented, "address policy is not enabled"
+	case errors.Is(err, inport.ErrAddressPoolExhausted):
+		return http.StatusConflict, "address pool is exhausted"
+	case errors.Is(err, inport.ErrIdempotencyKeyConflict):
+		return http.StatusConflict, "idempotency key conflicts with existing payment address"
+	case errors.Is(err, inport.ErrInvalidExpectedAmount):
+		return http.StatusBadRequest, "expected amount is invalid"
+	default:
+		return http.StatusInternalServerError, "internal server error"
+	}
 }

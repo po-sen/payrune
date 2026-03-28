@@ -31,13 +31,18 @@ func (c *ListAddressPoliciesController) ServeHTTP(w http.ResponseWriter, r *http
 
 	response, err := c.listAddressPolicies.Execute(r.Context(), chain)
 	if err != nil {
-		if errors.Is(err, inport.ErrChainNotSupported) {
-			writeJSON(w, http.StatusNotFound, dto.ErrorResponse{Error: err.Error()})
-			return
-		}
-		writeJSON(w, http.StatusInternalServerError, dto.ErrorResponse{Error: "internal server error"})
+		statusCode, message := mapListAddressPoliciesError(err)
+		writeJSON(w, statusCode, dto.ErrorResponse{Error: message})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, response)
+}
+
+func mapListAddressPoliciesError(err error) (int, string) {
+	if errors.Is(err, inport.ErrChainNotSupported) {
+		return http.StatusNotFound, publicUnsupportedChainMessage
+	}
+
+	return http.StatusInternalServerError, "internal server error"
 }

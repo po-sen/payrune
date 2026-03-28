@@ -56,9 +56,7 @@ func TestChainAddressControllerRejectsEthereumPreview(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusNotFound {
-		t.Fatalf("unexpected status code: got %d", rr.Code)
-	}
+	assertErrorResponse(t, rr, http.StatusNotFound, "address preview is not supported for this address policy")
 }
 
 func TestChainAddressControllerRejectMissingAddressPolicyID(t *testing.T) {
@@ -69,9 +67,7 @@ func TestChainAddressControllerRejectMissingAddressPolicyID(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("unexpected status code: got %d", rr.Code)
-	}
+	assertErrorResponse(t, rr, http.StatusBadRequest, "addressPolicyId is required")
 }
 
 func TestChainAddressControllerRejectInvalidIndex(t *testing.T) {
@@ -82,9 +78,7 @@ func TestChainAddressControllerRejectInvalidIndex(t *testing.T) {
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("unexpected status code: got %d", rr.Code)
-	}
+	assertErrorResponse(t, rr, http.StatusBadRequest, "invalid index")
 }
 
 func TestChainAddressControllerGenerateErrorMapping(t *testing.T) {
@@ -92,12 +86,13 @@ func TestChainAddressControllerGenerateErrorMapping(t *testing.T) {
 		name       string
 		err        error
 		statusCode int
+		message    string
 	}{
-		{name: "policy not found", err: inport.ErrAddressPolicyNotFound, statusCode: http.StatusBadRequest},
-		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented},
-		{name: "preview not supported", err: inport.ErrAddressPreviewNotSupported, statusCode: http.StatusNotFound},
-		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound},
-		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError},
+		{name: "policy not found", err: inport.ErrAddressPolicyNotFound, statusCode: http.StatusBadRequest, message: "address policy is not supported"},
+		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented, message: "address policy is not enabled"},
+		{name: "preview not supported", err: inport.ErrAddressPreviewNotSupported, statusCode: http.StatusNotFound, message: "address preview is not supported for this address policy"},
+		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound, message: publicUnsupportedChainMessage},
+		{name: "internal", err: inport.ErrDependencyFailure, statusCode: http.StatusInternalServerError, message: "internal server error"},
 	}
 
 	for _, tc := range tests {
@@ -112,9 +107,7 @@ func TestChainAddressControllerGenerateErrorMapping(t *testing.T) {
 			rr := httptest.NewRecorder()
 			mux.ServeHTTP(rr, req)
 
-			if rr.Code != tc.statusCode {
-				t.Fatalf("unexpected status code: got %d, want %d", rr.Code, tc.statusCode)
-			}
+			assertErrorResponse(t, rr, tc.statusCode, tc.message)
 		})
 	}
 }
