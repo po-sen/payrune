@@ -388,8 +388,8 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenIssuedAddress
 	if allocator.markFailedCalls != 1 {
 		t.Fatalf("expected derivation failure persisted once, got %d", allocator.markFailedCalls)
 	}
-	if allocator.lastFailedInput.FailureReason != expectedErr.Error() {
-		t.Fatalf("unexpected persisted failure reason: got %q", allocator.lastFailedInput.FailureReason)
+	if allocator.lastFailedInput.DerivationFailureReason != valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed {
+		t.Fatalf("unexpected persisted failure reason: got %q", allocator.lastFailedInput.DerivationFailureReason)
 	}
 }
 
@@ -1096,7 +1096,7 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 	if allocator.lastFailedInput.PaymentAddressID != 99 {
 		t.Fatalf("unexpected failed payment address id: got %d", allocator.lastFailedInput.PaymentAddressID)
 	}
-	if allocator.lastFailedInput.FailureReason == "" {
+	if allocator.lastFailedInput.DerivationFailureReason.IsZero() {
 		t.Fatalf("expected non-empty failure reason")
 	}
 	if allocator.lastFailedInput.Status != valueobjects.PaymentAddressAllocationStatusDerivationFailed {

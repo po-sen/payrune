@@ -88,18 +88,20 @@ func TestPaymentAddressAllocationMarkDerivationFailed(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	failed, err := allocation.MarkDerivationFailed("derive failed")
+	failed, err := allocation.MarkDerivationFailed(
+		valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if failed.Status != valueobjects.PaymentAddressAllocationStatusDerivationFailed {
 		t.Fatalf("unexpected status: got %q", failed.Status)
 	}
-	if failed.FailureReason != "derive failed" {
-		t.Fatalf("unexpected failure reason: got %q", failed.FailureReason)
+	if failed.DerivationFailureReason != valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed {
+		t.Fatalf("unexpected failure reason: got %q", failed.DerivationFailureReason)
 	}
 
-	if _, err := allocation.MarkDerivationFailed("   "); !errors.Is(err, ErrDerivationFailureReasonRequired) {
+	if _, err := allocation.MarkDerivationFailed(""); !errors.Is(err, ErrDerivationFailureReasonRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

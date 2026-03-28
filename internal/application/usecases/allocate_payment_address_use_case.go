@@ -11,6 +11,7 @@ import (
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/policies"
+	"payrune/internal/domain/valueobjects"
 )
 
 type allocatePaymentAddressUseCase struct {
@@ -294,7 +295,7 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 		})
 		if err != nil {
 			derivationFailureErr = inport.ErrDependencyFailure
-			return persistDerivationFailure(ctx, allocationStore, idempotencyStore, input, allocation, err)
+			return persistDerivationFailure(ctx, allocationStore, idempotencyStore, input, allocation)
 		}
 
 		issuedAllocation, err = allocation.MarkIssued(
@@ -304,7 +305,7 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 		)
 		if err != nil {
 			derivationFailureErr = inport.ErrInternalFailure
-			return persistDerivationFailure(ctx, allocationStore, idempotencyStore, input, allocation, err)
+			return persistDerivationFailure(ctx, allocationStore, idempotencyStore, input, allocation)
 		}
 
 		if err := allocationStore.Complete(ctx, issuedAllocation, issuedAt); err != nil {
@@ -403,9 +404,10 @@ func persistDerivationFailure(
 	idempotencyStore outport.PaymentAddressIdempotencyStore,
 	input dto.AllocatePaymentAddressInput,
 	allocation entities.PaymentAddressAllocation,
-	deriveErr error,
 ) error {
-	failedAllocation, err := allocation.MarkDerivationFailed(deriveErr.Error())
+	failedAllocation, err := allocation.MarkDerivationFailed(
+		valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
+	)
 	if err != nil {
 		return inport.ErrInternalFailure
 	}

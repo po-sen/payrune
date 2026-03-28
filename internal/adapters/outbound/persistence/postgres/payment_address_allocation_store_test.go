@@ -186,8 +186,62 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 	if allocation.Status != valueobjects.PaymentAddressAllocationStatusIssued {
 		t.Fatalf("unexpected status: got %q", allocation.Status)
 	}
+	if !allocation.DerivationFailureReason.IsZero() {
+		t.Fatalf("unexpected derivation failure reason: got %q", allocation.DerivationFailureReason)
+	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+func TestPaymentAddressAllocationStoreFindIssuedByIDParsesLegacyFailureReason(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	store := NewPaymentAddressAllocationStore(db)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"address_policy_id",
+		"derivation_index",
+		"expected_amount_minor",
+		"customer_reference",
+		"chain",
+		"network",
+		"scheme",
+		"address",
+		"address_reference",
+		"failure_reason",
+	}).AddRow(
+		int64(199),
+		"bitcoin-mainnet-native-segwit",
+		int64(21),
+		int64(125000),
+		"order-lookup",
+		"bitcoin",
+		"mainnet",
+		"nativeSegwit",
+		"bc1qlookup",
+		"m/84'/0'/0'/0/21",
+		"xpub parse exploded",
+	)
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT id,")).
+		WithArgs(int64(199)).
+		WillReturnRows(rows)
+
+	allocation, found, err := store.FindIssuedByID(context.Background(), newFindIssuedPaymentAddressAllocationByIDInput(199))
+	if err != nil {
+		t.Fatalf("FindIssuedByID returned error: %v", err)
+	}
+	if !found {
+		t.Fatal("expected found=true")
+	}
+	if allocation.DerivationFailureReason != valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed {
+		t.Fatalf("unexpected derivation failure reason: got %q", allocation.DerivationFailureReason)
 	}
 }
 
@@ -291,12 +345,12 @@ func TestPaymentAddressAllocationStoreMarkDerivationFailedSuccess(t *testing.T) 
 	store := NewPaymentAddressAllocationStore(db)
 
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
-		WithArgs(int64(44), "derive failed").
+		WithArgs(int64(44), "derivation_failed").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = store.MarkDerivationFailed(context.Background(), entities.PaymentAddressAllocation{
-		PaymentAddressID: 44,
-		FailureReason:    " derive failed ",
+		PaymentAddressID:        44,
+		DerivationFailureReason: valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
 	})
 	if err != nil {
 		t.Fatalf("MarkDerivationFailed returned error: %v", err)

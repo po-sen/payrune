@@ -8,18 +8,18 @@ import (
 )
 
 type PaymentAddressAllocation struct {
-	PaymentAddressID    int64
-	AddressPolicyID     string
-	DerivationIndex     uint32
-	ExpectedAmountMinor int64
-	CustomerReference   string
-	Status              valueobjects.PaymentAddressAllocationStatus
-	Chain               valueobjects.SupportedChain
-	Network             valueobjects.NetworkID
-	Scheme              string
-	Address             string
-	AddressReference    string
-	FailureReason       string
+	PaymentAddressID        int64
+	AddressPolicyID         string
+	DerivationIndex         uint32
+	ExpectedAmountMinor     int64
+	CustomerReference       string
+	Status                  valueobjects.PaymentAddressAllocationStatus
+	Chain                   valueobjects.SupportedChain
+	Network                 valueobjects.NetworkID
+	Scheme                  string
+	Address                 string
+	AddressReference        string
+	DerivationFailureReason valueobjects.PaymentAddressAllocationDerivationFailureReason
 }
 
 func NewPaymentAddressAllocation(
@@ -79,20 +79,21 @@ func (a PaymentAddressAllocation) MarkIssued(
 	issued.Scheme = policy.AddressPolicy.Scheme
 	issued.Address = normalizedAddress
 	issued.AddressReference = normalizedAddressReference
-	issued.FailureReason = ""
+	issued.DerivationFailureReason = ""
 
 	return issued, nil
 }
 
-func (a PaymentAddressAllocation) MarkDerivationFailed(reason string) (PaymentAddressAllocation, error) {
-	normalizedReason := strings.TrimSpace(reason)
-	if normalizedReason == "" {
+func (a PaymentAddressAllocation) MarkDerivationFailed(
+	reason valueobjects.PaymentAddressAllocationDerivationFailureReason,
+) (PaymentAddressAllocation, error) {
+	if reason.IsZero() {
 		return PaymentAddressAllocation{}, ErrDerivationFailureReasonRequired
 	}
 
 	failed := a
 	failed.Status = valueobjects.PaymentAddressAllocationStatusDerivationFailed
-	failed.FailureReason = normalizedReason
+	failed.DerivationFailureReason = reason
 	failed.Chain = ""
 	failed.Network = ""
 	failed.Scheme = ""

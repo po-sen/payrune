@@ -103,19 +103,23 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		)
 	}
 
+	derivationFailureReason, _ := valueobjects.ParsePaymentAddressAllocationDerivationFailureReason(
+		strings.TrimSpace(failureReason),
+	)
+
 	return entities.PaymentAddressAllocation{
-		PaymentAddressID:    paymentAddressID,
-		AddressPolicyID:     strings.TrimSpace(addressPolicyID),
-		DerivationIndex:     uint32(derivationIndex),
-		ExpectedAmountMinor: expectedAmountMinor,
-		CustomerReference:   customerReference,
-		Status:              valueobjects.PaymentAddressAllocationStatusIssued,
-		Chain:               chain,
-		Network:             network,
-		Scheme:              strings.TrimSpace(scheme),
-		Address:             strings.TrimSpace(address),
-		AddressReference:    strings.TrimSpace(addressReference),
-		FailureReason:       strings.TrimSpace(failureReason),
+		PaymentAddressID:        paymentAddressID,
+		AddressPolicyID:         strings.TrimSpace(addressPolicyID),
+		DerivationIndex:         uint32(derivationIndex),
+		ExpectedAmountMinor:     expectedAmountMinor,
+		CustomerReference:       customerReference,
+		Status:                  valueobjects.PaymentAddressAllocationStatusIssued,
+		Chain:                   chain,
+		Network:                 network,
+		Scheme:                  strings.TrimSpace(scheme),
+		Address:                 strings.TrimSpace(address),
+		AddressReference:        strings.TrimSpace(addressReference),
+		DerivationFailureReason: derivationFailureReason,
 	}, true, nil
 }
 
@@ -174,7 +178,7 @@ func (r *PaymentAddressAllocationStore) MarkDerivationFailed(
 		     failure_reason = $2
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
 		allocation.PaymentAddressID,
-		nullIfEmpty(strings.TrimSpace(allocation.FailureReason)),
+		nullIfEmpty(string(allocation.DerivationFailureReason)),
 	)
 	if err != nil {
 		return outport.ErrPaymentAddressAllocationStoreFailed
