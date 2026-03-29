@@ -15,9 +15,9 @@ const idempotencyKeyHeader = "Idempotency-Key"
 const idempotencyReplayedHeader = "Idempotency-Replayed"
 
 type allocatePaymentAddressRequest struct {
-	AddressPolicyID     string `json:"addressPolicyId"`
-	ExpectedAmountMinor *int64 `json:"expectedAmountMinor"`
-	CustomerReference   string `json:"customerReference,omitempty"`
+	AddressPolicyID     string  `json:"addressPolicyId"`
+	ExpectedAmountMinor *int64  `json:"expectedAmountMinor"`
+	CustomerReference   *string `json:"customerReference"`
 }
 
 type AllocatePaymentAddressController struct {
@@ -67,7 +67,7 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 		Chain:               chain,
 		AddressPolicyID:     addressPolicyID,
 		ExpectedAmountMinor: *request.ExpectedAmountMinor,
-		CustomerReference:   strings.TrimSpace(request.CustomerReference),
+		CustomerReference:   trimOptionalString(request.CustomerReference),
 		IdempotencyKey:      strings.TrimSpace(r.Header.Get(idempotencyKeyHeader)),
 	})
 	if err != nil {
@@ -80,6 +80,13 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 		w.Header().Set(idempotencyReplayedHeader, "true")
 	}
 	writeJSON(w, http.StatusCreated, response)
+}
+
+func trimOptionalString(raw *string) string {
+	if raw == nil {
+		return ""
+	}
+	return strings.TrimSpace(*raw)
 }
 
 func mapAllocatePaymentAddressError(err error) (int, string) {

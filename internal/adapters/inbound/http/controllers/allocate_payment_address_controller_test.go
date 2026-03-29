@@ -114,6 +114,40 @@ func TestChainAddressControllerAllocateEthereumPaymentAddressSuccess(t *testing.
 	}
 }
 
+func TestChainAddressControllerAllocatePaymentAddressAcceptsNullCustomerReference(t *testing.T) {
+	allocateUC := &fakeAllocatePaymentAddressUseCase{
+		response: dto.AllocatePaymentAddressResponse{
+			PaymentAddressID:    "202",
+			AddressPolicyID:     "bitcoin-testnet4-native-segwit",
+			ExpectedAmountMinor: 2000,
+			Chain:               "bitcoin",
+			Network:             "testnet4",
+			Scheme:              "nativeSegwit",
+			MinorUnit:           "satoshi",
+			Decimals:            8,
+			Address:             "tb1qallocatedaddress",
+		},
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/v1/chains/{chain}/payment-addresses", NewAllocatePaymentAddressController(allocateUC))
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/chains/bitcoin/payment-addresses",
+		strings.NewReader(`{"addressPolicyId":"bitcoin-testnet4-native-segwit","expectedAmountMinor":2000,"customerReference":null}`),
+	)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("unexpected status code: got %d", rr.Code)
+	}
+	if allocateUC.lastInput.CustomerReference != "" {
+		t.Fatalf("expected empty customer reference for null input, got %q", allocateUC.lastInput.CustomerReference)
+	}
+}
+
 func TestChainAddressControllerAllocatePaymentAddressReplayHeader(t *testing.T) {
 	allocateUC := &fakeAllocatePaymentAddressUseCase{
 		response: dto.AllocatePaymentAddressResponse{
