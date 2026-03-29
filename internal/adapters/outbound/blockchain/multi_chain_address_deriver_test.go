@@ -94,9 +94,10 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	bitcoin := &fakeChainSpecificAddressDeriver{
 		chain: valueobjects.SupportedChainBitcoin,
 		output: outport.DeriveChainAddressOutput{
-			Address:                  "bc1qgenerated",
-			RelativeAddressReference: "0/12",
-			AddressReference:         "m/84'/0'/5'/0/12",
+			Address:             "bc1qgenerated",
+			IssuanceRefKind:     valueobjects.IssuanceRefKindHDPathAbsolute,
+			RelativeIssuanceRef: "0/12",
+			IssuanceRef:         "m/84'/0'/5'/0/12",
 		},
 	}
 	deriver, err := NewMultiChainAddressDeriver(bitcoin)
@@ -105,13 +106,13 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	}
 
 	output, err := deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
-		Chain:                    valueobjects.SupportedChain(" BitCoin "),
-		Network:                  valueobjects.NetworkID(" MainNet "),
-		Scheme:                   " nativeSegwit ",
-		AddressSourceRef:         " xpub-main ",
-		AddressReferencePrefix:   " m/84'/0'/0' ",
-		RelativeAddressReference: " 0/12 ",
-		Index:                    12,
+		Chain:               valueobjects.SupportedChain(" BitCoin "),
+		Network:             valueobjects.NetworkID(" MainNet "),
+		Scheme:              " nativeSegwit ",
+		AddressSpaceRef:     " xpub-main ",
+		IssuanceRefPrefix:   " m/84'/0'/0' ",
+		RelativeIssuanceRef: " 0/12 ",
+		SlotIndex:           12,
 	})
 	if err != nil {
 		t.Fatalf("DeriveAddress returned error: %v", err)
@@ -119,8 +120,8 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	if output.Address != "bc1qgenerated" {
 		t.Fatalf("unexpected address: got %q", output.Address)
 	}
-	if output.AddressReference != "m/84'/0'/5'/0/12" {
-		t.Fatalf("unexpected address reference: got %q", output.AddressReference)
+	if output.IssuanceRef != "m/84'/0'/5'/0/12" {
+		t.Fatalf("unexpected address reference: got %q", output.IssuanceRef)
 	}
 	if bitcoin.calls != 1 {
 		t.Fatalf("unexpected deriver calls: got %d", bitcoin.calls)
@@ -134,14 +135,14 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	if bitcoin.lastInput.Scheme != "nativeSegwit" {
 		t.Fatalf("unexpected normalized scheme: got %q", bitcoin.lastInput.Scheme)
 	}
-	if bitcoin.lastInput.AddressSourceRef != "xpub-main" {
-		t.Fatalf("unexpected normalized address source ref: got %q", bitcoin.lastInput.AddressSourceRef)
+	if bitcoin.lastInput.AddressSpaceRef != "xpub-main" {
+		t.Fatalf("unexpected normalized address source ref: got %q", bitcoin.lastInput.AddressSpaceRef)
 	}
-	if bitcoin.lastInput.AddressReferencePrefix != "m/84'/0'/0'" {
-		t.Fatalf("unexpected normalized address reference prefix: got %q", bitcoin.lastInput.AddressReferencePrefix)
+	if bitcoin.lastInput.IssuanceRefPrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected normalized address reference prefix: got %q", bitcoin.lastInput.IssuanceRefPrefix)
 	}
-	if bitcoin.lastInput.RelativeAddressReference != "0/12" {
-		t.Fatalf("unexpected normalized relative address reference: got %q", bitcoin.lastInput.RelativeAddressReference)
+	if bitcoin.lastInput.RelativeIssuanceRef != "0/12" {
+		t.Fatalf("unexpected normalized relative address reference: got %q", bitcoin.lastInput.RelativeIssuanceRef)
 	}
 }
 

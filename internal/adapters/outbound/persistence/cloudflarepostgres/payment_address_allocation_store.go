@@ -13,7 +13,7 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-const maxNonHardenedIndex int64 = 0x7fffffff
+const maxSlotIndex int64 = 0x7fffffff
 
 type PaymentAddressAllocationStore struct {
 	executor executor
@@ -34,14 +34,15 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 	var (
 		paymentAddressID    int64
 		addressPolicyID     string
-		derivationIndex     int64
+		slotIndex           int64
 		expectedAmountMinor int64
 		customerReference   string
 		rawChain            string
 		rawNetwork          string
 		scheme              string
 		address             string
-		addressReference    string
+		rawIssuanceRefKind  string
+		issuanceRef         string
 		failureReason       string
 	)
 
@@ -49,14 +50,15 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		ctx,
 		`SELECT id,
 		        address_policy_id,
-		        derivation_index,
+		        slot_index,
 		        expected_amount_minor,
 		        COALESCE(customer_reference, ''),
 		        COALESCE(chain, ''),
 		        COALESCE(network, ''),
 		        COALESCE(scheme, ''),
 		        COALESCE(address, ''),
-		        COALESCE(address_reference, ''),
+		        COALESCE(issuance_ref_kind, ''),
+		        COALESCE(issuance_ref, ''),
 		        COALESCE(failure_reason, '')
 		   FROM address_policy_allocations
 		  WHERE id = $1
@@ -66,14 +68,15 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 	).Scan(
 		&paymentAddressID,
 		&addressPolicyID,
-		&derivationIndex,
+		&slotIndex,
 		&expectedAmountMinor,
 		&customerReference,
 		&rawChain,
 		&rawNetwork,
 		&scheme,
 		&address,
-		&addressReference,
+		&rawIssuanceRefKind,
+		&issuanceRef,
 		&failureReason,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -82,7 +85,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 	if err != nil {
 		return entities.PaymentAddressAllocation{}, false, outport.ErrPaymentAddressAllocationStoreFailed
 	}
-	if derivationIndex < 0 || derivationIndex > maxNonHardenedIndex {
+	if slotIndex < 0 || slotIndex > maxSlotIndex {
 		return entities.PaymentAddressAllocation{}, false, outport.ErrAddressIndexExhausted
 	}
 
@@ -106,11 +109,19 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 	derivationFailureReason, _ := valueobjects.ParsePaymentAddressAllocationDerivationFailureReason(
 		strings.TrimSpace(failureReason),
 	)
+	issuanceRefKind, ok := valueobjects.ParseIssuanceRefKind(rawIssuanceRefKind)
+	if !ok {
+		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentAddressAllocationPersistedIssuanceRefKindInvalid,
+			rawIssuanceRefKind,
+		)
+	}
 
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:        paymentAddressID,
 		AddressPolicyID:         strings.TrimSpace(addressPolicyID),
-		DerivationIndex:         uint32(derivationIndex),
+		SlotIndex:               uint32(slotIndex),
 		ExpectedAmountMinor:     expectedAmountMinor,
 		CustomerReference:       customerReference,
 		Status:                  valueobjects.PaymentAddressAllocationStatusIssued,
@@ -118,7 +129,8 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		Network:                 network,
 		Scheme:                  strings.TrimSpace(scheme),
 		Address:                 strings.TrimSpace(address),
-		AddressReference:        strings.TrimSpace(addressReference),
+		IssuanceRefKind:         issuanceRefKind,
+		IssuanceRef:             strings.TrimSpace(issuanceRef),
 		DerivationFailureReason: derivationFailureReason,
 	}, true, nil
 }
@@ -139,9 +151,10 @@ func (r *PaymentAddressAllocationStore) Complete(
 		     network = $3,
 		     scheme = $4,
 		     address = $5,
-		     address_reference = $6,
+		     issuance_ref_kind = $6,
+		     issuance_ref = $7,
 		     allocation_status = 'issued',
-		     issued_at = $7,
+		     issued_at = $8,
 		     failure_reason = NULL
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
 		allocation.PaymentAddressID,
@@ -149,7 +162,8 @@ func (r *PaymentAddressAllocationStore) Complete(
 		string(allocation.Network),
 		string(allocation.Scheme),
 		strings.TrimSpace(allocation.Address),
-		nullIfEmpty(allocation.AddressReference),
+		nullIfEmpty(string(allocation.IssuanceRefKind)),
+		nullIfEmpty(allocation.IssuanceRef),
 		issuedAt.UTC(),
 	)
 	if err != nil {
@@ -200,30 +214,30 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, bool, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
-	addressSourceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSourceRef)
+	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSpaceRef)
 
 	var paymentAddressID int64
-	var derivationIndex int64
+	var slotIndex int64
 	err := r.executor.QueryRowContext(
 		ctx,
-		`SELECT id, derivation_index
+		`SELECT id, slot_index
 		 FROM address_policy_allocations
 		 WHERE address_policy_id = $1
-		   AND address_source_ref = $2
+		   AND address_space_ref = $2
 		   AND allocation_status = 'derivation_failed'
 		 ORDER BY reserved_at ASC, id ASC
 		 LIMIT 1
 		 FOR UPDATE SKIP LOCKED`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		addressSourceRef,
-	).Scan(&paymentAddressID, &derivationIndex)
+		addressSpaceRef,
+	).Scan(&paymentAddressID, &slotIndex)
 	if errors.Is(err, sql.ErrNoRows) {
 		return entities.PaymentAddressAllocation{}, false, nil
 	}
 	if err != nil {
 		return entities.PaymentAddressAllocation{}, false, outport.ErrPaymentAddressAllocationStoreFailed
 	}
-	if derivationIndex < 0 || derivationIndex > maxNonHardenedIndex {
+	if slotIndex < 0 || slotIndex > maxSlotIndex {
 		return entities.PaymentAddressAllocation{}, false, outport.ErrAddressIndexExhausted
 	}
 
@@ -238,7 +252,8 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		     network = NULL,
 		     scheme = NULL,
 		     address = NULL,
-		     address_reference = NULL,
+		     issuance_ref_kind = NULL,
+		     issuance_ref = NULL,
 		     reserved_at = NOW(),
 		     issued_at = NULL
 		 WHERE id = $1`,
@@ -252,7 +267,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:    paymentAddressID,
 		AddressPolicyID:     input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		DerivationIndex:     uint32(derivationIndex),
+		SlotIndex:           uint32(slotIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,
 		Status:              valueobjects.PaymentAddressAllocationStatusReserved,
@@ -264,29 +279,29 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
-	addressSourceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSourceRef)
+	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSpaceRef)
 
 	if _, err := r.executor.ExecContext(
 		ctx,
 		`INSERT INTO address_policy_cursors (
 				   address_policy_id,
-				   address_source_ref,
+				   address_space_ref,
 				   next_index
 				 )
 			 SELECT $1,
 			        $2,
 			        COALESCE(
 			          (
-			            SELECT MAX(derivation_index) + 1
+			            SELECT MAX(slot_index) + 1
 			              FROM address_policy_allocations
 			             WHERE address_policy_id = $1
-			               AND address_source_ref = $2
+			               AND address_space_ref = $2
 			          ),
 			          0
 			        )
-			 ON CONFLICT (address_policy_id, address_source_ref) DO NOTHING`,
+			 ON CONFLICT (address_policy_id, address_space_ref) DO NOTHING`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		addressSourceRef,
+		addressSpaceRef,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
@@ -297,15 +312,15 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		`SELECT next_index
 		 FROM address_policy_cursors
 		 WHERE address_policy_id = $1
-		   AND address_source_ref = $2
+		   AND address_space_ref = $2
 		 FOR UPDATE`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		addressSourceRef,
+		addressSpaceRef,
 	).Scan(&nextIndex)
 	if err != nil {
 		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
-	if nextIndex > maxNonHardenedIndex {
+	if nextIndex > maxSlotIndex {
 		return entities.PaymentAddressAllocation{}, outport.ErrAddressIndexExhausted
 	}
 
@@ -314,8 +329,8 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		ctx,
 		`INSERT INTO address_policy_allocations (
 			   address_policy_id,
-			   address_source_ref,
-			   derivation_index,
+			   address_space_ref,
+			   slot_index,
 			   expected_amount_minor,
 			   customer_reference,
 			   allocation_status
@@ -323,7 +338,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		 VALUES ($1, $2, $3, $4, $5, 'reserved')
 		 RETURNING id`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		addressSourceRef,
+		addressSpaceRef,
 		nextIndex,
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
@@ -338,9 +353,9 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		 SET next_index = next_index + 1,
 		     updated_at = NOW()
 		 WHERE address_policy_id = $1
-		   AND address_source_ref = $2`,
+		   AND address_space_ref = $2`,
 		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		addressSourceRef,
+		addressSpaceRef,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
@@ -348,7 +363,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:    paymentAddressID,
 		AddressPolicyID:     input.IssuancePolicy.AddressPolicy.AddressPolicyID,
-		DerivationIndex:     uint32(nextIndex),
+		SlotIndex:           uint32(nextIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,
 		Status:              valueobjects.PaymentAddressAllocationStatusReserved,

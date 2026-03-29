@@ -8,17 +8,17 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-func TestBuildAddressSourceRefFromMetadataRequiresCompleteInputs(t *testing.T) {
+func TestBuildAddressSpaceRefFromMetadataRequiresCompleteInputs(t *testing.T) {
 	collectorAddress := "0x2222222222222222222222222222222222222222"
 
-	if got := BuildAddressSourceRefFromMetadata(
+	if got := BuildAddressSpaceRefFromMetadata(
 		DeploymentMetadata{},
 		collectorAddress,
 	); got != "" {
 		t.Fatalf("expected empty source ref for missing metadata, got %q", got)
 	}
 
-	if got := BuildAddressSourceRefFromMetadata(
+	if got := BuildAddressSpaceRefFromMetadata(
 		DeploymentMetadata{
 			FactoryAddress: "0x1111111111111111111111111111111111111111",
 		},
@@ -27,7 +27,7 @@ func TestBuildAddressSourceRefFromMetadataRequiresCompleteInputs(t *testing.T) {
 		t.Fatalf("expected empty source ref for missing receiver artifact, got %q", got)
 	}
 
-	if got := BuildAddressSourceRefFromMetadata(
+	if got := BuildAddressSpaceRefFromMetadata(
 		DeploymentMetadata{
 			FactoryAddress: "0x1111111111111111111111111111111111111111",
 		},

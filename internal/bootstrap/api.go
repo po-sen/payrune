@@ -435,8 +435,8 @@ func newBitcoinAddressIssuancePolicy(
 	addressPolicyID string,
 	network valueobjects.NetworkID,
 	scheme string,
-	addressSourceRef string,
-	addressReferencePrefix string,
+	addressSpaceRef string,
+	issuanceRefPrefix string,
 ) entities.AddressIssuancePolicy {
 	return entities.AddressIssuancePolicy{
 		AddressPolicy: entities.AddressPolicy{
@@ -448,8 +448,8 @@ func newBitcoinAddressIssuancePolicy(
 			Decimals:        8,
 		},
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSourceRef:       addressSourceRef,
-			AddressReferencePrefix: addressReferencePrefix,
+			AddressSpaceRef:   addressSpaceRef,
+			IssuanceRefPrefix: issuanceRefPrefix,
 		},
 	}.Normalize()
 }
@@ -459,9 +459,9 @@ func newEthereumCreate2AddressIssuancePolicy(
 	collectorAddress string,
 	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
 ) entities.AddressIssuancePolicy {
-	addressSourceRef := ""
+	addressSpaceRef := ""
 	if ethereumCreate2SaltDeriver != nil && ethereumCreate2SaltDeriver.HasNetwork(network) {
-		addressSourceRef = ethereumcreate2assets.BuildAddressSourceRef(string(network), collectorAddress)
+		addressSpaceRef = ethereumcreate2assets.BuildAddressSpaceRef(string(network), collectorAddress)
 	}
 
 	return entities.AddressIssuancePolicy{
@@ -474,8 +474,7 @@ func newEthereumCreate2AddressIssuancePolicy(
 			Decimals:        18,
 		},
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSourceRef:       addressSourceRef,
-			AddressReferencePrefix: fmt.Sprintf("ethereum-%s-create2", network),
+			AddressSpaceRef: addressSpaceRef,
 		},
 	}.Normalize()
 }

@@ -8,7 +8,7 @@ import (
 	"payrune/internal/domain/valueobjects"
 )
 
-func TestAddressPolicyReaderPreservesAddressSourceRef(t *testing.T) {
+func TestAddressPolicyReaderPreservesAddressSpaceRef(t *testing.T) {
 	reader := NewAddressPolicyReader([]entities.AddressIssuancePolicy{
 		{
 			AddressPolicy: entities.AddressPolicy{
@@ -18,7 +18,7 @@ func TestAddressPolicyReaderPreservesAddressSourceRef(t *testing.T) {
 				Scheme:          string(valueobjects.BitcoinAddressSchemeLegacy),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef: "xpub-a",
+				AddressSpaceRef: "xpub-a",
 			},
 		},
 		{
@@ -29,7 +29,7 @@ func TestAddressPolicyReaderPreservesAddressSourceRef(t *testing.T) {
 				Scheme:          string(valueobjects.BitcoinAddressSchemeLegacy),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef: "xpub-b",
+				AddressSpaceRef: "xpub-b",
 			},
 		},
 	})
@@ -50,18 +50,18 @@ func TestAddressPolicyReaderPreservesAddressSourceRef(t *testing.T) {
 		t.Fatalf("expected policy-b exists")
 	}
 
-	if policyA.IssuanceConfig.AddressSourceRef != "xpub-a" {
-		t.Fatalf("unexpected account public key for policy-a: got %q", policyA.IssuanceConfig.AddressSourceRef)
+	if policyA.IssuanceConfig.AddressSpaceRef != "xpub-a" {
+		t.Fatalf("unexpected account public key for policy-a: got %q", policyA.IssuanceConfig.AddressSpaceRef)
 	}
-	if policyB.IssuanceConfig.AddressSourceRef != "xpub-b" {
-		t.Fatalf("unexpected account public key for policy-b: got %q", policyB.IssuanceConfig.AddressSourceRef)
+	if policyB.IssuanceConfig.AddressSpaceRef != "xpub-b" {
+		t.Fatalf("unexpected account public key for policy-b: got %q", policyB.IssuanceConfig.AddressSpaceRef)
 	}
-	if policyA.IssuanceConfig.AddressSourceRef == policyB.IssuanceConfig.AddressSourceRef {
+	if policyA.IssuanceConfig.AddressSpaceRef == policyB.IssuanceConfig.AddressSpaceRef {
 		t.Fatalf("expected different account public keys for different policies")
 	}
 }
 
-func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
+func TestAddressPolicyReaderUsesConfiguredIssuanceRefPrefix(t *testing.T) {
 	reader := NewAddressPolicyReader([]entities.AddressIssuancePolicy{
 		{
 			AddressPolicy: entities.AddressPolicy{
@@ -71,8 +71,8 @@ func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
 				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "xpub-a",
-				AddressReferencePrefix: "m/84'/0'/0'",
+				AddressSpaceRef:   "xpub-a",
+				IssuanceRefPrefix: "m/84'/0'/0'",
 			},
 		},
 		{
@@ -83,8 +83,8 @@ func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
 				Scheme:          string(valueobjects.BitcoinAddressSchemeTaproot),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "xpub-b",
-				AddressReferencePrefix: "m/86'/1'/0'",
+				AddressSpaceRef:   "xpub-b",
+				IssuanceRefPrefix: "m/86'/1'/0'",
 			},
 		},
 	})
@@ -96,10 +96,10 @@ func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected native-mainnet exists")
 	}
-	if nativeMainnet.IssuanceConfig.AddressReferencePrefix != "m/84'/0'/0'" {
+	if nativeMainnet.IssuanceConfig.IssuanceRefPrefix != "m/84'/0'/0'" {
 		t.Fatalf(
 			"unexpected derivation path prefix for native-mainnet: got %q",
-			nativeMainnet.IssuanceConfig.AddressReferencePrefix,
+			nativeMainnet.IssuanceConfig.IssuanceRefPrefix,
 		)
 	}
 
@@ -110,10 +110,10 @@ func TestAddressPolicyReaderUsesConfiguredAddressReferencePrefix(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected taproot-testnet4 exists")
 	}
-	if taprootTestnet4.IssuanceConfig.AddressReferencePrefix != "m/86'/1'/0'" {
+	if taprootTestnet4.IssuanceConfig.IssuanceRefPrefix != "m/86'/1'/0'" {
 		t.Fatalf(
 			"unexpected derivation path prefix for taproot-testnet4: got %q",
-			taprootTestnet4.IssuanceConfig.AddressReferencePrefix,
+			taprootTestnet4.IssuanceConfig.IssuanceRefPrefix,
 		)
 	}
 }
@@ -130,8 +130,8 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 				Decimals:        18,
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-				AddressReferencePrefix: "ethereum-mainnet-create2/",
+				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+				IssuanceRefPrefix: "ethereum-mainnet-create2/",
 			},
 		},
 		{
@@ -144,8 +144,8 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 				Decimals:        18,
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-				AddressReferencePrefix: "ethereum-sepolia-create2/",
+				AddressSpaceRef:   "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+				IssuanceRefPrefix: "ethereum-sepolia-create2/",
 			},
 		},
 	})
@@ -166,8 +166,8 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 	if policy.AddressPolicy.Decimals != 18 {
 		t.Fatalf("unexpected decimals: got %d", policy.AddressPolicy.Decimals)
 	}
-	if policy.IssuanceConfig.AddressReferencePrefix != "ethereum-mainnet-create2" {
-		t.Fatalf("unexpected address reference prefix: got %q", policy.IssuanceConfig.AddressReferencePrefix)
+	if policy.IssuanceConfig.IssuanceRefPrefix != "ethereum-mainnet-create2" {
+		t.Fatalf("unexpected address reference prefix: got %q", policy.IssuanceConfig.IssuanceRefPrefix)
 	}
 	if !policy.IsEnabled() {
 		t.Fatal("expected ethereum policy enabled")
@@ -183,7 +183,7 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 	if sepoliaPolicy.AddressPolicy.Network != valueobjects.NetworkID("sepolia") {
 		t.Fatalf("unexpected sepolia network: got %q", sepoliaPolicy.AddressPolicy.Network)
 	}
-	if sepoliaPolicy.IssuanceConfig.AddressReferencePrefix != "ethereum-sepolia-create2" {
-		t.Fatalf("unexpected sepolia address reference prefix: got %q", sepoliaPolicy.IssuanceConfig.AddressReferencePrefix)
+	if sepoliaPolicy.IssuanceConfig.IssuanceRefPrefix != "ethereum-sepolia-create2" {
+		t.Fatalf("unexpected sepolia address reference prefix: got %q", sepoliaPolicy.IssuanceConfig.IssuanceRefPrefix)
 	}
 }

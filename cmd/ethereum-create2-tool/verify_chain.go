@@ -48,7 +48,6 @@ func runVerifyChain(args []string) error {
 	operatorPrivateKey := flagSet.String("operator-private-key", envOrDefault("ETHEREUM_CREATE2_VERIFY_OPERATOR_PRIVATE_KEY", ""), "operator signer private key")
 	collectorAddress := flagSet.String("collector", envOrDefault("ETHEREUM_CREATE2_VERIFY_COLLECTOR_ADDRESS", ""), "collector address")
 	factoryAddressFlag := flagSet.String("factory", envOrDefault("ETHEREUM_CREATE2_VERIFY_FACTORY_ADDRESS", ""), "existing CREATE2 factory address; if omitted a new factory is deployed")
-	addressPrefix := flagSet.String("prefix", envOrDefault("ETHEREUM_CREATE2_VERIFY_ADDRESS_REFERENCE_PREFIX", ""), "address reference prefix")
 	salt := flagSet.String("salt", envOrDefault("ETHEREUM_CREATE2_VERIFY_SALT", ""), "32-byte CREATE2 salt hex; if omitted a random salt is generated")
 	fundAmountWeiRaw := flagSet.String("fund-amount-wei", envOrDefault("ETHEREUM_CREATE2_VERIFY_FUND_AMOUNT_WEI", defaultVerifyFundAmountWei.String()), "amount to pre-fund the predicted address in wei")
 	if err := flagSet.Parse(args); err != nil {
@@ -66,9 +65,6 @@ func runVerifyChain(args []string) error {
 	}
 	if strings.TrimSpace(*collectorAddress) == "" {
 		return fmt.Errorf("collector address is required")
-	}
-	if strings.TrimSpace(*addressPrefix) == "" {
-		*addressPrefix = defaultAddressReferencePrefix(*network)
 	}
 	normalizedSalt, err := normalizeOrGenerateSalt(*salt)
 	if err != nil {
@@ -133,7 +129,6 @@ func runVerifyChain(args []string) error {
 		factoryAddress.Hex(),
 		*collectorAddress,
 		paths.receiverArtifact,
-		*addressPrefix,
 		normalizedSalt,
 	)
 	if err != nil {
@@ -146,7 +141,7 @@ func runVerifyChain(args []string) error {
 		return err
 	}
 	if len(receiverCode) > 0 {
-		return fmt.Errorf("receiver code already exists at %s; choose a fresh salt or prefix", receiverAddress.Hex())
+		return fmt.Errorf("receiver code already exists at %s; choose a fresh salt", receiverAddress.Hex())
 	}
 
 	if _, err := sendNativeETH(

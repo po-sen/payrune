@@ -35,15 +35,15 @@ func LookupDeploymentMetadata(network string) (DeploymentMetadata, bool) {
 	return metadata, ok
 }
 
-func BuildAddressSourceRef(network string, collectorAddress string) string {
+func BuildAddressSpaceRef(network string, collectorAddress string) string {
 	metadata, ok := LookupDeploymentMetadata(network)
 	if !ok {
 		return ""
 	}
-	return BuildAddressSourceRefFromMetadata(metadata, collectorAddress)
+	return BuildAddressSpaceRefFromMetadata(metadata, collectorAddress)
 }
 
-func BuildAddressSourceRefFromMetadata(
+func BuildAddressSpaceRefFromMetadata(
 	metadata DeploymentMetadata,
 	collectorAddress string,
 ) string {
@@ -57,7 +57,7 @@ func BuildAddressSourceRefFromMetadata(
 		return ""
 	}
 
-	sourceRef, err := buildCreate2AddressSourceRef(
+	sourceRef, err := buildCreate2AddressSpaceRef(
 		strings.TrimSpace(metadata.FactoryAddress),
 		collectorAddress,
 		initCodeHash,

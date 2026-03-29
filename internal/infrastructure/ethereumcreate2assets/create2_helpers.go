@@ -10,7 +10,7 @@ import (
 
 const create2SourceRefVersion = "create2.v1"
 
-func buildCreate2AddressSourceRef(
+func buildCreate2AddressSpaceRef(
 	factoryAddress string,
 	collectorAddress string,
 	initCodeHash string,

@@ -10,7 +10,7 @@ import (
 type PaymentAddressAllocation struct {
 	PaymentAddressID        int64
 	AddressPolicyID         string
-	DerivationIndex         uint32
+	SlotIndex               uint32
 	ExpectedAmountMinor     int64
 	CustomerReference       string
 	Status                  valueobjects.PaymentAddressAllocationStatus
@@ -18,14 +18,15 @@ type PaymentAddressAllocation struct {
 	Network                 valueobjects.NetworkID
 	Scheme                  string
 	Address                 string
-	AddressReference        string
+	IssuanceRefKind         valueobjects.IssuanceRefKind
+	IssuanceRef             string
 	DerivationFailureReason valueobjects.PaymentAddressAllocationDerivationFailureReason
 }
 
 func NewPaymentAddressAllocation(
 	paymentAddressID int64,
 	addressPolicyID string,
-	derivationIndex uint32,
+	slotIndex uint32,
 	expectedAmountMinor int64,
 	customerReference string,
 ) (PaymentAddressAllocation, error) {
@@ -43,7 +44,7 @@ func NewPaymentAddressAllocation(
 	return PaymentAddressAllocation{
 		PaymentAddressID:    paymentAddressID,
 		AddressPolicyID:     normalizedPolicyID,
-		DerivationIndex:     derivationIndex,
+		SlotIndex:           slotIndex,
 		ExpectedAmountMinor: expectedAmountMinor,
 		CustomerReference:   strings.TrimSpace(customerReference),
 		Status:              valueobjects.PaymentAddressAllocationStatusReserved,
@@ -53,7 +54,8 @@ func NewPaymentAddressAllocation(
 func (a PaymentAddressAllocation) MarkIssued(
 	policy AddressIssuancePolicy,
 	address string,
-	addressReference string,
+	issuanceRefKind valueobjects.IssuanceRefKind,
+	issuanceRef string,
 ) (PaymentAddressAllocation, error) {
 	policy = policy.Normalize()
 	if policy.AddressPolicy.AddressPolicyID == "" {
@@ -67,9 +69,12 @@ func (a PaymentAddressAllocation) MarkIssued(
 	if normalizedAddress == "" {
 		return PaymentAddressAllocation{}, ErrAddressRequired
 	}
-	normalizedAddressReference := strings.TrimSpace(addressReference)
-	if normalizedAddressReference == "" {
-		return PaymentAddressAllocation{}, ErrAddressReferenceRequired
+	if issuanceRefKind.IsZero() {
+		return PaymentAddressAllocation{}, ErrIssuanceRefKindRequired
+	}
+	normalizedIssuanceRef := strings.TrimSpace(issuanceRef)
+	if normalizedIssuanceRef == "" {
+		return PaymentAddressAllocation{}, ErrIssuanceRefRequired
 	}
 
 	issued := a
@@ -78,7 +83,8 @@ func (a PaymentAddressAllocation) MarkIssued(
 	issued.Network = policy.AddressPolicy.Network
 	issued.Scheme = policy.AddressPolicy.Scheme
 	issued.Address = normalizedAddress
-	issued.AddressReference = normalizedAddressReference
+	issued.IssuanceRefKind = issuanceRefKind
+	issued.IssuanceRef = normalizedIssuanceRef
 	issued.DerivationFailureReason = ""
 
 	return issued, nil
@@ -98,7 +104,8 @@ func (a PaymentAddressAllocation) MarkDerivationFailed(
 	failed.Network = ""
 	failed.Scheme = ""
 	failed.Address = ""
-	failed.AddressReference = ""
+	failed.IssuanceRefKind = ""
+	failed.IssuanceRef = ""
 	return failed, nil
 }
 

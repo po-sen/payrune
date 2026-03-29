@@ -13,19 +13,20 @@ var (
 )
 
 type DeriveChainAddressInput struct {
-	Chain                    valueobjects.SupportedChain
-	Network                  valueobjects.NetworkID
-	Scheme                   string
-	AddressSourceRef         string
-	AddressReferencePrefix   string
-	RelativeAddressReference string
-	Index                    uint32
+	Chain               valueobjects.SupportedChain
+	Network             valueobjects.NetworkID
+	Scheme              string
+	AddressSpaceRef     string
+	IssuanceRefPrefix   string
+	RelativeIssuanceRef string
+	SlotIndex           uint32
 }
 
 type DeriveChainAddressOutput struct {
-	Address                  string
-	RelativeAddressReference string
-	AddressReference         string
+	Address             string
+	RelativeIssuanceRef string
+	IssuanceRefKind     valueobjects.IssuanceRefKind
+	IssuanceRef         string
 }
 
 type ChainAddressDeriver interface {

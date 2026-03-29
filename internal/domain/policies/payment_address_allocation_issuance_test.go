@@ -21,8 +21,8 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "xpub-main",
-				AddressReferencePrefix: "m/84'/0'/0'",
+				AddressSpaceRef:   "xpub-main",
+				IssuanceRefPrefix: "m/84'/0'/0'",
 			},
 		},
 		valueobjects.SupportedChainBitcoin,
@@ -78,8 +78,8 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testi
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "xpub-main",
-				AddressReferencePrefix: "m/84'/0'/0'",
+				AddressSpaceRef:   "xpub-main",
+				IssuanceRefPrefix: "m/84'/0'/0'",
 			},
 		},
 		valueobjects.SupportedChainBitcoin,
@@ -135,8 +135,8 @@ func TestPaymentAddressAllocationIssuancePolicyPlanScopesOverridesByChainAndNetw
 				Decimals:        18,
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-				AddressReferencePrefix: "ethereum-mainnet-create2",
+				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+				IssuanceRefPrefix: "ethereum-mainnet-create2",
 			},
 		},
 		valueobjects.SupportedChainEthereum,
@@ -189,8 +189,8 @@ func TestPaymentAddressAllocationIssuancePolicyPlanRejectsMissingIssuedAt(t *tes
 				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "xpub-main",
-				AddressReferencePrefix: "m/84'/0'/0'",
+				AddressSpaceRef:   "xpub-main",
+				IssuanceRefPrefix: "m/84'/0'/0'",
 			},
 		},
 		valueobjects.SupportedChainBitcoin,

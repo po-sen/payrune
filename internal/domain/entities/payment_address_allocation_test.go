@@ -41,16 +41,21 @@ func TestPaymentAddressAllocationMarkIssued(t *testing.T) {
 			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressReferencePrefix: "m/84'/0'/0'",
+			IssuanceRefPrefix: "m/84'/0'/0'",
 		},
 	}
 
-	issued, err := allocation.MarkIssued(issuancePolicy, "bc1qexample", "m/84'/0'/0'/0/42")
+	issued, err := allocation.MarkIssued(
+		issuancePolicy,
+		"bc1qexample",
+		valueobjects.IssuanceRefKindHDPathAbsolute,
+		"m/84'/0'/0'/0/42",
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if issued.AddressReference != "m/84'/0'/0'/0/42" {
-		t.Fatalf("unexpected address reference: got %q", issued.AddressReference)
+	if issued.IssuanceRef != "m/84'/0'/0'/0/42" {
+		t.Fatalf("unexpected address reference: got %q", issued.IssuanceRef)
 	}
 	if issued.Address != "bc1qexample" {
 		t.Fatalf("unexpected address: got %q", issued.Address)
@@ -71,11 +76,16 @@ func TestPaymentAddressAllocationMarkIssuedRejectPolicyMismatch(t *testing.T) {
 			AddressPolicyID: "policy-b",
 		},
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressReferencePrefix: "m/84'/0'/0'",
+			IssuanceRefPrefix: "m/84'/0'/0'",
 		},
 	}
 
-	if _, err := allocation.MarkIssued(issuancePolicy, "bc1qexample", "m/84'/0'/0'/0/42"); err == nil {
+	if _, err := allocation.MarkIssued(
+		issuancePolicy,
+		"bc1qexample",
+		valueobjects.IssuanceRefKindHDPathAbsolute,
+		"m/84'/0'/0'/0/42",
+	); err == nil {
 		t.Fatalf("expected policy mismatch error")
 	} else if !errors.Is(err, ErrAddressPolicyMismatch) {
 		t.Fatalf("unexpected error: got %v", err)
@@ -120,10 +130,15 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 		},
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressReferencePrefix: "m/84'/1'/0'",
+			IssuanceRefPrefix: "m/84'/1'/0'",
 		},
 	}
-	issued, err := allocation.MarkIssued(issuancePolicy, "tb1qexample", "m/84'/1'/0'/0/42")
+	issued, err := allocation.MarkIssued(
+		issuancePolicy,
+		"tb1qexample",
+		valueobjects.IssuanceRefKindHDPathAbsolute,
+		"m/84'/1'/0'/0/42",
+	)
 	if err != nil {
 		t.Fatalf("MarkIssued returned error: %v", err)
 	}

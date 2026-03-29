@@ -56,30 +56,31 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	address, err := g.deriver.DeriveAddress(
 		network,
 		scheme,
-		input.AddressSourceRef,
-		input.Index,
+		input.AddressSpaceRef,
+		input.SlotIndex,
 	)
 	if err != nil {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationFailed
 	}
 
 	absoluteDerivationPath, err := g.deriver.AbsoluteDerivationPath(
-		input.AddressSourceRef,
-		input.AddressReferencePrefix,
-		input.Index,
+		input.AddressSpaceRef,
+		input.IssuanceRefPrefix,
+		input.SlotIndex,
 	)
 	if err != nil {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationFailed
 	}
 
-	relativeDerivationPath, err := g.deriver.DerivationPath(input.AddressSourceRef, input.Index)
+	relativeDerivationPath, err := g.deriver.DerivationPath(input.AddressSpaceRef, input.SlotIndex)
 	if err != nil {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationFailed
 	}
 
 	return outport.DeriveChainAddressOutput{
-		Address:                  address,
-		RelativeAddressReference: relativeDerivationPath,
-		AddressReference:         absoluteDerivationPath,
+		Address:             address,
+		RelativeIssuanceRef: relativeDerivationPath,
+		IssuanceRefKind:     valueobjects.IssuanceRefKindHDPathAbsolute,
+		IssuanceRef:         absoluteDerivationPath,
 	}, nil
 }

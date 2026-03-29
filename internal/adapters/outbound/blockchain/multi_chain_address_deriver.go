@@ -78,13 +78,13 @@ func (d *MultiChainAddressDeriver) DeriveAddress(
 	}
 
 	output, err := deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:                    normalizedChain,
-		Network:                  normalizedNetwork,
-		Scheme:                   strings.TrimSpace(input.Scheme),
-		AddressSourceRef:         strings.TrimSpace(input.AddressSourceRef),
-		AddressReferencePrefix:   strings.TrimSpace(input.AddressReferencePrefix),
-		RelativeAddressReference: strings.TrimSpace(input.RelativeAddressReference),
-		Index:                    input.Index,
+		Chain:               normalizedChain,
+		Network:             normalizedNetwork,
+		Scheme:              strings.TrimSpace(input.Scheme),
+		AddressSpaceRef:     strings.TrimSpace(input.AddressSpaceRef),
+		IssuanceRefPrefix:   strings.TrimSpace(input.IssuanceRefPrefix),
+		RelativeIssuanceRef: strings.TrimSpace(input.RelativeIssuanceRef),
+		SlotIndex:           input.SlotIndex,
 	})
 	if err != nil {
 		switch {

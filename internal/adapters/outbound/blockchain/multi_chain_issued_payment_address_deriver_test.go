@@ -71,8 +71,9 @@ func TestMultiChainIssuedPaymentAddressDeriverDispatchesByChain(t *testing.T) {
 	bitcoinDeriver := &fakeChainSpecificIssuedPaymentAddressDeriver{
 		chain: valueobjects.SupportedChainBitcoin,
 		output: outport.DeriveIssuedPaymentAddressOutput{
-			Address:          "bc1qissued",
-			AddressReference: "m/84'/0'/0'/0/8",
+			Address:         "bc1qissued",
+			IssuanceRefKind: valueobjects.IssuanceRefKindHDPathAbsolute,
+			IssuanceRef:     "m/84'/0'/0'/0/8",
 		},
 	}
 	ethereumDeriver := &fakeChainSpecificIssuedPaymentAddressDeriver{
@@ -93,13 +94,13 @@ func TestMultiChainIssuedPaymentAddressDeriverDispatchesByChain(t *testing.T) {
 				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "xpub-main",
-				AddressReferencePrefix: "m/84'/0'/0'",
+				AddressSpaceRef:   "xpub-main",
+				IssuanceRefPrefix: "m/84'/0'/0'",
 			},
 		},
 		Allocation: entities.PaymentAddressAllocation{
 			PaymentAddressID: 88,
-			DerivationIndex:  8,
+			SlotIndex:        8,
 		},
 	})
 	if err != nil {

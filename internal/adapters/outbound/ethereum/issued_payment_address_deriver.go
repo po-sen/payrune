@@ -3,7 +3,6 @@ package ethereum
 import (
 	"context"
 	"errors"
-	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/valueobjects"
@@ -43,19 +42,19 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	}
 
 	policy := input.Policy.Normalize()
-	relativeAddressReference, err := d.deriveRelativeAddressReference(ctx, input)
+	relativeIssuanceRef, err := d.deriveRelativeIssuanceRef(ctx, input)
 	if err != nil {
 		return outport.DeriveIssuedPaymentAddressOutput{}, err
 	}
 
 	output, err := d.chainAddressDeriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:                    policy.AddressPolicy.Chain,
-		Network:                  policy.AddressPolicy.Network,
-		Scheme:                   policy.AddressPolicy.Scheme,
-		AddressSourceRef:         policy.IssuanceConfig.AddressSourceRef,
-		AddressReferencePrefix:   policy.IssuanceConfig.AddressReferencePrefix,
-		RelativeAddressReference: relativeAddressReference,
-		Index:                    input.Allocation.DerivationIndex,
+		Chain:               policy.AddressPolicy.Chain,
+		Network:             policy.AddressPolicy.Network,
+		Scheme:              policy.AddressPolicy.Scheme,
+		AddressSpaceRef:     policy.IssuanceConfig.AddressSpaceRef,
+		IssuanceRefPrefix:   policy.IssuanceConfig.IssuanceRefPrefix,
+		RelativeIssuanceRef: relativeIssuanceRef,
+		SlotIndex:           input.Allocation.SlotIndex,
 	})
 	if err != nil {
 		switch {
@@ -68,18 +67,14 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 		}
 	}
 
-	addressReference := strings.TrimSpace(output.AddressReference)
-	if addressReference == "" {
-		addressReference = strings.TrimSpace(output.RelativeAddressReference)
-	}
-
 	return outport.DeriveIssuedPaymentAddressOutput{
-		Address:          output.Address,
-		AddressReference: addressReference,
+		Address:         output.Address,
+		IssuanceRefKind: output.IssuanceRefKind,
+		IssuanceRef:     output.IssuanceRef,
 	}, nil
 }
 
-func (d *IssuedPaymentAddressDeriver) deriveRelativeAddressReference(
+func (d *IssuedPaymentAddressDeriver) deriveRelativeIssuanceRef(
 	ctx context.Context,
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (string, error) {
@@ -91,14 +86,14 @@ func (d *IssuedPaymentAddressDeriver) deriveRelativeAddressReference(
 		return "", outport.ErrIssuedPaymentAddressDeriverNotConfigured
 	}
 
-	relativeAddressReference, err := d.create2SaltDeriver.DeriveAllocationSalt(ctx, DeriveCreate2AllocationSaltInput{
+	relativeIssuanceRef, err := d.create2SaltDeriver.DeriveAllocationSalt(ctx, DeriveCreate2AllocationSaltInput{
 		Network:          policy.AddressPolicy.Network,
 		AddressPolicyID:  policy.AddressPolicy.AddressPolicyID,
 		PaymentAddressID: input.Allocation.PaymentAddressID,
-		DerivationIndex:  input.Allocation.DerivationIndex,
+		SlotIndex:        input.Allocation.SlotIndex,
 	})
 	if err != nil {
 		return "", outport.ErrIssuedPaymentAddressDerivationFailed
 	}
-	return relativeAddressReference, nil
+	return relativeIssuanceRef, nil
 }

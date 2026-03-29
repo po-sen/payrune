@@ -3,21 +3,21 @@ package valueobjects
 import "strings"
 
 type AddressIssuanceConfig struct {
-	AddressSourceRef       string
-	AddressReferencePrefix string
+	AddressSpaceRef   string
+	IssuanceRefPrefix string
 }
 
 func (c AddressIssuanceConfig) Normalize() AddressIssuanceConfig {
-	c.AddressSourceRef = strings.TrimSpace(c.AddressSourceRef)
-	c.AddressReferencePrefix = normalizeAddressReferencePrefix(c.AddressReferencePrefix)
+	c.AddressSpaceRef = strings.TrimSpace(c.AddressSpaceRef)
+	c.IssuanceRefPrefix = normalizeIssuanceRefPrefix(c.IssuanceRefPrefix)
 	return c
 }
 
 func (c AddressIssuanceConfig) IsEnabled() bool {
-	return strings.TrimSpace(c.AddressSourceRef) != ""
+	return strings.TrimSpace(c.AddressSpaceRef) != ""
 }
 
-func normalizeAddressReferencePrefix(raw string) string {
+func normalizeIssuanceRefPrefix(raw string) string {
 	trimmed := strings.TrimSpace(raw)
 	trimmed = strings.TrimSuffix(trimmed, "/")
 	return trimmed

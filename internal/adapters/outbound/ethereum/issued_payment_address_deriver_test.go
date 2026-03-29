@@ -25,13 +25,13 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 				Scheme:          "create2",
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-				AddressReferencePrefix: "ethereum-mainnet-create2",
+				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+				IssuanceRefPrefix: "ethereum-mainnet-create2",
 			},
 		}.Normalize(),
 		Allocation: entities.PaymentAddressAllocation{
 			PaymentAddressID: 145,
-			DerivationIndex:  11,
+			SlotIndex:        11,
 		},
 	})
 	if err != nil {
@@ -40,7 +40,7 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 	if output.Address == "" {
 		t.Fatal("expected address")
 	}
-	if output.AddressReference == "" {
+	if output.IssuanceRef == "" {
 		t.Fatal("expected address reference")
 	}
 }
@@ -57,13 +57,13 @@ func TestIssuedPaymentAddressDeriverRequiresCreate2SaltDeriver(t *testing.T) {
 				Scheme:          "create2",
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "configured",
-				AddressReferencePrefix: "ethereum-mainnet-create2",
+				AddressSpaceRef:   "configured",
+				IssuanceRefPrefix: "ethereum-mainnet-create2",
 			},
 		}.Normalize(),
 		Allocation: entities.PaymentAddressAllocation{
 			PaymentAddressID: 145,
-			DerivationIndex:  11,
+			SlotIndex:        11,
 		},
 	})
 	if err == nil {

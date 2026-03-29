@@ -17,7 +17,6 @@ func runPredict(args []string) error {
 	factoryAddress := flagSet.String("factory", "", "CREATE2 factory address")
 	collectorAddress := flagSet.String("collector", "", "fixed collector address")
 	receiverArtifactPath := flagSet.String("receiver-artifact", paths.receiverArtifact, "path to receiver artifact JSON")
-	addressPrefix := flagSet.String("prefix", "", "address reference prefix")
 	salt := flagSet.String("salt", "", "32-byte CREATE2 salt hex; if omitted a random salt is generated")
 	if err := flagSet.Parse(args); err != nil {
 		return err
@@ -32,9 +31,6 @@ func runPredict(args []string) error {
 	if *network == "" {
 		return fmt.Errorf("network is required")
 	}
-	if *addressPrefix == "" {
-		*addressPrefix = defaultAddressReferencePrefix(*network)
-	}
 	normalizedSalt, err := normalizeOrGenerateSalt(*salt)
 	if err != nil {
 		return err
@@ -46,7 +42,6 @@ func runPredict(args []string) error {
 		*factoryAddress,
 		*collectorAddress,
 		*receiverArtifactPath,
-		*addressPrefix,
 		normalizedSalt,
 	)
 	if err != nil {

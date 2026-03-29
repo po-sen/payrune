@@ -20,8 +20,9 @@ type DeriveIssuedPaymentAddressInput struct {
 }
 
 type DeriveIssuedPaymentAddressOutput struct {
-	Address          string
-	AddressReference string
+	Address         string
+	IssuanceRefKind valueobjects.IssuanceRefKind
+	IssuanceRef     string
 }
 
 type IssuedPaymentAddressDeriver interface {

@@ -234,13 +234,13 @@ func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetada
 	if !ok {
 		t.Fatal("expected init code hash available")
 	}
-	expectedSourceRef, err := ethereum.BuildCreate2AddressSourceRef(
+	expectedSourceRef, err := ethereum.BuildCreate2AddressSpaceRef(
 		metadata.FactoryAddress,
 		collectorAddress,
 		initCodeHash,
 	)
 	if err != nil {
-		t.Fatalf("BuildCreate2AddressSourceRef returned error: %v", err)
+		t.Fatalf("BuildCreate2AddressSpaceRef returned error: %v", err)
 	}
 
 	policy := newEthereumCreate2AddressIssuancePolicy(network, collectorAddress, saltDeriver)
@@ -248,11 +248,11 @@ func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetada
 	if policy.AddressPolicy.AddressPolicyID != "ethereum-sepolia-create2" {
 		t.Fatalf("unexpected address policy id: got %q", policy.AddressPolicy.AddressPolicyID)
 	}
-	if policy.IssuanceConfig.AddressReferencePrefix != "ethereum-sepolia-create2" {
-		t.Fatalf("unexpected address reference prefix: got %q", policy.IssuanceConfig.AddressReferencePrefix)
+	if policy.IssuanceConfig.IssuanceRefPrefix != "" {
+		t.Fatalf("unexpected address reference prefix: got %q", policy.IssuanceConfig.IssuanceRefPrefix)
 	}
-	if policy.IssuanceConfig.AddressSourceRef != expectedSourceRef {
-		t.Fatalf("unexpected address source ref: got %q want %q", policy.IssuanceConfig.AddressSourceRef, expectedSourceRef)
+	if policy.IssuanceConfig.AddressSpaceRef != expectedSourceRef {
+		t.Fatalf("unexpected address source ref: got %q want %q", policy.IssuanceConfig.AddressSpaceRef, expectedSourceRef)
 	}
 }
 
@@ -261,8 +261,8 @@ func TestNewEthereumCreate2AddressIssuancePolicyRequiresCollectorAddress(t *test
 		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	policy := newEthereumCreate2AddressIssuancePolicy(valueobjects.NetworkID("mainnet"), "", saltDeriver)
-	if policy.IssuanceConfig.AddressSourceRef != "" {
-		t.Fatalf("expected disabled policy when collector is missing, got %q", policy.IssuanceConfig.AddressSourceRef)
+	if policy.IssuanceConfig.AddressSpaceRef != "" {
+		t.Fatalf("expected disabled policy when collector is missing, got %q", policy.IssuanceConfig.AddressSpaceRef)
 	}
 }
 
@@ -272,8 +272,8 @@ func TestNewEthereumCreate2AddressIssuancePolicyRequiresSaltSecret(t *testing.T)
 		"0x2222222222222222222222222222222222222222",
 		ethereum.NewCreate2SaltDeriver(nil),
 	)
-	if policy.IssuanceConfig.AddressSourceRef != "" {
-		t.Fatalf("expected disabled policy when derivation key is missing, got %q", policy.IssuanceConfig.AddressSourceRef)
+	if policy.IssuanceConfig.AddressSpaceRef != "" {
+		t.Fatalf("expected disabled policy when derivation key is missing, got %q", policy.IssuanceConfig.AddressSpaceRef)
 	}
 }
 
@@ -291,13 +291,13 @@ func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 	}, saltDeriver)
 
 	bitcoinPolicy := findAddressIssuancePolicyByID(policies, "bitcoin-mainnet-legacy")
-	if bitcoinPolicy.IssuanceConfig.AddressSourceRef != "xpub-mainnet-legacy" {
-		t.Fatalf("unexpected bitcoin address source ref: got %q", bitcoinPolicy.IssuanceConfig.AddressSourceRef)
+	if bitcoinPolicy.IssuanceConfig.AddressSpaceRef != "xpub-mainnet-legacy" {
+		t.Fatalf("unexpected bitcoin address source ref: got %q", bitcoinPolicy.IssuanceConfig.AddressSpaceRef)
 	}
-	if bitcoinPolicy.IssuanceConfig.AddressReferencePrefix != "m/44'/0'/0'" {
+	if bitcoinPolicy.IssuanceConfig.IssuanceRefPrefix != "m/44'/0'/0'" {
 		t.Fatalf(
 			"unexpected bitcoin address reference prefix: got %q",
-			bitcoinPolicy.IssuanceConfig.AddressReferencePrefix,
+			bitcoinPolicy.IssuanceConfig.IssuanceRefPrefix,
 		)
 	}
 
@@ -305,13 +305,13 @@ func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 	if ethereumPolicy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
 		t.Fatalf("unexpected ethereum policy chain: got %q", ethereumPolicy.AddressPolicy.Chain)
 	}
-	if ethereumPolicy.IssuanceConfig.AddressReferencePrefix != "ethereum-mainnet-create2" {
+	if ethereumPolicy.IssuanceConfig.IssuanceRefPrefix != "" {
 		t.Fatalf(
 			"unexpected ethereum address reference prefix: got %q",
-			ethereumPolicy.IssuanceConfig.AddressReferencePrefix,
+			ethereumPolicy.IssuanceConfig.IssuanceRefPrefix,
 		)
 	}
-	if ethereumPolicy.IssuanceConfig.AddressSourceRef == "" {
+	if ethereumPolicy.IssuanceConfig.AddressSpaceRef == "" {
 		t.Fatal("expected ethereum create2 source ref to be populated")
 	}
 }

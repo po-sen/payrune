@@ -43,8 +43,8 @@ func newAddressIssuancePolicy(
 			Decimals:        decimals,
 		},
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSourceRef:       accountPublicKey,
-			AddressReferencePrefix: derivationPathPrefix,
+			AddressSpaceRef:   accountPublicKey,
+			IssuanceRefPrefix: derivationPathPrefix,
 		},
 	}.Normalize()
 }
@@ -142,8 +142,9 @@ func newFakeIssuedPaymentAddressDeriver() *fakeIssuedPaymentAddressDeriver {
 			valueobjects.SupportedChainBitcoin: true,
 		},
 		output: outport.DeriveIssuedPaymentAddressOutput{
-			Address:          "bc1qdefault",
-			AddressReference: "0/0",
+			Address:         "bc1qdefault",
+			IssuanceRefKind: valueobjects.IssuanceRefKindHDPathAbsolute,
+			IssuanceRef:     "0/0",
 		},
 	}
 }
@@ -170,8 +171,9 @@ func newFakeChainAddressDeriver() *fakeChainAddressDeriver {
 			valueobjects.SupportedChainBitcoin: true,
 		},
 		output: outport.DeriveChainAddressOutput{
-			Address:                  "bc1qdefault",
-			RelativeAddressReference: "0/0",
+			Address:             "bc1qdefault",
+			IssuanceRefKind:     valueobjects.IssuanceRefKindHDPathAbsolute,
+			RelativeIssuanceRef: "0/0",
 		},
 	}
 }

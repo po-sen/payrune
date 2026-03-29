@@ -114,7 +114,6 @@ func predictFromArtifact(
 	factoryAddress string,
 	collectorAddress string,
 	receiverArtifactPath string,
-	addressPrefix string,
 	salt string,
 ) (predictionOutput, error) {
 	artifact, err := loadReceiverArtifact(receiverArtifactPath)
@@ -135,7 +134,7 @@ func predictFromArtifact(
 		return predictionOutput{}, err
 	}
 
-	sourceRef, err := ethereum.BuildCreate2AddressSourceRef(
+	sourceRef, err := ethereum.BuildCreate2AddressSpaceRef(
 		strings.TrimSpace(factoryAddress),
 		strings.TrimSpace(collectorAddress),
 		initCodeHashHex,
@@ -146,12 +145,11 @@ func predictFromArtifact(
 
 	deriver := ethereum.NewChainAddressDeriver()
 	output, err := deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:                    valueobjects.SupportedChainEthereum,
-		Network:                  valueobjects.NetworkID(strings.TrimSpace(network)),
-		Scheme:                   "create2",
-		AddressSourceRef:         sourceRef,
-		AddressReferencePrefix:   strings.TrimSpace(addressPrefix),
-		RelativeAddressReference: strings.TrimSpace(salt),
+		Chain:               valueobjects.SupportedChainEthereum,
+		Network:             valueobjects.NetworkID(strings.TrimSpace(network)),
+		Scheme:              "create2",
+		AddressSpaceRef:     sourceRef,
+		RelativeIssuanceRef: strings.TrimSpace(salt),
 	})
 	if err != nil {
 		return predictionOutput{}, err
@@ -162,9 +160,9 @@ func predictFromArtifact(
 		InitCodeHex:       initCodeHex,
 		InitCodeHashHex:   initCodeHashHex,
 		PredictedAddress:  output.Address,
-		Salt:              output.RelativeAddressReference,
-		AddressReference:  output.AddressReference,
-		RelativeReference: output.RelativeAddressReference,
+		Salt:              output.RelativeIssuanceRef,
+		AddressReference:  output.IssuanceRef,
+		RelativeReference: output.RelativeIssuanceRef,
 	}, nil
 }
 
@@ -190,14 +188,6 @@ func envOrDefault(key string, fallback string) string {
 
 func usageError(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
-}
-
-func defaultAddressReferencePrefix(network string) string {
-	trimmed := strings.TrimSpace(network)
-	if trimmed == "" {
-		return ""
-	}
-	return "ethereum-" + trimmed + "-create2"
 }
 
 func normalizeOrGenerateSalt(raw string) (string, error) {

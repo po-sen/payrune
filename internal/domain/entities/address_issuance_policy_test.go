@@ -18,8 +18,8 @@ func newTestAddressIssuancePolicy() AddressIssuancePolicy {
 			Decimals:        8,
 		},
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSourceRef:       " xpub-main ",
-			AddressReferencePrefix: "m/84'/0'/0'",
+			AddressSpaceRef:   " xpub-main ",
+			IssuanceRefPrefix: "m/84'/0'/0'",
 		},
 	}
 }
@@ -32,8 +32,8 @@ func TestAddressIssuancePolicyNormalize(t *testing.T) {
 	if normalized.AddressPolicy.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
 		t.Fatalf("unexpected address policy id: got %q", normalized.AddressPolicy.AddressPolicyID)
 	}
-	if normalized.IssuanceConfig.AddressSourceRef != "xpub-main" {
-		t.Fatalf("unexpected account public key: got %q", normalized.IssuanceConfig.AddressSourceRef)
+	if normalized.IssuanceConfig.AddressSpaceRef != "xpub-main" {
+		t.Fatalf("unexpected account public key: got %q", normalized.IssuanceConfig.AddressSpaceRef)
 	}
 	if !normalized.AddressPolicy.Enabled {
 		t.Fatal("expected normalized address policy enabled")
@@ -123,8 +123,8 @@ func TestAddressIssuancePolicyValidateForAddressPreviewRejectsUnsupportedPolicy(
 			Decimals:        18,
 		},
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSourceRef:       "configured",
-			AddressReferencePrefix: "ethereum-mainnet-create2",
+			AddressSpaceRef:   "configured",
+			IssuanceRefPrefix: "ethereum-mainnet-create2",
 		},
 	}
 

@@ -37,9 +37,14 @@ func (f *fakeAllocatePaymentAddressClock) NowUTC() time.Time {
 }
 
 func newAllocateDeriveOutput(address string, path string) outport.DeriveIssuedPaymentAddressOutput {
+	kind := valueobjects.IssuanceRefKindHDPathAbsolute
+	if len(path) >= 2 && path[:2] == "0x" {
+		kind = valueobjects.IssuanceRefKindCreate2Salt
+	}
 	return outport.DeriveIssuedPaymentAddressOutput{
-		Address:          address,
-		AddressReference: path,
+		Address:         address,
+		IssuanceRefKind: kind,
+		IssuanceRef:     path,
 	}
 }
 
@@ -95,7 +100,7 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	allocator.freshReservation = entities.PaymentAddressAllocation{
 		PaymentAddressID:    44,
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
-		DerivationIndex:     11,
+		SlotIndex:           11,
 		ExpectedAmountMinor: 120000,
 		CustomerReference:   "order-001",
 	}
@@ -132,10 +137,10 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 			allocator.lastReopenInput.IssuancePolicy.AddressPolicy.AddressPolicyID,
 		)
 	}
-	if allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSourceRef != "xpub-main" {
+	if allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSpaceRef != "xpub-main" {
 		t.Fatalf(
 			"unexpected account public key passed to allocator reopen: got %q",
-			allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSourceRef,
+			allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 		)
 	}
 	if allocator.lastReopenInput.CustomerReference != "order-001" {
@@ -203,11 +208,11 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.lastCompleteInput.PaymentAddressID != 44 {
 		t.Fatalf("unexpected payment address id in complete input: got %d", allocator.lastCompleteInput.PaymentAddressID)
 	}
-	if allocator.lastCompleteInput.AddressReference != "m/84'/0'/0'/0/11" {
-		t.Fatalf("unexpected address reference in complete input: got %q", allocator.lastCompleteInput.AddressReference)
+	if allocator.lastCompleteInput.IssuanceRef != "m/84'/0'/0'/0/11" {
+		t.Fatalf("unexpected address reference in complete input: got %q", allocator.lastCompleteInput.IssuanceRef)
 	}
-	if deriver.lastInput.Allocation.DerivationIndex != 11 {
-		t.Fatalf("unexpected derivation index passed to issued deriver: got %d", deriver.lastInput.Allocation.DerivationIndex)
+	if deriver.lastInput.Allocation.SlotIndex != 11 {
+		t.Fatalf("unexpected derivation index passed to issued deriver: got %d", deriver.lastInput.Allocation.SlotIndex)
 	}
 	if deriver.lastInput.Policy.AddressPolicy.Network != valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet) {
 		t.Fatalf("unexpected network passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Network)
@@ -215,11 +220,11 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if deriver.lastInput.Policy.AddressPolicy.Scheme != string(valueobjects.BitcoinAddressSchemeNativeSegwit) {
 		t.Fatalf("unexpected scheme passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Scheme)
 	}
-	if deriver.lastInput.Policy.IssuanceConfig.AddressSourceRef != "xpub-main" {
-		t.Fatalf("unexpected address source ref passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.AddressSourceRef)
+	if deriver.lastInput.Policy.IssuanceConfig.AddressSpaceRef != "xpub-main" {
+		t.Fatalf("unexpected address source ref passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.AddressSpaceRef)
 	}
-	if deriver.lastInput.Policy.IssuanceConfig.AddressReferencePrefix != "m/84'/0'/0'" {
-		t.Fatalf("unexpected address reference prefix passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.AddressReferencePrefix)
+	if deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected address reference prefix passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix)
 	}
 	if response.Address != "bc1qallocatedaddress" {
 		t.Fatalf("unexpected address: got %q", response.Address)
@@ -261,7 +266,7 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	allocator.freshReservation = entities.PaymentAddressAllocation{
 		PaymentAddressID:    145,
 		AddressPolicyID:     "ethereum-mainnet-create2",
-		DerivationIndex:     11,
+		SlotIndex:           11,
 		ExpectedAmountMinor: 15000000000000000,
 		CustomerReference:   "order-eth-001",
 	}
@@ -296,25 +301,25 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	if allocator.lastCompleteInput.Scheme != "create2" {
 		t.Fatalf("unexpected scheme persisted on allocation: got %q", allocator.lastCompleteInput.Scheme)
 	}
-	if allocator.lastCompleteInput.AddressReference != "ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
-		t.Fatalf("unexpected address reference persisted on allocation: got %q", allocator.lastCompleteInput.AddressReference)
+	if allocator.lastCompleteInput.IssuanceRef != "ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+		t.Fatalf("unexpected address reference persisted on allocation: got %q", allocator.lastCompleteInput.IssuanceRef)
 	}
 	if deriver.lastInput.Policy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
 		t.Fatalf("unexpected chain passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Chain)
 	}
-	if deriver.lastInput.Policy.IssuanceConfig.AddressReferencePrefix != "ethereum-mainnet-create2" {
+	if deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix != "ethereum-mainnet-create2" {
 		t.Fatalf(
 			"unexpected address reference prefix passed to issued deriver: got %q",
-			deriver.lastInput.Policy.IssuanceConfig.AddressReferencePrefix,
+			deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix,
 		)
 	}
 	if deriver.lastInput.Allocation.PaymentAddressID != 145 {
 		t.Fatalf("unexpected payment address id passed to issued deriver: got %d", deriver.lastInput.Allocation.PaymentAddressID)
 	}
-	if deriver.lastInput.Allocation.DerivationIndex != 11 {
+	if deriver.lastInput.Allocation.SlotIndex != 11 {
 		t.Fatalf(
 			"unexpected derivation index passed to issued deriver: got %d",
-			deriver.lastInput.Allocation.DerivationIndex,
+			deriver.lastInput.Allocation.SlotIndex,
 		)
 	}
 	trackingStore, ok := txManager.receiptTrackingStore.(*fakeAllocatePaymentReceiptTrackingStore)
@@ -353,7 +358,7 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenIssuedAddress
 	allocator.freshReservation = entities.PaymentAddressAllocation{
 		PaymentAddressID:    246,
 		AddressPolicyID:     "ethereum-mainnet-create2",
-		DerivationIndex:     12,
+		SlotIndex:           12,
 		ExpectedAmountMinor: 15000000000000000,
 		CustomerReference:   "order-eth-salt-error",
 	}
@@ -399,7 +404,7 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 		issuedByID: entities.PaymentAddressAllocation{
 			PaymentAddressID:    71,
 			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
-			DerivationIndex:     9,
+			SlotIndex:           9,
 			ExpectedAmountMinor: 120000,
 			CustomerReference:   "order-duplicate",
 			Status:              valueobjects.PaymentAddressAllocationStatusIssued,
@@ -407,7 +412,7 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 			Network:             valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:              string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			Address:             "bc1qexistingduplicate",
-			AddressReference:    "m/84'/0'/0'/0/9",
+			IssuanceRef:         "m/84'/0'/0'/0/9",
 		},
 	}
 	idempotencyStore := &fakePaymentAddressIdempotencyStore{
@@ -541,7 +546,7 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 		issuedByID: entities.PaymentAddressAllocation{
 			PaymentAddressID:    73,
 			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
-			DerivationIndex:     12,
+			SlotIndex:           12,
 			ExpectedAmountMinor: 88000,
 			CustomerReference:   "order-race",
 			Status:              valueobjects.PaymentAddressAllocationStatusIssued,
@@ -549,7 +554,7 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 			Network:             valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:              string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			Address:             "bc1qracewinner",
-			AddressReference:    "m/84'/0'/0'/0/12",
+			IssuanceRef:         "m/84'/0'/0'/0/12",
 		},
 	}
 	idempotencyStore := &fakePaymentAddressIdempotencyStore{
@@ -649,7 +654,7 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 	allocator.freshReservation = entities.PaymentAddressAllocation{
 		PaymentAddressID:    66,
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
-		DerivationIndex:     15,
+		SlotIndex:           15,
 		ExpectedAmountMinor: 25000,
 		CustomerReference:   "order-66",
 	}
@@ -713,7 +718,7 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testin
 	allocator.freshReservation = entities.PaymentAddressAllocation{
 		PaymentAddressID:    67,
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
-		DerivationIndex:     16,
+		SlotIndex:           16,
 		ExpectedAmountMinor: 25000,
 		CustomerReference:   "order-67",
 	}
@@ -777,7 +782,7 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 		reopenReservation: entities.PaymentAddressAllocation{
 			PaymentAddressID:    55,
 			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
-			DerivationIndex:     7,
+			SlotIndex:           7,
 			ExpectedAmountMinor: 5000,
 			CustomerReference:   "invoice-55",
 		},
@@ -862,7 +867,7 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 		freshReservation: entities.PaymentAddressAllocation{
 			PaymentAddressID:    77,
 			AddressPolicyID:     "bitcoin-mainnet-legacy",
-			DerivationIndex:     2,
+			SlotIndex:           2,
 			ExpectedAmountMinor: 1,
 		},
 	}
@@ -898,7 +903,7 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 		freshReservation: entities.PaymentAddressAllocation{
 			PaymentAddressID:    88,
 			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
-			DerivationIndex:     4,
+			SlotIndex:           4,
 			ExpectedAmountMinor: 500,
 		},
 	}
@@ -1054,7 +1059,7 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 		freshReservation: entities.PaymentAddressAllocation{
 			PaymentAddressID:    99,
 			AddressPolicyID:     "bitcoin-mainnet-legacy",
-			DerivationIndex:     1,
+			SlotIndex:           1,
 			ExpectedAmountMinor: 1,
 		},
 	}
@@ -1126,7 +1131,7 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 		freshReservation: entities.PaymentAddressAllocation{
 			PaymentAddressID:    88,
 			AddressPolicyID:     "bitcoin-mainnet-legacy",
-			DerivationIndex:     3,
+			SlotIndex:           3,
 			ExpectedAmountMinor: 1,
 		},
 	}

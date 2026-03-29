@@ -3,7 +3,6 @@ package bitcoin
 import (
 	"context"
 	"errors"
-	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/valueobjects"
@@ -37,12 +36,12 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 
 	policy := input.Policy.Normalize()
 	output, err := d.chainAddressDeriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:                  policy.AddressPolicy.Chain,
-		Network:                policy.AddressPolicy.Network,
-		Scheme:                 policy.AddressPolicy.Scheme,
-		AddressSourceRef:       policy.IssuanceConfig.AddressSourceRef,
-		AddressReferencePrefix: policy.IssuanceConfig.AddressReferencePrefix,
-		Index:                  input.Allocation.DerivationIndex,
+		Chain:             policy.AddressPolicy.Chain,
+		Network:           policy.AddressPolicy.Network,
+		Scheme:            policy.AddressPolicy.Scheme,
+		AddressSpaceRef:   policy.IssuanceConfig.AddressSpaceRef,
+		IssuanceRefPrefix: policy.IssuanceConfig.IssuanceRefPrefix,
+		SlotIndex:         input.Allocation.SlotIndex,
 	})
 	if err != nil {
 		switch {
@@ -55,13 +54,9 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 		}
 	}
 
-	addressReference := strings.TrimSpace(output.AddressReference)
-	if addressReference == "" {
-		addressReference = strings.TrimSpace(output.RelativeAddressReference)
-	}
-
 	return outport.DeriveIssuedPaymentAddressOutput{
-		Address:          output.Address,
-		AddressReference: addressReference,
+		Address:         output.Address,
+		IssuanceRefKind: output.IssuanceRefKind,
+		IssuanceRef:     output.IssuanceRef,
 	}, nil
 }

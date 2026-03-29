@@ -306,7 +306,8 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 		issuedAllocation, err = allocation.MarkIssued(
 			issuancePlan.Reservation.IssuancePolicy,
 			derived.Address,
-			derived.AddressReference,
+			derived.IssuanceRefKind,
+			derived.IssuanceRef,
 		)
 		if err != nil {
 			return handleDerivationFailure(

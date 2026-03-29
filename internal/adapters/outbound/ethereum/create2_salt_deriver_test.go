@@ -16,7 +16,7 @@ func TestCreate2SaltDeriverDeriveAllocationSaltDeterministically(t *testing.T) {
 		Network:          valueobjects.NetworkID("mainnet"),
 		AddressPolicyID:  "ethereum-mainnet-create2",
 		PaymentAddressID: 42,
-		DerivationIndex:  7,
+		SlotIndex:        7,
 	}
 
 	first, err := deriver.DeriveAllocationSalt(context.Background(), input)
@@ -45,7 +45,7 @@ func TestCreate2SaltDeriverDeriveAllocationSaltVariesByAllocationIdentity(t *tes
 		Network:          valueobjects.NetworkID("mainnet"),
 		AddressPolicyID:  "ethereum-mainnet-create2",
 		PaymentAddressID: 42,
-		DerivationIndex:  7,
+		SlotIndex:        7,
 	})
 	if err != nil {
 		t.Fatalf("DeriveAllocationSalt returned error: %v", err)
@@ -54,7 +54,7 @@ func TestCreate2SaltDeriverDeriveAllocationSaltVariesByAllocationIdentity(t *tes
 		Network:          valueobjects.NetworkID("mainnet"),
 		AddressPolicyID:  "ethereum-mainnet-create2",
 		PaymentAddressID: 43,
-		DerivationIndex:  7,
+		SlotIndex:        7,
 	})
 	if err != nil {
 		t.Fatalf("DeriveAllocationSalt returned error: %v", err)
@@ -74,7 +74,7 @@ func TestCreate2SaltDeriverRequiresConfiguredNetwork(t *testing.T) {
 		Network:          valueobjects.NetworkID("sepolia"),
 		AddressPolicyID:  "ethereum-sepolia-create2",
 		PaymentAddressID: 42,
-		DerivationIndex:  7,
+		SlotIndex:        7,
 	})
 	if err == nil {
 		t.Fatal("expected missing-network error")

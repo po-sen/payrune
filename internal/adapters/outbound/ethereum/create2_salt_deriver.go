@@ -23,7 +23,7 @@ type DeriveCreate2AllocationSaltInput struct {
 	Network          valueobjects.NetworkID
 	AddressPolicyID  string
 	PaymentAddressID int64
-	DerivationIndex  uint32
+	SlotIndex        uint32
 }
 
 func NewCreate2SaltDeriver(rawSecretsByNetwork map[valueobjects.NetworkID]string) *Create2SaltDeriver {
@@ -75,7 +75,7 @@ func (d *Create2SaltDeriver) DeriveAllocationSalt(
 	mac.Write([]byte{'\n'})
 	mac.Write([]byte(strconv.FormatInt(input.PaymentAddressID, 10)))
 	mac.Write([]byte{'\n'})
-	mac.Write([]byte(strconv.FormatUint(uint64(input.DerivationIndex), 10)))
+	mac.Write([]byte(strconv.FormatUint(uint64(input.SlotIndex), 10)))
 	sum := mac.Sum(nil)
 	return "0x" + hex.EncodeToString(sum), nil
 }

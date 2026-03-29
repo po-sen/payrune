@@ -27,7 +27,7 @@ func NewChainAddressDeriver() *ChainAddressDeriver {
 	return &ChainAddressDeriver{}
 }
 
-func BuildCreate2AddressSourceRef(
+func BuildCreate2AddressSpaceRef(
 	factoryAddress string,
 	collectorAddress string,
 	initCodeHash string,
@@ -72,13 +72,8 @@ func (g *ChainAddressDeriver) DeriveAddress(
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
-	sourceRef, err := parseCreate2SourceRef(input.AddressSourceRef)
+	sourceRef, err := parseCreate2SourceRef(input.AddressSpaceRef)
 	if err != nil {
-		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
-	}
-
-	addressReferencePrefix := normalizeAddressReferencePrefix(input.AddressReferencePrefix)
-	if addressReferencePrefix == "" {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
@@ -91,16 +86,17 @@ func (g *ChainAddressDeriver) DeriveAddress(
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
-	normalizedSaltHex, salt, err := normalizeCreate2Salt(input.RelativeAddressReference)
+	normalizedSaltHex, salt, err := normalizeCreate2Salt(input.RelativeIssuanceRef)
 	if err != nil {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 	predictedAddress := predictCreate2Address(factoryAddress, salt, initCodeHash)
 
 	return outport.DeriveChainAddressOutput{
-		Address:                  predictedAddress,
-		RelativeAddressReference: normalizedSaltHex,
-		AddressReference:         addressReferencePrefix + "/" + normalizedSaltHex,
+		Address:             predictedAddress,
+		RelativeIssuanceRef: normalizedSaltHex,
+		IssuanceRefKind:     valueobjects.IssuanceRefKindCreate2Salt,
+		IssuanceRef:         normalizedSaltHex,
 	}, nil
 }
 
@@ -175,10 +171,6 @@ func predictCreate2Address(factoryAddress []byte, salt [32]byte, initCodeHash []
 	preimage = append(preimage, initCodeHash...)
 	digest := keccak256Hash(preimage)
 	return "0x" + hex.EncodeToString(digest[12:])
-}
-
-func normalizeAddressReferencePrefix(raw string) string {
-	return strings.TrimSuffix(strings.TrimSpace(raw), "/")
 }
 
 func normalizeFixedHex(raw string, sizeBytes int, label string) (string, []byte, error) {

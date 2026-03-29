@@ -68,13 +68,13 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "xpub-main",
-				AddressReferencePrefix: "m/84'/0'/0'",
+				AddressSpaceRef:   "xpub-main",
+				IssuanceRefPrefix: "m/84'/0'/0'",
 			},
 		}.Normalize(),
 		Allocation: entities.PaymentAddressAllocation{
 			PaymentAddressID: 55,
-			DerivationIndex:  5,
+			SlotIndex:        5,
 		},
 	})
 	if err != nil {
@@ -83,8 +83,8 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 	if output.Address != "bc1qallocated" {
 		t.Fatalf("unexpected address: got %q", output.Address)
 	}
-	if output.AddressReference != "m/84'/0'/0'/0/5" {
-		t.Fatalf("unexpected address reference: got %q", output.AddressReference)
+	if output.IssuanceRef != "m/84'/0'/0'/0/5" {
+		t.Fatalf("unexpected address reference: got %q", output.IssuanceRef)
 	}
 	if underlying.lastNetwork != valueobjects.BitcoinNetworkMainnet {
 		t.Fatalf("unexpected network: got %q", underlying.lastNetwork)
@@ -114,13 +114,13 @@ func TestIssuedPaymentAddressDeriverPropagatesChainDeriverError(t *testing.T) {
 				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			},
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSourceRef:       "xpub-main",
-				AddressReferencePrefix: "m/84'/0'/0'",
+				AddressSpaceRef:   "xpub-main",
+				IssuanceRefPrefix: "m/84'/0'/0'",
 			},
 		}.Normalize(),
 		Allocation: entities.PaymentAddressAllocation{
 			PaymentAddressID: 44,
-			DerivationIndex:  11,
+			SlotIndex:        11,
 		},
 	})
 	if !errors.Is(err, outport.ErrIssuedPaymentAddressDerivationFailed) {
