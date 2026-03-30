@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -53,23 +52,6 @@ type ethereumRPCResponse struct {
 type ethereumRPCError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
-}
-
-type ethereumRPCBlockHeader struct {
-	Number    string `json:"number"`
-	Timestamp string `json:"timestamp"`
-}
-
-type ethereumRPCBlock struct {
-	Number       string                   `json:"number"`
-	Timestamp    string                   `json:"timestamp"`
-	Transactions []ethereumRPCTransaction `json:"transactions"`
-}
-
-type ethereumRPCTransaction struct {
-	Hash  string  `json:"hash"`
-	To    *string `json:"to"`
-	Value string  `json:"value"`
 }
 
 func NewEthereumRPCReceiptObserver(
@@ -119,106 +101,27 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 	if input.SinceBlockHeight < 0 {
 		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
-	if input.ObservedTotalMinor < 0 || input.ConfirmedTotalMinor < 0 || input.UnconfirmedTotalMinor < 0 {
-		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
-	}
 
 	client, err := o.selectClient(input.Network)
 	if err != nil {
 		return outport.ObservePaymentAddressOutput{}, err
 	}
-	if input.SinceBlockHeight >= input.LatestBlockHeight && input.SinceBlockHeight > 0 {
-		return outport.ObservePaymentAddressOutput{
-			ObservedTotalMinor:    input.ObservedTotalMinor,
-			ConfirmedTotalMinor:   input.ConfirmedTotalMinor,
-			UnconfirmedTotalMinor: input.UnconfirmedTotalMinor,
-			LatestBlockHeight:     input.LatestBlockHeight,
-		}, nil
-	}
 
-	startBlockHeight, err := client.findFirstBlockOnOrAfter(ctx, input.IssuedAt.UTC(), input.LatestBlockHeight)
+	observedTotalMinor, err := client.fetchBalanceAtBlock(ctx, address, input.LatestBlockHeight)
 	if err != nil {
 		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
-	if shouldUseZeroTotalIncrementalScan(input) {
-		incrementalStart := input.SinceBlockHeight + 1
-		if incrementalStart > startBlockHeight {
-			startBlockHeight = incrementalStart
-		}
-	}
-	if startBlockHeight > input.LatestBlockHeight {
-		return outport.ObservePaymentAddressOutput{
-			ObservedTotalMinor:    input.ObservedTotalMinor,
-			ConfirmedTotalMinor:   input.ConfirmedTotalMinor,
-			UnconfirmedTotalMinor: input.UnconfirmedTotalMinor,
-			LatestBlockHeight:     input.LatestBlockHeight,
-		}, nil
-	}
 
-	var (
-		confirmedTotalMinor   int64
-		unconfirmedTotalMinor int64
-	)
-	if shouldUseZeroTotalIncrementalScan(input) {
-		confirmedTotalMinor = input.ConfirmedTotalMinor
-		unconfirmedTotalMinor = input.UnconfirmedTotalMinor
-	}
-
-	for blockHeight := startBlockHeight; blockHeight <= input.LatestBlockHeight; blockHeight++ {
-		block, found, err := client.fetchBlockByNumber(ctx, blockHeight, true)
+	var confirmedTotalMinor int64
+	confirmedBlockHeight := input.LatestBlockHeight - int64(input.RequiredConfirmations) + 1
+	if confirmedBlockHeight > 0 {
+		confirmedTotalMinor, err = client.fetchBalanceAtBlock(ctx, address, confirmedBlockHeight)
 		if err != nil {
 			return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 		}
-		if !found {
-			return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
-		}
-
-		blockTimestamp, err := parseEthereumHexQuantityToInt64(block.Timestamp, "block timestamp")
-		if err != nil {
-			return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
-		}
-		if blockTimestamp < input.IssuedAt.UTC().Unix() {
-			continue
-		}
-
-		for _, tx := range block.Transactions {
-			if tx.To == nil {
-				continue
-			}
-
-			toAddress, _, err := normalizeFixedHex(*tx.To, 20, "transaction to address")
-			if err != nil {
-				continue
-			}
-			if toAddress != address {
-				continue
-			}
-
-			valueMinor, err := parseEthereumHexQuantityToInt64(tx.Value, "transaction value")
-			if err != nil {
-				return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
-			}
-			if valueMinor <= 0 {
-				continue
-			}
-
-			confirmations := calculateEthereumConfirmations(input.LatestBlockHeight, blockHeight)
-			if confirmations >= int64(input.RequiredConfirmations) {
-				confirmedTotalMinor, err = safeAddInt64(confirmedTotalMinor, valueMinor)
-				if err != nil {
-					return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
-				}
-				continue
-			}
-
-			unconfirmedTotalMinor, err = safeAddInt64(unconfirmedTotalMinor, valueMinor)
-			if err != nil {
-				return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
-			}
-		}
 	}
 
-	observedTotalMinor, err := safeAddInt64(confirmedTotalMinor, unconfirmedTotalMinor)
+	unconfirmedTotalMinor, err := safeSubtractInt64NonNegative(observedTotalMinor, confirmedTotalMinor)
 	if err != nil {
 		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
@@ -229,13 +132,6 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 		UnconfirmedTotalMinor: unconfirmedTotalMinor,
 		LatestBlockHeight:     input.LatestBlockHeight,
 	}, nil
-}
-
-func shouldUseZeroTotalIncrementalScan(input outport.ObservePaymentAddressInput) bool {
-	return input.SinceBlockHeight > 0 &&
-		input.ObservedTotalMinor == 0 &&
-		input.ConfirmedTotalMinor == 0 &&
-		input.UnconfirmedTotalMinor == 0
 }
 
 func (o *EthereumRPCReceiptObserver) FetchLatestBlockHeight(
@@ -301,82 +197,20 @@ func (c *ethereumRPCClient) fetchLatestBlockHeight(ctx context.Context) (int64, 
 	return parseEthereumHexQuantityToInt64(rawHeight, "latest block height")
 }
 
-func (c *ethereumRPCClient) findFirstBlockOnOrAfter(
+func (c *ethereumRPCClient) fetchBalanceAtBlock(
 	ctx context.Context,
-	issuedAt time.Time,
-	latestBlockHeight int64,
+	address string,
+	blockHeight int64,
 ) (int64, error) {
-	if latestBlockHeight <= 0 {
-		return 0, errors.New("latest block height must be greater than zero")
+	if blockHeight < 0 {
+		return 0, errors.New("block height must be greater than or equal to zero")
 	}
 
-	latestBlock, found, err := c.fetchBlockHeaderByNumber(ctx, latestBlockHeight)
-	if err != nil {
+	var rawBalance string
+	if err := c.call(ctx, "eth_getBalance", []any{address, encodeEthereumBlockNumber(blockHeight)}, &rawBalance); err != nil {
 		return 0, err
 	}
-	if !found {
-		return 0, fmt.Errorf("ethereum latest block %d is not found", latestBlockHeight)
-	}
-	latestBlockTimestamp, err := parseEthereumHexQuantityToInt64(latestBlock.Timestamp, "block timestamp")
-	if err != nil {
-		return 0, err
-	}
-	if latestBlockTimestamp < issuedAt.Unix() {
-		return latestBlockHeight + 1, nil
-	}
-
-	low := int64(0)
-	high := latestBlockHeight
-	for low < high {
-		mid := low + (high-low)/2
-		header, found, err := c.fetchBlockHeaderByNumber(ctx, mid)
-		if err != nil {
-			return 0, err
-		}
-		if !found {
-			return 0, fmt.Errorf("ethereum block %d is not found", mid)
-		}
-
-		midTimestamp, err := parseEthereumHexQuantityToInt64(header.Timestamp, "block timestamp")
-		if err != nil {
-			return 0, err
-		}
-		if midTimestamp < issuedAt.Unix() {
-			low = mid + 1
-			continue
-		}
-		high = mid
-	}
-	return low, nil
-}
-
-func (c *ethereumRPCClient) fetchBlockHeaderByNumber(
-	ctx context.Context,
-	blockHeight int64,
-) (ethereumRPCBlockHeader, bool, error) {
-	var block *ethereumRPCBlockHeader
-	if err := c.call(ctx, "eth_getBlockByNumber", []any{encodeEthereumBlockNumber(blockHeight), false}, &block); err != nil {
-		return ethereumRPCBlockHeader{}, false, err
-	}
-	if block == nil {
-		return ethereumRPCBlockHeader{}, false, nil
-	}
-	return *block, true, nil
-}
-
-func (c *ethereumRPCClient) fetchBlockByNumber(
-	ctx context.Context,
-	blockHeight int64,
-	fullTransactions bool,
-) (ethereumRPCBlock, bool, error) {
-	var block *ethereumRPCBlock
-	if err := c.call(ctx, "eth_getBlockByNumber", []any{encodeEthereumBlockNumber(blockHeight), fullTransactions}, &block); err != nil {
-		return ethereumRPCBlock{}, false, err
-	}
-	if block == nil {
-		return ethereumRPCBlock{}, false, nil
-	}
-	return *block, true, nil
+	return parseEthereumHexQuantityToInt64(rawBalance, "balance")
 }
 
 func (c *ethereumRPCClient) call(
@@ -456,21 +290,14 @@ func parseEthereumHexQuantityToInt64(raw string, label string) (int64, error) {
 	return value.Int64(), nil
 }
 
-func calculateEthereumConfirmations(latestBlockHeight int64, blockHeight int64) int64 {
-	if latestBlockHeight <= 0 || blockHeight <= 0 || latestBlockHeight < blockHeight {
-		return 0
+func safeSubtractInt64NonNegative(left int64, right int64) (int64, error) {
+	if left < 0 || right < 0 {
+		return 0, errors.New("receipt totals must be non-negative")
 	}
-	return latestBlockHeight - blockHeight + 1
-}
-
-func safeAddInt64(left int64, right int64) (int64, error) {
-	if right > 0 && left > math.MaxInt64-right {
-		return 0, errors.New("receipt total exceeds int64")
+	if right > left {
+		return 0, errors.New("receipt totals are inconsistent")
 	}
-	if right < 0 && left < math.MinInt64-right {
-		return 0, errors.New("receipt total exceeds int64")
-	}
-	return left + right, nil
+	return left - right, nil
 }
 
 var _ outport.ChainReceiptObserver = (*EthereumRPCReceiptObserver)(nil)
