@@ -18,6 +18,9 @@ type ObservePaymentAddressInput struct {
 	Network               valueobjects.NetworkID
 	Address               string
 	IssuedAt              time.Time
+	ObservedTotalMinor    int64
+	ConfirmedTotalMinor   int64
+	UnconfirmedTotalMinor int64
 	RequiredConfirmations int32
 	LatestBlockHeight     int64
 	SinceBlockHeight      int64
@@ -28,6 +31,9 @@ type ObserveChainPaymentAddressInput struct {
 	Network               valueobjects.NetworkID
 	Address               string
 	IssuedAt              time.Time
+	ObservedTotalMinor    int64
+	ConfirmedTotalMinor   int64
+	UnconfirmedTotalMinor int64
 	RequiredConfirmations int32
 	LatestBlockHeight     int64
 	SinceBlockHeight      int64

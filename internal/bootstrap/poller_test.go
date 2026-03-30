@@ -323,3 +323,16 @@ func TestLoadEthereumRPCConfigsFromEnvEmpty(t *testing.T) {
 		t.Fatalf("expected no configured networks, got %d", len(configs))
 	}
 }
+
+func TestFormatPollCycleStartLog(t *testing.T) {
+	got := formatPollCycleStartLog(PollerConfig{
+		Chain:     valueobjects.ChainIDEthereum,
+		Network:   valueobjects.NetworkID("sepolia"),
+		BatchSize: 2,
+	})
+
+	want := "poll cycle start chain=ethereum network=sepolia batch=2"
+	if got != want {
+		t.Fatalf("unexpected poll cycle start log: got %q want %q", got, want)
+	}
+}

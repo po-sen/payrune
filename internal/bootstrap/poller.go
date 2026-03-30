@@ -125,6 +125,7 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 	}()
 
 	runCycle := func() {
+		log.Print(formatPollCycleStartLog(config))
 		output, err := container.PollerHandler.Handle(ctx, scheduleradapter.PollerRequest{
 			BatchSize:          config.BatchSize,
 			RescheduleInterval: config.RescheduleInterval,
@@ -159,6 +160,15 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 			runCycle()
 		}
 	}
+}
+
+func formatPollCycleStartLog(config PollerConfig) string {
+	return fmt.Sprintf(
+		"poll cycle start chain=%s network=%s batch=%d",
+		config.Chain,
+		config.Network,
+		config.BatchSize,
+	)
 }
 
 func loadPollerConfigFromLookup(lookup func(string) string) (PollerConfig, error) {

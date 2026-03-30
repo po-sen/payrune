@@ -21,6 +21,8 @@ type testEthereumRPCServer struct {
 	statusCode        int
 	rpcError          map[string]any
 	lastAuthHeader    string
+	requestedHeaders  []string
+	requestedBlocks   []string
 }
 
 func newTestEthereumRPCServer(t *testing.T) (*testEthereumRPCServer, *httptest.Server) {
@@ -99,8 +101,10 @@ func newTestEthereumRPCServer(t *testing.T) (*testEthereumRPCServer, *httptest.S
 
 			var result any
 			if fullTransactions {
+				handlerState.requestedBlocks = append(handlerState.requestedBlocks, blockNumber)
 				result = handlerState.blocksByNumber[blockNumber]
 			} else {
+				handlerState.requestedHeaders = append(handlerState.requestedHeaders, blockNumber)
 				result = handlerState.headersByNumber[blockNumber]
 			}
 
@@ -137,6 +141,9 @@ func TestEthereumRPCReceiptObserverObserveAddress(t *testing.T) {
 		Network:               valueobjects.NetworkID("mainnet"),
 		Address:               "0x1111111111111111111111111111111111111111",
 		IssuedAt:              time.Unix(2500, 0).UTC(),
+		ObservedTotalMinor:    0,
+		ConfirmedTotalMinor:   0,
+		UnconfirmedTotalMinor: 0,
 		RequiredConfirmations: 2,
 		LatestBlockHeight:     3,
 		SinceBlockHeight:      0,
@@ -201,6 +208,9 @@ func TestEthereumRPCReceiptObserverObserveAddressNoBlocksAfterIssuedAt(t *testin
 		Network:               valueobjects.NetworkID("mainnet"),
 		Address:               "0x1111111111111111111111111111111111111111",
 		IssuedAt:              time.Unix(5000, 0).UTC(),
+		ObservedTotalMinor:    0,
+		ConfirmedTotalMinor:   0,
+		UnconfirmedTotalMinor: 0,
 		RequiredConfirmations: 1,
 		LatestBlockHeight:     3,
 	})
@@ -239,11 +249,86 @@ func TestEthereumRPCReceiptObserverValidation(t *testing.T) {
 		Network:               valueobjects.NetworkID("unknown"),
 		Address:               "0x1111111111111111111111111111111111111111",
 		IssuedAt:              time.Unix(2500, 0).UTC(),
+		ObservedTotalMinor:    0,
+		ConfirmedTotalMinor:   0,
+		UnconfirmedTotalMinor: 0,
 		RequiredConfirmations: 1,
 		LatestBlockHeight:     3,
 	})
 	if err == nil {
 		t.Fatal("expected missing network error")
+	}
+}
+
+func TestEthereumRPCReceiptObserverObserveAddressZeroTotalsUsesSinceBlockHeight(t *testing.T) {
+	state, server := newTestEthereumRPCServer(t)
+	defer server.Close()
+
+	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
+		valueobjects.NetworkID("sepolia"): {
+			Endpoint: server.URL,
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEthereumRPCReceiptObserver returned error: %v", err)
+	}
+
+	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
+		Network:               valueobjects.NetworkID("sepolia"),
+		Address:               "0x1111111111111111111111111111111111111111",
+		IssuedAt:              time.Unix(1000, 0).UTC(),
+		ObservedTotalMinor:    0,
+		ConfirmedTotalMinor:   0,
+		UnconfirmedTotalMinor: 0,
+		RequiredConfirmations: 2,
+		LatestBlockHeight:     3,
+		SinceBlockHeight:      2,
+	})
+	if err != nil {
+		t.Fatalf("ObserveAddress returned error: %v", err)
+	}
+
+	if output.ObservedTotalMinor != 3 || output.ConfirmedTotalMinor != 0 || output.UnconfirmedTotalMinor != 3 {
+		t.Fatalf("unexpected incremental totals: got %+v", output)
+	}
+	if got := strings.Join(state.requestedBlocks, ","); got != "0x3" {
+		t.Fatalf("expected to scan only block 0x3, got %q", got)
+	}
+}
+
+func TestEthereumRPCReceiptObserverObserveAddressReusesTotalsWhenAlreadyAtLatest(t *testing.T) {
+	state, server := newTestEthereumRPCServer(t)
+	defer server.Close()
+
+	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
+		valueobjects.NetworkID("sepolia"): {
+			Endpoint: server.URL,
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEthereumRPCReceiptObserver returned error: %v", err)
+	}
+
+	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
+		Network:               valueobjects.NetworkID("sepolia"),
+		Address:               "0x1111111111111111111111111111111111111111",
+		IssuedAt:              time.Unix(1000, 0).UTC(),
+		ObservedTotalMinor:    7,
+		ConfirmedTotalMinor:   7,
+		UnconfirmedTotalMinor: 0,
+		RequiredConfirmations: 2,
+		LatestBlockHeight:     3,
+		SinceBlockHeight:      3,
+	})
+	if err != nil {
+		t.Fatalf("ObserveAddress returned error: %v", err)
+	}
+
+	if output.ObservedTotalMinor != 7 || output.ConfirmedTotalMinor != 7 || output.UnconfirmedTotalMinor != 0 {
+		t.Fatalf("unexpected reused totals: got %+v", output)
+	}
+	if len(state.requestedBlocks) != 0 || len(state.requestedHeaders) != 0 {
+		t.Fatalf("expected no block fetches when already at latest, got blocks=%v headers=%v", state.requestedBlocks, state.requestedHeaders)
 	}
 }
 

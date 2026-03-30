@@ -265,6 +265,9 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	if observer.lastInputs[0].LatestBlockHeight != 1000 {
 		t.Fatalf("unexpected latest block height in observer input: got %d", observer.lastInputs[0].LatestBlockHeight)
 	}
+	if observer.lastInputs[0].ObservedTotalMinor != 0 || observer.lastInputs[0].ConfirmedTotalMinor != 0 || observer.lastInputs[0].UnconfirmedTotalMinor != 0 {
+		t.Fatalf("expected zero cumulative totals in observer input, got %+v", observer.lastInputs[0])
+	}
 	if observer.fetchLatestBlockHeightCalls != 1 {
 		t.Fatalf("unexpected latest block height fetch calls: got %d", observer.fetchLatestBlockHeightCalls)
 	}
@@ -277,6 +280,79 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 	}
 	if notification.CurrentStatus != valueobjects.PaymentReceiptStatusPaidConfirmed {
 		t.Fatalf("unexpected current status: got %q", notification.CurrentStatus)
+	}
+}
+
+func TestRunReceiptPollingCycleUseCaseExecutePassesExistingCumulativeTotalsToObserver(t *testing.T) {
+	now := time.Date(2026, 3, 30, 6, 30, 0, 0, time.UTC)
+	tracking, err := entities.NewPaymentReceiptTracking(
+		501,
+		"ethereum-sepolia-create2",
+		valueobjects.ChainIDEthereum,
+		valueobjects.NetworkID("sepolia"),
+		"0x1111111111111111111111111111111111111111",
+		time.Date(2026, 3, 30, 5, 0, 0, 0, time.UTC),
+		1000,
+		2,
+	)
+	if err != nil {
+		t.Fatalf("setup tracking: %v", err)
+	}
+	tracking.ObservedTotalMinor = 400
+	tracking.ConfirmedTotalMinor = 0
+	tracking.UnconfirmedTotalMinor = 400
+	tracking.LastObservedBlockHeight = 77
+
+	trackingStore := &fakePaymentReceiptTrackingStore{
+		claimRows: []entities.PaymentReceiptTracking{tracking},
+	}
+	notificationOutbox := &fakePaymentReceiptStatusNotificationOutbox{}
+	unitOfWork := &fakeReceiptPollingUnitOfWork{
+		trackingStore:      trackingStore,
+		notificationOutbox: notificationOutbox,
+	}
+	observer := &fakeBlockchainReceiptObserver{
+		outputsByAddress: map[string]outport.ObservePaymentAddressOutput{
+			tracking.Address: {
+				ObservedTotalMinor:    400,
+				ConfirmedTotalMinor:   0,
+				UnconfirmedTotalMinor: 400,
+				LatestBlockHeight:     88,
+			},
+		},
+		errorsByAddress: map[string]error{},
+		latestBlockHeightsByScope: map[string]int64{
+			"ethereum/sepolia": 88,
+		},
+	}
+
+	useCase := NewRunReceiptPollingCycleUseCase(
+		unitOfWork,
+		observer,
+		&fakeReceiptPollingClock{now: now},
+		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
+	)
+
+	_, err = useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
+		BatchSize:          1,
+		RescheduleInterval: 5 * time.Minute,
+		ClaimTTL:           30 * time.Second,
+		Chain:              valueobjects.ChainIDEthereum,
+		Network:            valueobjects.NetworkID("sepolia"),
+	})
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+
+	if got := len(observer.lastInputs); got != 1 {
+		t.Fatalf("unexpected observer call count: got %d", got)
+	}
+	input := observer.lastInputs[0]
+	if input.ObservedTotalMinor != 400 || input.ConfirmedTotalMinor != 0 || input.UnconfirmedTotalMinor != 400 {
+		t.Fatalf("unexpected cumulative totals passed to observer: %+v", input)
+	}
+	if input.SinceBlockHeight != 77 {
+		t.Fatalf("unexpected since block height passed to observer: got %d", input.SinceBlockHeight)
 	}
 }
 

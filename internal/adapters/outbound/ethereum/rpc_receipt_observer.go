@@ -119,19 +119,39 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 	if input.SinceBlockHeight < 0 {
 		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
+	if input.ObservedTotalMinor < 0 || input.ConfirmedTotalMinor < 0 || input.UnconfirmedTotalMinor < 0 {
+		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
+	}
 
 	client, err := o.selectClient(input.Network)
 	if err != nil {
 		return outport.ObservePaymentAddressOutput{}, err
+	}
+	if input.SinceBlockHeight >= input.LatestBlockHeight && input.SinceBlockHeight > 0 {
+		return outport.ObservePaymentAddressOutput{
+			ObservedTotalMinor:    input.ObservedTotalMinor,
+			ConfirmedTotalMinor:   input.ConfirmedTotalMinor,
+			UnconfirmedTotalMinor: input.UnconfirmedTotalMinor,
+			LatestBlockHeight:     input.LatestBlockHeight,
+		}, nil
 	}
 
 	startBlockHeight, err := client.findFirstBlockOnOrAfter(ctx, input.IssuedAt.UTC(), input.LatestBlockHeight)
 	if err != nil {
 		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
+	if shouldUseZeroTotalIncrementalScan(input) {
+		incrementalStart := input.SinceBlockHeight + 1
+		if incrementalStart > startBlockHeight {
+			startBlockHeight = incrementalStart
+		}
+	}
 	if startBlockHeight > input.LatestBlockHeight {
 		return outport.ObservePaymentAddressOutput{
-			LatestBlockHeight: input.LatestBlockHeight,
+			ObservedTotalMinor:    input.ObservedTotalMinor,
+			ConfirmedTotalMinor:   input.ConfirmedTotalMinor,
+			UnconfirmedTotalMinor: input.UnconfirmedTotalMinor,
+			LatestBlockHeight:     input.LatestBlockHeight,
 		}, nil
 	}
 
@@ -139,6 +159,10 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 		confirmedTotalMinor   int64
 		unconfirmedTotalMinor int64
 	)
+	if shouldUseZeroTotalIncrementalScan(input) {
+		confirmedTotalMinor = input.ConfirmedTotalMinor
+		unconfirmedTotalMinor = input.UnconfirmedTotalMinor
+	}
 
 	for blockHeight := startBlockHeight; blockHeight <= input.LatestBlockHeight; blockHeight++ {
 		block, found, err := client.fetchBlockByNumber(ctx, blockHeight, true)
@@ -205,6 +229,13 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 		UnconfirmedTotalMinor: unconfirmedTotalMinor,
 		LatestBlockHeight:     input.LatestBlockHeight,
 	}, nil
+}
+
+func shouldUseZeroTotalIncrementalScan(input outport.ObservePaymentAddressInput) bool {
+	return input.SinceBlockHeight > 0 &&
+		input.ObservedTotalMinor == 0 &&
+		input.ConfirmedTotalMinor == 0 &&
+		input.UnconfirmedTotalMinor == 0
 }
 
 func (o *EthereumRPCReceiptObserver) FetchLatestBlockHeight(
