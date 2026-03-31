@@ -308,6 +308,7 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			derived.Address,
 			derived.IssuanceRefKind,
 			derived.IssuanceRef,
+			derived.SweepMaterialJSON,
 		)
 		if err != nil {
 			return handleDerivationFailure(

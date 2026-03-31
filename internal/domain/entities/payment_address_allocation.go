@@ -18,6 +18,7 @@ type PaymentAddressAllocation struct {
 	Network                 valueobjects.NetworkID
 	Scheme                  string
 	Address                 string
+	SweepMaterialJSON       string
 	IssuanceRefKind         valueobjects.IssuanceRefKind
 	IssuanceRef             string
 	DerivationFailureReason valueobjects.PaymentAddressAllocationDerivationFailureReason
@@ -56,6 +57,7 @@ func (a PaymentAddressAllocation) MarkIssued(
 	address string,
 	issuanceRefKind valueobjects.IssuanceRefKind,
 	issuanceRef string,
+	sweepMaterialJSON string,
 ) (PaymentAddressAllocation, error) {
 	policy = policy.Normalize()
 	if policy.AddressPolicy.AddressPolicyID == "" {
@@ -76,6 +78,10 @@ func (a PaymentAddressAllocation) MarkIssued(
 	if normalizedIssuanceRef == "" {
 		return PaymentAddressAllocation{}, ErrIssuanceRefRequired
 	}
+	normalizedSweepMaterialJSON := strings.TrimSpace(sweepMaterialJSON)
+	if normalizedSweepMaterialJSON == "" {
+		return PaymentAddressAllocation{}, ErrSweepMaterialRequired
+	}
 
 	issued := a
 	issued.Status = valueobjects.PaymentAddressAllocationStatusIssued
@@ -83,6 +89,7 @@ func (a PaymentAddressAllocation) MarkIssued(
 	issued.Network = policy.AddressPolicy.Network
 	issued.Scheme = policy.AddressPolicy.Scheme
 	issued.Address = normalizedAddress
+	issued.SweepMaterialJSON = normalizedSweepMaterialJSON
 	issued.IssuanceRefKind = issuanceRefKind
 	issued.IssuanceRef = normalizedIssuanceRef
 	issued.DerivationFailureReason = ""
@@ -104,6 +111,7 @@ func (a PaymentAddressAllocation) MarkDerivationFailed(
 	failed.Network = ""
 	failed.Scheme = ""
 	failed.Address = ""
+	failed.SweepMaterialJSON = ""
 	failed.IssuanceRefKind = ""
 	failed.IssuanceRef = ""
 	return failed, nil

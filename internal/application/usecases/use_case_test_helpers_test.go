@@ -142,9 +142,10 @@ func newFakeIssuedPaymentAddressDeriver() *fakeIssuedPaymentAddressDeriver {
 			valueobjects.SupportedChainBitcoin: true,
 		},
 		output: outport.DeriveIssuedPaymentAddressOutput{
-			Address:         "bc1qdefault",
-			IssuanceRefKind: valueobjects.IssuanceRefKindHDPathAbsolute,
-			IssuanceRef:     "0/0",
+			Address:           "bc1qdefault",
+			SweepMaterialJSON: `{"material_type":"bitcoin_hd"}`,
+			IssuanceRefKind:   valueobjects.IssuanceRefKindHDPathAbsolute,
+			IssuanceRef:       "0/0",
 		},
 	}
 }

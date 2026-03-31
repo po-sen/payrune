@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,13 +39,16 @@ func (f *fakeAllocatePaymentAddressClock) NowUTC() time.Time {
 
 func newAllocateDeriveOutput(address string, path string) outport.DeriveIssuedPaymentAddressOutput {
 	kind := valueobjects.IssuanceRefKindHDPathAbsolute
-	if len(path) >= 2 && path[:2] == "0x" {
+	sweepMaterialJSON := `{"material_type":"bitcoin_hd"}`
+	if strings.HasPrefix(path, "0x") || strings.Contains(path, "/0x") {
 		kind = valueobjects.IssuanceRefKindCreate2Salt
+		sweepMaterialJSON = `{"material_type":"ethereum_create2"}`
 	}
 	return outport.DeriveIssuedPaymentAddressOutput{
-		Address:         address,
-		IssuanceRefKind: kind,
-		IssuanceRef:     path,
+		Address:           address,
+		SweepMaterialJSON: sweepMaterialJSON,
+		IssuanceRefKind:   kind,
+		IssuanceRef:       path,
 	}
 }
 
@@ -211,6 +215,9 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.lastCompleteInput.IssuanceRef != "m/84'/0'/0'/0/11" {
 		t.Fatalf("unexpected address reference in complete input: got %q", allocator.lastCompleteInput.IssuanceRef)
 	}
+	if !strings.Contains(allocator.lastCompleteInput.SweepMaterialJSON, `"bitcoin_hd"`) {
+		t.Fatalf("unexpected sweep material in complete input: got %q", allocator.lastCompleteInput.SweepMaterialJSON)
+	}
 	if deriver.lastInput.Allocation.SlotIndex != 11 {
 		t.Fatalf("unexpected derivation index passed to issued deriver: got %d", deriver.lastInput.Allocation.SlotIndex)
 	}
@@ -303,6 +310,9 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	}
 	if allocator.lastCompleteInput.IssuanceRef != "ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 		t.Fatalf("unexpected address reference persisted on allocation: got %q", allocator.lastCompleteInput.IssuanceRef)
+	}
+	if !strings.Contains(allocator.lastCompleteInput.SweepMaterialJSON, `"ethereum_create2"`) {
+		t.Fatalf("unexpected ethereum sweep material persisted on allocation: got %q", allocator.lastCompleteInput.SweepMaterialJSON)
 	}
 	if deriver.lastInput.Policy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
 		t.Fatalf("unexpected chain passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Chain)

@@ -67,10 +67,20 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 		}
 	}
 
+	sweepMaterialJSON, err := buildSweepMaterialJSON(
+		policy,
+		output.Address,
+		output.IssuanceRef,
+	)
+	if err != nil {
+		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationFailed
+	}
+
 	return outport.DeriveIssuedPaymentAddressOutput{
-		Address:         output.Address,
-		IssuanceRefKind: output.IssuanceRefKind,
-		IssuanceRef:     output.IssuanceRef,
+		Address:           output.Address,
+		SweepMaterialJSON: sweepMaterialJSON,
+		IssuanceRefKind:   output.IssuanceRefKind,
+		IssuanceRef:       output.IssuanceRef,
 	}, nil
 }
 

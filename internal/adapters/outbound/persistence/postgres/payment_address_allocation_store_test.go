@@ -62,13 +62,14 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 	store := NewPaymentAddressAllocationStore(db)
 	issuedAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
 	allocation := entities.PaymentAddressAllocation{
-		PaymentAddressID: 44,
-		Chain:            valueobjects.SupportedChainBitcoin,
-		Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-		Scheme:           string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-		Address:          " bc1qallocated ",
-		IssuanceRefKind:  valueobjects.IssuanceRefKindHDPathAbsolute,
-		IssuanceRef:      " m/84'/0'/0'/0/11 ",
+		PaymentAddressID:  44,
+		Chain:             valueobjects.SupportedChainBitcoin,
+		Network:           valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Scheme:            string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+		Address:           " bc1qallocated ",
+		SweepMaterialJSON: ` {"material_type":"bitcoin_hd"} `,
+		IssuanceRefKind:   valueobjects.IssuanceRefKindHDPathAbsolute,
+		IssuanceRef:       " m/84'/0'/0'/0/11 ",
 	}
 
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
@@ -78,6 +79,7 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 			"mainnet",
 			"nativeSegwit",
 			"bc1qallocated",
+			`{"material_type":"bitcoin_hd"}`,
 			"hd_path_absolute",
 			"m/84'/0'/0'/0/11",
 			issuedAt.UTC(),
@@ -149,6 +151,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"network",
 		"scheme",
 		"address",
+		"sweep_material_json",
 		"issuance_ref_kind",
 		"issuance_ref",
 		"failure_reason",
@@ -162,6 +165,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"mainnet",
 		"nativeSegwit",
 		"bc1qlookup",
+		`{"material_type":"bitcoin_hd"}`,
 		"hd_path_absolute",
 		"m/84'/0'/0'/0/21",
 		"",
@@ -186,6 +190,9 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 	}
 	if allocation.Address != "bc1qlookup" {
 		t.Fatalf("unexpected address: got %q", allocation.Address)
+	}
+	if allocation.SweepMaterialJSON != `{"material_type":"bitcoin_hd"}` {
+		t.Fatalf("unexpected sweep material: got %q", allocation.SweepMaterialJSON)
 	}
 	if allocation.IssuanceRefKind != valueobjects.IssuanceRefKindHDPathAbsolute {
 		t.Fatalf("unexpected issuance ref kind: got %q", allocation.IssuanceRefKind)
@@ -220,6 +227,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDParsesLegacyFailureReason(t 
 		"network",
 		"scheme",
 		"address",
+		"sweep_material_json",
 		"issuance_ref_kind",
 		"issuance_ref",
 		"failure_reason",
@@ -233,6 +241,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDParsesLegacyFailureReason(t 
 		"mainnet",
 		"nativeSegwit",
 		"bc1qlookup",
+		`{"material_type":"bitcoin_hd"}`,
 		"hd_path_absolute",
 		"m/84'/0'/0'/0/21",
 		"xpub parse exploded",
@@ -273,6 +282,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain
 		"network",
 		"scheme",
 		"address",
+		"sweep_material_json",
 		"issuance_ref_kind",
 		"issuance_ref",
 		"failure_reason",
@@ -286,6 +296,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain
 		"mainnet",
 		"nativeSegwit",
 		"bc1qlookup",
+		`{"material_type":"bitcoin_hd"}`,
 		"hd_path_absolute",
 		"m/84'/0'/0'/0/21",
 		"",
@@ -320,6 +331,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedNetwo
 		"network",
 		"scheme",
 		"address",
+		"sweep_material_json",
 		"issuance_ref_kind",
 		"issuance_ref",
 		"failure_reason",
@@ -333,6 +345,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedNetwo
 		"main/net",
 		"nativeSegwit",
 		"bc1qlookup",
+		`{"material_type":"bitcoin_hd"}`,
 		"hd_path_absolute",
 		"m/84'/0'/0'/0/21",
 		"",

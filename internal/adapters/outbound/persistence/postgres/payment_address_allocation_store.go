@@ -41,6 +41,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		rawNetwork          string
 		scheme              string
 		address             string
+		sweepMaterialJSON   string
 		rawIssuanceRefKind  string
 		issuanceRef         string
 		failureReason       string
@@ -57,6 +58,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		        COALESCE(network, ''),
 		        COALESCE(scheme, ''),
 		        COALESCE(address, ''),
+		        COALESCE(sweep_material_json::text, ''),
 		        COALESCE(issuance_ref_kind, ''),
 		        COALESCE(issuance_ref, ''),
 		        COALESCE(failure_reason, '')
@@ -75,6 +77,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		&rawNetwork,
 		&scheme,
 		&address,
+		&sweepMaterialJSON,
 		&rawIssuanceRefKind,
 		&issuanceRef,
 		&failureReason,
@@ -129,6 +132,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		Network:                 network,
 		Scheme:                  strings.TrimSpace(scheme),
 		Address:                 strings.TrimSpace(address),
+		SweepMaterialJSON:       strings.TrimSpace(sweepMaterialJSON),
 		IssuanceRefKind:         issuanceRefKind,
 		IssuanceRef:             strings.TrimSpace(issuanceRef),
 		DerivationFailureReason: derivationFailureReason,
@@ -151,10 +155,11 @@ func (r *PaymentAddressAllocationStore) Complete(
 		     network = $3,
 		     scheme = $4,
 		     address = $5,
-		     issuance_ref_kind = $6,
-		     issuance_ref = $7,
+		     sweep_material_json = $6,
+		     issuance_ref_kind = $7,
+		     issuance_ref = $8,
 		     allocation_status = 'issued',
-		     issued_at = $8,
+		     issued_at = $9,
 		     failure_reason = NULL
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
 		allocation.PaymentAddressID,
@@ -162,6 +167,7 @@ func (r *PaymentAddressAllocationStore) Complete(
 		string(allocation.Network),
 		string(allocation.Scheme),
 		strings.TrimSpace(allocation.Address),
+		nullIfEmpty(allocation.SweepMaterialJSON),
 		nullIfEmpty(string(allocation.IssuanceRefKind)),
 		nullIfEmpty(allocation.IssuanceRef),
 		issuedAt.UTC(),
@@ -252,6 +258,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		     network = NULL,
 		     scheme = NULL,
 		     address = NULL,
+		     sweep_material_json = NULL,
 		     issuance_ref_kind = NULL,
 		     issuance_ref = NULL,
 		     reserved_at = NOW(),

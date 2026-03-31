@@ -120,6 +120,37 @@ expected = "sha256=" + hex(hmac_sha256(secret, raw_body))
 secure_compare(expected, request.headers["X-Payrune-Signature-256"])
 ```
 
+## Operator Recovery
+
+Use `address_policy_allocations.sweep_material_json` as the only operator-facing recover material.
+Phase-1 recovery should not depend on `issuance_ref`, `issuance_ref_kind`, or `address_space_ref`.
+
+Inspect one issued row:
+
+```bash
+psql "$DATABASE_URL" -X -c "
+  SELECT id, chain, network, address, sweep_material_json
+    FROM address_policy_allocations
+   WHERE id = 101
+     AND allocation_status = 'issued';
+"
+```
+
+ETH CREATE2 sweep helper:
+
+```bash
+DATABASE_URL=postgres://...
+ETHEREUM_SWEEP_PAYMENT_ADDRESS_ID=145
+ETHEREUM_SWEEP_RPC_URL=https://...
+ETHEREUM_SWEEP_FROM_ADDRESS=0xYourLedgerSender
+ETHEREUM_SWEEP_DERIVATION_PATH="m/44'/60'/0'/0/0" \
+  bash scripts/ethereum_create2_sweep.sh
+```
+
+The helper reads `sweep_material_json` from the DB, validates the connected Ledger sender, and
+prints the `cast send <receiver> "sweep()"` command in dry-run mode. Use
+`bash scripts/ethereum_create2_sweep.sh --broadcast` only after the dry-run output is correct.
+
 ## Main Parameters
 
 API / core:

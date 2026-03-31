@@ -19,6 +19,7 @@ var (
 	ErrAddressPolicyMismatch               = errors.New("address policy mismatch")
 	ErrIssuanceRefKindRequired             = errors.New("issuance reference kind is required")
 	ErrIssuanceRefRequired                 = errors.New("issuance reference is required")
+	ErrSweepMaterialRequired               = errors.New("sweep material is required")
 	ErrDerivationFailureReasonRequired     = errors.New("derivation failure reason is required")
 	ErrPaymentAddressAllocationNotIssued   = errors.New("payment address allocation is not issued")
 	ErrExpiresAtRequired                   = errors.New("expires at is required")

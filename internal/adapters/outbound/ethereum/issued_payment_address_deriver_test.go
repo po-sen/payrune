@@ -2,6 +2,7 @@ package ethereum
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	outport "payrune/internal/application/ports/outbound"
@@ -42,6 +43,19 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 	}
 	if output.IssuanceRef == "" {
 		t.Fatal("expected address reference")
+	}
+	var sweepMaterial map[string]any
+	if err := json.Unmarshal([]byte(output.SweepMaterialJSON), &sweepMaterial); err != nil {
+		t.Fatalf("unexpected sweep material json error: %v", err)
+	}
+	if sweepMaterial["material_type"] != "ethereum_create2" {
+		t.Fatalf("unexpected material type: got %v", sweepMaterial["material_type"])
+	}
+	if sweepMaterial["predicted_address"] != output.Address {
+		t.Fatalf("unexpected predicted address: got %v", sweepMaterial["predicted_address"])
+	}
+	if sweepMaterial["create2_salt"] != output.IssuanceRef {
+		t.Fatalf("unexpected create2 salt: got %v", sweepMaterial["create2_salt"])
 	}
 }
 
