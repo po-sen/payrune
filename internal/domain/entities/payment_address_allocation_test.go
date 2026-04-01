@@ -48,15 +48,10 @@ func TestPaymentAddressAllocationMarkIssued(t *testing.T) {
 	issued, err := allocation.MarkIssued(
 		issuancePolicy,
 		"bc1qexample",
-		valueobjects.IssuanceRefKindHDPathAbsolute,
-		"m/84'/0'/0'/0/42",
 		`{"material_type":"bitcoin_hd"}`,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if issued.IssuanceRef != "m/84'/0'/0'/0/42" {
-		t.Fatalf("unexpected address reference: got %q", issued.IssuanceRef)
 	}
 	if issued.Address != "bc1qexample" {
 		t.Fatalf("unexpected address: got %q", issued.Address)
@@ -87,8 +82,6 @@ func TestPaymentAddressAllocationMarkIssuedRejectPolicyMismatch(t *testing.T) {
 	if _, err := allocation.MarkIssued(
 		issuancePolicy,
 		"bc1qexample",
-		valueobjects.IssuanceRefKindHDPathAbsolute,
-		"m/84'/0'/0'/0/42",
 		`{"material_type":"bitcoin_hd"}`,
 	); err == nil {
 		t.Fatalf("expected policy mismatch error")
@@ -144,8 +137,6 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 	issued, err := allocation.MarkIssued(
 		issuancePolicy,
 		"tb1qexample",
-		valueobjects.IssuanceRefKindHDPathAbsolute,
-		"m/84'/1'/0'/0/42",
 		`{"material_type":"bitcoin_hd"}`,
 	)
 	if err != nil {
@@ -188,8 +179,6 @@ func TestPaymentAddressAllocationMarkIssuedRequiresSweepMaterial(t *testing.T) {
 	_, err = allocation.MarkIssued(
 		issuancePolicy,
 		"bc1qexample",
-		valueobjects.IssuanceRefKindHDPathAbsolute,
-		"m/84'/0'/0'/0/42",
 		"   ",
 	)
 	if !errors.Is(err, ErrSweepMaterialRequired) {

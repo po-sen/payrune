@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
@@ -67,14 +68,98 @@ func newCloudflareReservePaymentAddressAllocationInput(customerReference string)
 	}
 }
 
-func TestPaymentAddressAllocationStoreReopenFailedReservationUsesAddressSpaceRef(t *testing.T) {
+func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 	executor := &stubAllocationExecutor{
 		queryRowResponses: []row{
-			valueRow{values: []any{int64(99), int64(11)}},
+			valueRow{values: []any{
+				int64(199),
+				"bitcoin-mainnet-native-segwit",
+				int64(21),
+				int64(125000),
+				"order-lookup",
+				"bitcoin",
+				"mainnet",
+				"nativeSegwit",
+				"bc1qlookup",
+				`{"material_type":"bitcoin_hd"}`,
+				"",
+			}},
 		},
 	}
 	store := NewPaymentAddressAllocationStore(executor)
-	input := newCloudflareReservePaymentAddressAllocationInput(" order-1 ")
+
+	allocation, found, err := store.FindIssuedByID(
+		context.Background(),
+		outport.FindIssuedPaymentAddressAllocationByIDInput{PaymentAddressID: 199},
+	)
+	if err != nil {
+		t.Fatalf("FindIssuedByID returned error: %v", err)
+	}
+	if !found {
+		t.Fatal("expected found=true")
+	}
+	if allocation.SlotIndex != 21 {
+		t.Fatalf("unexpected slot index: got %d", allocation.SlotIndex)
+	}
+	if len(executor.queryRowCalls) != 1 {
+		t.Fatalf("unexpected query row call count: got %d", len(executor.queryRowCalls))
+	}
+	if strings.Contains(executor.queryRowCalls[0].query, "address_policy_allocation_states") {
+		t.Fatalf("expected single-table issued lookup, got %q", executor.queryRowCalls[0].query)
+	}
+}
+
+func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
+	executor := &stubAllocationExecutor{}
+	store := NewPaymentAddressAllocationStore(executor)
+	issuedAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
+
+	err := store.Complete(context.Background(), entities.PaymentAddressAllocation{
+		PaymentAddressID:  44,
+		Chain:             valueobjects.SupportedChainBitcoin,
+		Network:           valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Scheme:            string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+		Address:           " bc1qallocated ",
+		SweepMaterialJSON: ` {"material_type":"bitcoin_hd"} `,
+	}, issuedAt)
+	if err != nil {
+		t.Fatalf("Complete returned error: %v", err)
+	}
+	if len(executor.execCalls) != 1 {
+		t.Fatalf("expected 1 exec call, got %d", len(executor.execCalls))
+	}
+	if !strings.Contains(executor.execCalls[0].query, "UPDATE address_policy_allocations") {
+		t.Fatalf("unexpected exec query: %q", executor.execCalls[0].query)
+	}
+}
+
+func TestPaymentAddressAllocationStoreMarkDerivationFailedSuccess(t *testing.T) {
+	executor := &stubAllocationExecutor{}
+	store := NewPaymentAddressAllocationStore(executor)
+
+	err := store.MarkDerivationFailed(context.Background(), entities.PaymentAddressAllocation{
+		PaymentAddressID:        44,
+		DerivationFailureReason: valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
+	})
+	if err != nil {
+		t.Fatalf("MarkDerivationFailed returned error: %v", err)
+	}
+	if len(executor.execCalls) != 1 {
+		t.Fatalf("expected 1 exec call, got %d", len(executor.execCalls))
+	}
+	if !strings.Contains(executor.execCalls[0].query, "failure_reason = $2") {
+		t.Fatalf("expected allocation-table failure reason update, got %q", executor.execCalls[0].query)
+	}
+}
+
+func TestPaymentAddressAllocationStoreReopenFailedReservationUsesAllocationTable(t *testing.T) {
+	executor := &stubAllocationExecutor{
+		queryRowResponses: []row{
+			valueRow{values: []any{int64(77), int64(15)}},
+		},
+	}
+	store := NewPaymentAddressAllocationStore(executor)
+	input := newCloudflareReservePaymentAddressAllocationInput(" order-5 ")
 
 	allocation, reopened, err := store.ReopenFailedReservation(context.Background(), input)
 	if err != nil {
@@ -83,60 +168,79 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationUsesAddressSpaceRef
 	if !reopened {
 		t.Fatal("expected reopened=true")
 	}
-	if allocation.SlotIndex != 11 {
-		t.Fatalf("unexpected derivation index: got %d", allocation.SlotIndex)
+	if allocation.SlotIndex != 15 {
+		t.Fatalf("unexpected slot index: got %d", allocation.SlotIndex)
 	}
 	if len(executor.queryRowCalls) != 1 {
-		t.Fatalf("unexpected query row call count: got %d", len(executor.queryRowCalls))
+		t.Fatalf("expected 1 query row call, got %d", len(executor.queryRowCalls))
 	}
-	if !strings.Contains(executor.queryRowCalls[0].query, "address_space_ref = $2") {
-		t.Fatalf("expected reopen query to filter by address_space_ref, got %q", executor.queryRowCalls[0].query)
+	if strings.Contains(executor.queryRowCalls[0].query, "address_policy_allocation_states") {
+		t.Fatalf("expected reopen query to stay on allocation table, got %q", executor.queryRowCalls[0].query)
 	}
-	if len(executor.queryRowCalls[0].args) != 2 || executor.queryRowCalls[0].args[1] != "xpub-main" {
-		t.Fatalf("unexpected reopen args: %+v", executor.queryRowCalls[0].args)
+	if len(executor.queryRowCalls[0].args) != 2 ||
+		executor.queryRowCalls[0].args[0] != input.IssuancePolicy.AddressPolicy.AddressPolicyID ||
+		executor.queryRowCalls[0].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		t.Fatalf("unexpected policy lookup args: %+v", executor.queryRowCalls[0].args)
+	}
+	if len(executor.execCalls) != 1 {
+		t.Fatalf("expected 1 exec call, got %d", len(executor.execCalls))
 	}
 }
 
-func TestPaymentAddressAllocationStoreReserveFreshUsesXPubOnlyCursorSeed(t *testing.T) {
+func TestPaymentAddressAllocationStoreReserveFreshUsesAllocationTableAndPolicyCursor(t *testing.T) {
 	executor := &stubAllocationExecutor{
 		queryRowResponses: []row{
-			valueRow{values: []any{int64(21)}},
-			valueRow{values: []any{int64(144)}},
+			valueRow{values: []any{int64(31)}},
+			valueRow{values: []any{int64(155)}},
 		},
 	}
 	store := NewPaymentAddressAllocationStore(executor)
-	input := newCloudflareReservePaymentAddressAllocationInput(" order-2 ")
+	input := newCloudflareReservePaymentAddressAllocationInput(" order-6 ")
 
 	allocation, err := store.ReserveFresh(context.Background(), input)
 	if err != nil {
 		t.Fatalf("ReserveFresh returned error: %v", err)
 	}
-	if allocation.PaymentAddressID != 144 {
+	if allocation.PaymentAddressID != 155 {
 		t.Fatalf("unexpected payment address id: got %d", allocation.PaymentAddressID)
 	}
-	if allocation.SlotIndex != 21 {
-		t.Fatalf("unexpected derivation index: got %d", allocation.SlotIndex)
+	if allocation.SlotIndex != 31 {
+		t.Fatalf("unexpected slot index: got %d", allocation.SlotIndex)
 	}
-	if len(executor.execCalls) < 2 {
-		t.Fatalf("expected at least 2 exec calls, got %d", len(executor.execCalls))
+	if len(executor.execCalls) != 2 {
+		t.Fatalf("expected 2 exec calls, got %d", len(executor.execCalls))
 	}
-	firstExec := executor.execCalls[0]
-	if strings.Contains(firstExec.query, "address_space_ref IS NOT NULL") {
-		t.Fatalf("did not expect legacy transitional seed branch, got %q", firstExec.query)
+	if !strings.Contains(executor.execCalls[0].query, "address_space_ref") {
+		t.Fatalf("expected cursor seed to stay source-aware, got %q", executor.execCalls[0].query)
 	}
-	if !strings.Contains(firstExec.query, "ON CONFLICT (address_policy_id, address_space_ref) DO NOTHING") {
-		t.Fatalf("expected xpub-backed conflict target, got %q", firstExec.query)
+	if len(executor.queryRowCalls) != 2 {
+		t.Fatalf("expected 2 query row calls, got %d", len(executor.queryRowCalls))
 	}
-	if len(firstExec.args) != 2 || firstExec.args[1] != "xpub-main" {
-		t.Fatalf("unexpected cursor insert args: %+v", firstExec.args)
+	if !strings.Contains(executor.queryRowCalls[1].query, "INSERT INTO address_policy_allocations") {
+		t.Fatalf("expected allocation insert, got %q", executor.queryRowCalls[1].query)
 	}
-	if len(executor.queryRowCalls) < 2 {
-		t.Fatalf("expected at least 2 query row calls, got %d", len(executor.queryRowCalls))
+	if len(executor.queryRowCalls[1].args) != 5 {
+		t.Fatalf("unexpected allocation insert args: %+v", executor.queryRowCalls[1].args)
 	}
-	if !strings.Contains(executor.queryRowCalls[0].query, "address_space_ref = $2") {
-		t.Fatalf("expected cursor lookup by address_space_ref, got %q", executor.queryRowCalls[0].query)
+	if executor.queryRowCalls[1].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		t.Fatalf("expected address space ref in allocation insert, got %+v", executor.queryRowCalls[1].args)
 	}
-	if !strings.Contains(executor.queryRowCalls[1].query, "VALUES ($1, $2, $3, $4, $5, 'reserved')") {
-		t.Fatalf("expected reserved insert values shape, got %q", executor.queryRowCalls[1].query)
+	if executor.queryRowCalls[1].args[2] != int64(31) {
+		t.Fatalf("expected slot index 31 in allocation insert, got %+v", executor.queryRowCalls[1].args)
+	}
+	if len(executor.execCalls[0].args) != 2 ||
+		executor.execCalls[0].args[0] != input.IssuancePolicy.AddressPolicy.AddressPolicyID ||
+		executor.execCalls[0].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		t.Fatalf("unexpected cursor seed args: %+v", executor.execCalls[0].args)
+	}
+	if len(executor.queryRowCalls[0].args) != 2 ||
+		executor.queryRowCalls[0].args[0] != input.IssuancePolicy.AddressPolicy.AddressPolicyID ||
+		executor.queryRowCalls[0].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		t.Fatalf("unexpected policy cursor lookup args: %+v", executor.queryRowCalls[0].args)
+	}
+	if len(executor.execCalls[1].args) != 2 ||
+		executor.execCalls[1].args[0] != input.IssuancePolicy.AddressPolicy.AddressPolicyID ||
+		executor.execCalls[1].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		t.Fatalf("unexpected cursor update args: %+v", executor.execCalls[1].args)
 	}
 }

@@ -306,8 +306,6 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 		issuedAllocation, err = allocation.MarkIssued(
 			issuancePlan.Reservation.IssuancePolicy,
 			derived.Address,
-			derived.IssuanceRefKind,
-			derived.IssuanceRef,
 			derived.SweepMaterialJSON,
 		)
 		if err != nil {

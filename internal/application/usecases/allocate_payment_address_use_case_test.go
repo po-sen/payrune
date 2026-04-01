@@ -212,9 +212,6 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.lastCompleteInput.PaymentAddressID != 44 {
 		t.Fatalf("unexpected payment address id in complete input: got %d", allocator.lastCompleteInput.PaymentAddressID)
 	}
-	if allocator.lastCompleteInput.IssuanceRef != "m/84'/0'/0'/0/11" {
-		t.Fatalf("unexpected address reference in complete input: got %q", allocator.lastCompleteInput.IssuanceRef)
-	}
 	if !strings.Contains(allocator.lastCompleteInput.SweepMaterialJSON, `"bitcoin_hd"`) {
 		t.Fatalf("unexpected sweep material in complete input: got %q", allocator.lastCompleteInput.SweepMaterialJSON)
 	}
@@ -307,9 +304,6 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	}
 	if allocator.lastCompleteInput.Scheme != "create2" {
 		t.Fatalf("unexpected scheme persisted on allocation: got %q", allocator.lastCompleteInput.Scheme)
-	}
-	if allocator.lastCompleteInput.IssuanceRef != "ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
-		t.Fatalf("unexpected address reference persisted on allocation: got %q", allocator.lastCompleteInput.IssuanceRef)
 	}
 	if !strings.Contains(allocator.lastCompleteInput.SweepMaterialJSON, `"ethereum_create2"`) {
 		t.Fatalf("unexpected ethereum sweep material persisted on allocation: got %q", allocator.lastCompleteInput.SweepMaterialJSON)
@@ -422,7 +416,6 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 			Network:             valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:              string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			Address:             "bc1qexistingduplicate",
-			IssuanceRef:         "m/84'/0'/0'/0/9",
 		},
 	}
 	idempotencyStore := &fakePaymentAddressIdempotencyStore{
@@ -564,7 +557,6 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 			Network:             valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
 			Scheme:              string(valueobjects.BitcoinAddressSchemeNativeSegwit),
 			Address:             "bc1qracewinner",
-			IssuanceRef:         "m/84'/0'/0'/0/12",
 		},
 	}
 	idempotencyStore := &fakePaymentAddressIdempotencyStore{

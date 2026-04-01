@@ -72,6 +72,19 @@ func (d *HDXPubAddressDeriver) DeriveAddress(
 	return address.EncodeAddress(), nil
 }
 
+func (d *HDXPubAddressDeriver) ValidateXPub(xpub string) error {
+	trimmed := strings.TrimSpace(xpub)
+	if trimmed == "" {
+		return errors.New("xpub is required")
+	}
+
+	if _, err := hdkeychain.NewKeyFromString(trimmed); err != nil {
+		return fmt.Errorf("parse xpub: %w", err)
+	}
+
+	return nil
+}
+
 func (d *HDXPubAddressDeriver) DerivationPath(xpub string, index uint32) (string, error) {
 	extendedKey, err := hdkeychain.NewKeyFromString(xpub)
 	if err != nil {

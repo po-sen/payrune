@@ -42,29 +42,25 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		scheme              string
 		address             string
 		sweepMaterialJSON   string
-		rawIssuanceRefKind  string
-		issuanceRef         string
 		failureReason       string
 	)
 
 	err := r.executor.QueryRowContext(
 		ctx,
-		`SELECT id,
-		        address_policy_id,
-		        slot_index,
-		        expected_amount_minor,
-		        COALESCE(customer_reference, ''),
-		        COALESCE(chain, ''),
-		        COALESCE(network, ''),
-		        COALESCE(scheme, ''),
-		        COALESCE(address, ''),
-		        COALESCE(sweep_material_json::text, ''),
-		        COALESCE(issuance_ref_kind, ''),
-		        COALESCE(issuance_ref, ''),
-		        COALESCE(failure_reason, '')
-		   FROM address_policy_allocations
-		  WHERE id = $1
-		    AND allocation_status = 'issued'
+		`SELECT a.id,
+		        a.address_policy_id,
+		        a.slot_index,
+		        a.expected_amount_minor,
+		        COALESCE(a.customer_reference, ''),
+		        COALESCE(a.chain, ''),
+		        COALESCE(a.network, ''),
+		        COALESCE(a.scheme, ''),
+		        COALESCE(a.address, ''),
+		        COALESCE(a.sweep_material_json::text, ''),
+		        COALESCE(a.failure_reason, '')
+		   FROM address_policy_allocations a
+		  WHERE a.id = $1
+		    AND a.allocation_status = 'issued'
 		  LIMIT 1`,
 		input.PaymentAddressID,
 	).Scan(
@@ -78,8 +74,6 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		&scheme,
 		&address,
 		&sweepMaterialJSON,
-		&rawIssuanceRefKind,
-		&issuanceRef,
 		&failureReason,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -112,14 +106,6 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 	derivationFailureReason, _ := valueobjects.ParsePaymentAddressAllocationDerivationFailureReason(
 		strings.TrimSpace(failureReason),
 	)
-	issuanceRefKind, ok := valueobjects.ParseIssuanceRefKind(rawIssuanceRefKind)
-	if !ok {
-		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
-			"%w: %s",
-			outport.ErrPaymentAddressAllocationPersistedIssuanceRefKindInvalid,
-			rawIssuanceRefKind,
-		)
-	}
 
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:        paymentAddressID,
@@ -133,8 +119,6 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		Scheme:                  strings.TrimSpace(scheme),
 		Address:                 strings.TrimSpace(address),
 		SweepMaterialJSON:       strings.TrimSpace(sweepMaterialJSON),
-		IssuanceRefKind:         issuanceRefKind,
-		IssuanceRef:             strings.TrimSpace(issuanceRef),
 		DerivationFailureReason: derivationFailureReason,
 	}, true, nil
 }
@@ -156,11 +140,9 @@ func (r *PaymentAddressAllocationStore) Complete(
 		     scheme = $4,
 		     address = $5,
 		     sweep_material_json = $6,
-		     issuance_ref_kind = $7,
-		     issuance_ref = $8,
+		     failure_reason = NULL,
 		     allocation_status = 'issued',
-		     issued_at = $9,
-		     failure_reason = NULL
+		     issued_at = $7
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
 		allocation.PaymentAddressID,
 		string(allocation.Chain),
@@ -168,14 +150,11 @@ func (r *PaymentAddressAllocationStore) Complete(
 		string(allocation.Scheme),
 		strings.TrimSpace(allocation.Address),
 		nullIfEmpty(allocation.SweepMaterialJSON),
-		nullIfEmpty(string(allocation.IssuanceRefKind)),
-		nullIfEmpty(allocation.IssuanceRef),
 		issuedAt.UTC(),
 	)
 	if err != nil {
 		return outport.ErrPaymentAddressAllocationStoreFailed
 	}
-
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return outport.ErrPaymentAddressAllocationStoreFailed
@@ -194,8 +173,8 @@ func (r *PaymentAddressAllocationStore) MarkDerivationFailed(
 	result, err := r.executor.ExecContext(
 		ctx,
 		`UPDATE address_policy_allocations
-		 SET allocation_status = 'derivation_failed',
-		     failure_reason = $2
+		 SET failure_reason = $2,
+		     allocation_status = 'derivation_failed'
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
 		allocation.PaymentAddressID,
 		nullIfEmpty(string(allocation.DerivationFailureReason)),
@@ -203,7 +182,6 @@ func (r *PaymentAddressAllocationStore) MarkDerivationFailed(
 	if err != nil {
 		return outport.ErrPaymentAddressAllocationStoreFailed
 	}
-
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return outport.ErrPaymentAddressAllocationStoreFailed
@@ -220,6 +198,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, bool, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
+	addressPolicyID := input.IssuancePolicy.AddressPolicy.AddressPolicyID
 	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSpaceRef)
 
 	var paymentAddressID int64
@@ -227,14 +206,14 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	err := r.executor.QueryRowContext(
 		ctx,
 		`SELECT id, slot_index
-		 FROM address_policy_allocations
-		 WHERE address_policy_id = $1
-		   AND address_space_ref = $2
-		   AND allocation_status = 'derivation_failed'
-		 ORDER BY reserved_at ASC, id ASC
-		 LIMIT 1
-		 FOR UPDATE SKIP LOCKED`,
-		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		   FROM address_policy_allocations a
+		  WHERE a.address_policy_id = $1
+		    AND a.address_space_ref = $2
+		    AND a.allocation_status = 'derivation_failed'
+		  ORDER BY a.reserved_at ASC, a.id ASC
+		  LIMIT 1
+		  FOR UPDATE SKIP LOCKED`,
+		addressPolicyID,
 		addressSpaceRef,
 	).Scan(&paymentAddressID, &slotIndex)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -251,7 +230,6 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		ctx,
 		`UPDATE address_policy_allocations
 		 SET allocation_status = 'reserved',
-		     failure_reason = NULL,
 		     expected_amount_minor = $2,
 		     customer_reference = $3,
 		     chain = NULL,
@@ -259,8 +237,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		     scheme = NULL,
 		     address = NULL,
 		     sweep_material_json = NULL,
-		     issuance_ref_kind = NULL,
-		     issuance_ref = NULL,
+		     failure_reason = NULL,
 		     reserved_at = NOW(),
 		     issued_at = NULL
 		 WHERE id = $1`,
@@ -273,7 +250,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:    paymentAddressID,
-		AddressPolicyID:     input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		AddressPolicyID:     addressPolicyID,
 		SlotIndex:           uint32(slotIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,
@@ -286,28 +263,29 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
+	addressPolicyID := input.IssuancePolicy.AddressPolicy.AddressPolicyID
 	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSpaceRef)
 
 	if _, err := r.executor.ExecContext(
 		ctx,
 		`INSERT INTO address_policy_cursors (
-				   address_policy_id,
-				   address_space_ref,
-				   next_index
-				 )
-			 SELECT $1,
-			        $2,
-			        COALESCE(
-			          (
-			            SELECT MAX(slot_index) + 1
-			              FROM address_policy_allocations
-			             WHERE address_policy_id = $1
-			               AND address_space_ref = $2
-			          ),
-			          0
-			        )
-			 ON CONFLICT (address_policy_id, address_space_ref) DO NOTHING`,
-		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			   address_policy_id,
+			   address_space_ref,
+			   next_index
+			 )
+		 SELECT $1,
+		        $2,
+		        COALESCE(
+		          (
+		            SELECT MAX(slot_index) + 1
+		              FROM address_policy_allocations
+		             WHERE address_policy_id = $1
+		               AND address_space_ref = $2
+		          ),
+		          0
+		        )
+		 ON CONFLICT DO NOTHING`,
+		addressPolicyID,
 		addressSpaceRef,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
@@ -321,7 +299,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		 WHERE address_policy_id = $1
 		   AND address_space_ref = $2
 		 FOR UPDATE`,
-		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		addressPolicyID,
 		addressSpaceRef,
 	).Scan(&nextIndex)
 	if err != nil {
@@ -344,7 +322,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 			 )
 		 VALUES ($1, $2, $3, $4, $5, 'reserved')
 		 RETURNING id`,
-		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		addressPolicyID,
 		addressSpaceRef,
 		nextIndex,
 		input.ExpectedAmountMinor,
@@ -361,7 +339,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		     updated_at = NOW()
 		 WHERE address_policy_id = $1
 		   AND address_space_ref = $2`,
-		input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		addressPolicyID,
 		addressSpaceRef,
 	); err != nil {
 		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
@@ -369,7 +347,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:    paymentAddressID,
-		AddressPolicyID:     input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+		AddressPolicyID:     addressPolicyID,
 		SlotIndex:           uint32(nextIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,

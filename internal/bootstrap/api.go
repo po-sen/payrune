@@ -130,9 +130,12 @@ func newAPIContainer() (*apiContainer, error) {
 			os.Getenv(envEthereumSepoliaCreate2DerivationKey),
 		),
 	)
-	addressPolicyReader := policyadapter.NewAddressPolicyReader(
-		buildAddressIssuancePoliciesFromEnv(ethereumCreate2SaltDeriver),
-	)
+	addressIssuancePolicies := buildAddressIssuancePoliciesFromEnv(ethereumCreate2SaltDeriver)
+	if err := validateConfiguredAddressIssuancePolicies(addressIssuancePolicies, bitcoinDeriver); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	generateAddressUseCase := usecases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
@@ -431,6 +434,42 @@ func buildAddressIssuancePolicies(
 	}
 }
 
+func validateConfiguredAddressIssuancePolicies(
+	policies []entities.AddressIssuancePolicy,
+	bitcoinDeriver *bitcoin.HDXPubAddressDeriver,
+) error {
+	for _, policy := range policies {
+		normalized := policy.Normalize()
+		if !normalized.IsEnabled() || normalized.AddressPolicy.Chain != valueobjects.SupportedChainBitcoin {
+			continue
+		}
+		if bitcoinDeriver == nil {
+			return fmt.Errorf(
+				"bitcoin policy %q cannot be validated: bitcoin address deriver is not configured",
+				normalized.AddressPolicy.AddressPolicyID,
+			)
+		}
+		if err := bitcoinDeriver.ValidateXPub(normalized.IssuanceConfig.AddressSpaceRef); err != nil {
+			envKey := bitcoinXPubEnvKey(normalized.AddressPolicy.AddressPolicyID)
+			if envKey == "" {
+				return fmt.Errorf(
+					"bitcoin policy %q has invalid xpub: %w",
+					normalized.AddressPolicy.AddressPolicyID,
+					err,
+				)
+			}
+			return fmt.Errorf(
+				"bitcoin policy %q has invalid xpub in %s: %w",
+				normalized.AddressPolicy.AddressPolicyID,
+				envKey,
+				err,
+			)
+		}
+	}
+
+	return nil
+}
+
 func newBitcoinAddressIssuancePolicy(
 	addressPolicyID string,
 	network valueobjects.NetworkID,
@@ -486,6 +525,29 @@ func buildEthereumCreate2DerivationKeys(
 	return map[valueobjects.NetworkID]string{
 		valueobjects.NetworkID("mainnet"): strings.TrimSpace(mainnetKey),
 		valueobjects.NetworkID("sepolia"): strings.TrimSpace(sepoliaKey),
+	}
+}
+
+func bitcoinXPubEnvKey(addressPolicyID string) string {
+	switch addressPolicyID {
+	case "bitcoin-mainnet-legacy":
+		return envBitcoinMainnetLegacyXPub
+	case "bitcoin-mainnet-segwit":
+		return envBitcoinMainnetSegwitXPub
+	case "bitcoin-mainnet-native-segwit":
+		return envBitcoinMainnetNativeSegwitXPub
+	case "bitcoin-mainnet-taproot":
+		return envBitcoinMainnetTaprootXPub
+	case "bitcoin-testnet4-legacy":
+		return envBitcoinTestnet4LegacyXPub
+	case "bitcoin-testnet4-segwit":
+		return envBitcoinTestnet4SegwitXPub
+	case "bitcoin-testnet4-native-segwit":
+		return envBitcoinTestnet4NativeSegwitXPub
+	case "bitcoin-testnet4-taproot":
+		return envBitcoinTestnet4TaprootXPub
+	default:
+		return ""
 	}
 }
 

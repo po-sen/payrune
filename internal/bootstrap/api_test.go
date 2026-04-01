@@ -1,9 +1,11 @@
 package bootstrap
 
 import (
+	"strings"
 	"testing"
 	"time"
 
+	"payrune/internal/adapters/outbound/bitcoin"
 	"payrune/internal/adapters/outbound/ethereum"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/policies"
@@ -316,6 +318,82 @@ func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 	}
 }
 
+func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidBitcoinXPub(t *testing.T) {
+	policies := []entities.AddressIssuancePolicy{
+		newBitcoinAddressIssuancePolicy(
+			"bitcoin-testnet4-native-segwit",
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			"tpubDCiB1iLoNxaaj4MTSk2DoTuwUpEfgm4E3vAcTnvG64rR1smhcEsoTeqNCB4af1XHGspgNfWBA3ccpXiwX5JtxwZMTFct6DQWzrKundqdwEa",
+			"m/84'/1'/0'",
+		),
+	}
+
+	err := validateConfiguredAddressIssuancePolicies(policies, newBootstrapBitcoinDeriver())
+	if err == nil {
+		t.Fatal("expected invalid xpub validation error")
+	}
+	if !strings.Contains(err.Error(), "bitcoin-testnet4-native-segwit") {
+		t.Fatalf("expected policy id in error, got %q", err)
+	}
+	if !strings.Contains(err.Error(), envBitcoinTestnet4NativeSegwitXPub) {
+		t.Fatalf("expected env key in error, got %q", err)
+	}
+	if !strings.Contains(err.Error(), "bad extended key checksum") {
+		t.Fatalf("expected checksum parse error, got %q", err)
+	}
+}
+
+func TestValidateConfiguredAddressIssuancePoliciesAcceptsValidBitcoinPolicies(t *testing.T) {
+	policies := []entities.AddressIssuancePolicy{
+		newBitcoinAddressIssuancePolicy(
+			"bitcoin-testnet4-legacy",
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			string(valueobjects.BitcoinAddressSchemeLegacy),
+			"tpubDDoLYVq7AUqYP63QvYZxnxk1pCJnWDWdzu9w3BYTP9dJAX47xknZiEKUheaAahn6zBNT5ndCzY2x6MQ8iVj7QpFwuhm5bDF6Ggt3q1Rn2Qs",
+			"m/44'/1'/0'",
+		),
+		newBitcoinAddressIssuancePolicy(
+			"bitcoin-testnet4-native-segwit",
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			"tpubDCiB1iLoNxaaj4MTSk2DoTuwUpEfgm4E3vAcTnvG64rR1smhcEsoTeqNCB4af1XHGspgNfWBA3ccpXiwX5JtxwZMTFct6DQWzrKundqdwEq",
+			"m/84'/1'/0'",
+		),
+	}
+
+	if err := validateConfiguredAddressIssuancePolicies(policies, newBootstrapBitcoinDeriver()); err != nil {
+		t.Fatalf("expected valid bitcoin policies to pass validation: %v", err)
+	}
+}
+
+func TestValidateConfiguredAddressIssuancePoliciesSkipsDisabledAndNonBitcoinPolicies(t *testing.T) {
+	policies := []entities.AddressIssuancePolicy{
+		newBitcoinAddressIssuancePolicy(
+			"bitcoin-testnet4-native-segwit",
+			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			"",
+			"m/84'/1'/0'",
+		),
+		{
+			AddressPolicy: entities.AddressPolicy{
+				AddressPolicyID: "ethereum-sepolia-create2",
+				Chain:           valueobjects.SupportedChainEthereum,
+				Network:         valueobjects.NetworkID("sepolia"),
+				Scheme:          "create2",
+			},
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSpaceRef: "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0x1111111111111111111111111111111111111111111111111111111111111111",
+			},
+		},
+	}
+
+	if err := validateConfiguredAddressIssuancePolicies(policies, newBootstrapBitcoinDeriver()); err != nil {
+		t.Fatalf("expected skipped policies to pass validation: %v", err)
+	}
+}
+
 func findAddressIssuancePolicyByID(
 	policies []entities.AddressIssuancePolicy,
 	addressPolicyID string,
@@ -326,4 +404,13 @@ func findAddressIssuancePolicyByID(
 		}
 	}
 	return entities.AddressIssuancePolicy{}
+}
+
+func newBootstrapBitcoinDeriver() *bitcoin.HDXPubAddressDeriver {
+	return bitcoin.NewHDXPubAddressDeriver(
+		bitcoin.NewLegacyAddressEncoder(),
+		bitcoin.NewSegwitAddressEncoder(),
+		bitcoin.NewNativeSegwitAddressEncoder(),
+		bitcoin.NewTaprootAddressEncoder(),
+	)
 }

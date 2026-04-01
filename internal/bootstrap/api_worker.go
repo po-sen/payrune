@@ -83,7 +83,10 @@ func handleCloudflareAPIRequest(
 	return executeAPIWorkerRequest(ctx, handler, envelope.Request)
 }
 
-func buildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http.Handler, error) {
+func buildCloudflareAPIHTTPHandler(
+	env map[string]string,
+	bridgeID string,
+) (http.Handler, error) {
 	clock := system.NewClock()
 	healthUseCase := usecases.NewCheckHealthUseCase(clock)
 
@@ -117,16 +120,17 @@ func buildCloudflareAPIHTTPHandler(env map[string]string, bridgeID string) (http
 			cloudflareAPIEnvValue(env, envEthereumSepoliaCreate2DerivationKey),
 		),
 	)
-
-	addressPolicyReader := policyadapter.NewAddressPolicyReader(
-		buildAddressIssuancePolicies(func(key string) string {
-			return cloudflareAPIEnvValue(env, key)
-		}, ethereumCreate2SaltDeriver),
-	)
+	addressIssuancePolicies := buildAddressIssuancePolicies(func(key string) string {
+		return cloudflareAPIEnvValue(env, key)
+	}, ethereumCreate2SaltDeriver)
+	bridge := cloudflarepostgresinfra.NewJSBridge()
+	if err := validateConfiguredAddressIssuancePolicies(addressIssuancePolicies, bitcoinDeriver); err != nil {
+		return nil, err
+	}
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
 
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	generateAddressUseCase := usecases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
-	bridge := cloudflarepostgresinfra.NewJSBridge()
 	dbExecutor := cloudflarepostgresadapter.NewExecutor(bridgeID, bridge)
 	unitOfWork := cloudflarepostgresadapter.NewUnitOfWork(bridgeID, bridge)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(

@@ -11,12 +11,11 @@ import (
 var ErrAddressIndexExhausted = errors.New("address index is exhausted")
 
 var (
-	ErrPaymentAddressAllocationStoreFailed                     = errors.New("payment address allocation store failed")
-	ErrPaymentAddressAllocationNotReserved                     = errors.New("address allocation is not reserved")
-	ErrPaymentAddressAllocationPersistedChainInvalid           = errors.New("persisted allocation chain is invalid")
-	ErrPaymentAddressAllocationPersistedNetworkInvalid         = errors.New("persisted allocation network is invalid")
-	ErrPaymentAddressAllocationPersistedIssuanceRefKindInvalid = errors.New("persisted allocation issuance ref kind is invalid")
-	ErrPaymentAddressAllocationIssuedAtRequired                = errors.New("issued at is required")
+	ErrPaymentAddressAllocationStoreFailed             = errors.New("payment address allocation store failed")
+	ErrPaymentAddressAllocationNotReserved             = errors.New("address allocation is not reserved")
+	ErrPaymentAddressAllocationPersistedChainInvalid   = errors.New("persisted allocation chain is invalid")
+	ErrPaymentAddressAllocationPersistedNetworkInvalid = errors.New("persisted allocation network is invalid")
+	ErrPaymentAddressAllocationIssuedAtRequired        = errors.New("issued at is required")
 )
 
 type ReservePaymentAddressAllocationInput struct {
