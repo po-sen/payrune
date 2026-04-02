@@ -14,7 +14,7 @@ func TestNewPaymentReceiptTrackingSuccess(t *testing.T) {
 		11,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexample",
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1200,
@@ -43,13 +43,13 @@ func TestNewPaymentReceiptTrackingValidation(t *testing.T) {
 		required  int32
 		wantErr   error
 	}{
-		{name: "invalid payment id", paymentID: 0, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrPaymentAddressIDInvalid},
-		{name: "invalid chain identifier", paymentID: 1, chain: "eth/mainnet", network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrChainInvalid},
+		{name: "invalid payment id", paymentID: 0, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkIDTestnet4, address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrPaymentAddressIDInvalid},
+		{name: "invalid chain identifier", paymentID: 1, chain: "eth/mainnet", network: valueobjects.NetworkIDTestnet4, address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrChainInvalid},
 		{name: "missing network", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: "", address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrNetworkInvalid},
-		{name: "missing address", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrAddressRequired},
-		{name: "missing issued at", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Time{}, expected: 1, required: 1, wantErr: ErrIssuedAtRequired},
-		{name: "invalid expected", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 0, required: 1, wantErr: ErrExpectedAmountMinorInvalid},
-		{name: "invalid confirmations", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkID("testnet4"), address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 0, wantErr: ErrRequiredConfirmationsInvalid},
+		{name: "missing address", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkIDTestnet4, address: "", issuedAt: time.Now().UTC(), expected: 1, required: 1, wantErr: ErrAddressRequired},
+		{name: "missing issued at", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkIDTestnet4, address: "tb1q", issuedAt: time.Time{}, expected: 1, required: 1, wantErr: ErrIssuedAtRequired},
+		{name: "invalid expected", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkIDTestnet4, address: "tb1q", issuedAt: time.Now().UTC(), expected: 0, required: 1, wantErr: ErrExpectedAmountMinorInvalid},
+		{name: "invalid confirmations", paymentID: 1, chain: valueobjects.ChainIDBitcoin, network: valueobjects.NetworkIDTestnet4, address: "tb1q", issuedAt: time.Now().UTC(), expected: 1, required: 0, wantErr: ErrRequiredConfirmationsInvalid},
 	}
 
 	for _, tc := range tests {
@@ -76,7 +76,7 @@ func TestPaymentReceiptTrackingApplyObservationTransitions(t *testing.T) {
 		15,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexample",
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1000,
@@ -190,7 +190,7 @@ func TestPaymentReceiptTrackingApplyObservationValidation(t *testing.T) {
 		21,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexample",
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1000,
@@ -216,7 +216,7 @@ func TestPaymentReceiptTrackingMarkPollingFailure(t *testing.T) {
 		22,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexample",
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1000,
@@ -244,7 +244,7 @@ func TestPaymentReceiptTrackingExpirationHelpers(t *testing.T) {
 		23,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexample",
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1000,
@@ -295,7 +295,7 @@ func TestPaymentReceiptTrackingApplyObservationDoesNotRevertToUnpaidAfterPaidAt(
 		24,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexample",
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1000,
@@ -363,7 +363,7 @@ func TestPaymentReceiptTrackingStatusChangedEvent(t *testing.T) {
 		31,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexample",
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1000,
@@ -402,18 +402,5 @@ func TestPaymentReceiptTrackingStatusChangedEvent(t *testing.T) {
 	}
 	if zeroEvent != (events.PaymentReceiptStatusChanged{}) {
 		t.Fatalf("expected zero event, got %+v", zeroEvent)
-	}
-}
-
-func TestPollablePaymentReceiptStatuses(t *testing.T) {
-	statuses := PollablePaymentReceiptStatuses()
-	if len(statuses) != 4 {
-		t.Fatalf("unexpected status count: got %d", len(statuses))
-	}
-	if statuses[0] != valueobjects.PaymentReceiptStatusWatching {
-		t.Fatalf("unexpected first status: got %q", statuses[0])
-	}
-	if statuses[3] != valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted {
-		t.Fatalf("unexpected reverted status position: got %q", statuses[3])
 	}
 }

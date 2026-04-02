@@ -1,4 +1,4 @@
-package policies
+package outbox
 
 import (
 	"errors"

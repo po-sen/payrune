@@ -14,10 +14,9 @@ import (
 )
 
 type runReceiptPollingCycleUseCase struct {
-	unitOfWork      outport.UnitOfWork
-	observer        outport.BlockchainReceiptObserver
-	clock           outport.Clock
-	lifecyclePolicy policies.PaymentReceiptTrackingLifecyclePolicy
+	unitOfWork outport.UnitOfWork
+	observer   outport.BlockchainReceiptObserver
+	clock      outport.Clock
 }
 
 type receiptPollingScopeKey struct {
@@ -37,13 +36,11 @@ func NewRunReceiptPollingCycleUseCase(
 	unitOfWork outport.UnitOfWork,
 	observer outport.BlockchainReceiptObserver,
 	clock outport.Clock,
-	lifecyclePolicy policies.PaymentReceiptTrackingLifecyclePolicy,
 ) inport.RunReceiptPollingCycleUseCase {
 	return &runReceiptPollingCycleUseCase{
-		unitOfWork:      unitOfWork,
-		observer:        observer,
-		clock:           clock,
-		lifecyclePolicy: lifecyclePolicy,
+		unitOfWork: unitOfWork,
+		observer:   observer,
+		clock:      clock,
 	}
 }
 
@@ -82,7 +79,7 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			ClaimUntil: now.Add(input.ClaimTTL),
 			Chain:      string(input.Chain),
 			Network:    string(input.Network),
-			Statuses:   entities.PollablePaymentReceiptStatuses(),
+			Statuses:   policies.PollablePaymentReceiptStatuses(),
 		})
 		if err != nil {
 			return inport.ErrDependencyFailure
@@ -197,7 +194,7 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 		return receiptPollingTrackingProcessingError, nil
 	}
 
-	updatedTracking, err := uc.lifecyclePolicy.ApplyObservation(tracking, valueobjects.PaymentReceiptObservation{
+	updatedTracking, err := tracking.ApplyObservation(valueobjects.PaymentReceiptObservation{
 		ObservedTotalMinor:    observation.ObservedTotalMinor,
 		ConfirmedTotalMinor:   observation.ConfirmedTotalMinor,
 		UnconfirmedTotalMinor: observation.UnconfirmedTotalMinor,
@@ -216,7 +213,7 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 		return receiptPollingTrackingProcessingError, nil
 	}
 
-	finalTracking, expired, err := uc.lifecyclePolicy.ExpireIfDue(updatedTracking, now)
+	finalTracking, expired, err := updatedTracking.ExpireIfDue(now)
 	if err != nil {
 		return 0, inport.ErrInternalFailure
 	}

@@ -8,7 +8,6 @@ import (
 	applicationoutbox "payrune/internal/application/outbox"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -122,7 +121,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 		StatusChangedAt:       notification.StatusChangedAt,
 	})
 	if err != nil {
-		deliveryResult, resultErr := policies.ResolvePaymentReceiptStatusNotificationDeliveryFailure(
+		deliveryResult, resultErr := applicationoutbox.ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 			notification.NotificationID,
 			notification.DeliveryAttempts,
 			input.MaxAttempts,
@@ -139,7 +138,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 		return deliveryResult.Status, nil
 	}
 
-	deliveryResult, err := policies.MarkPaymentReceiptStatusNotificationSent(
+	deliveryResult, err := applicationoutbox.MarkPaymentReceiptStatusNotificationSent(
 		notification.NotificationID,
 		uc.clock.NowUTC(),
 	)
@@ -154,7 +153,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 
 func (uc *runReceiptWebhookDispatchCycleUseCase) saveDeliveryResult(
 	ctx context.Context,
-	deliveryResult policies.PaymentReceiptStatusNotificationDeliveryResult,
+	deliveryResult applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		outbox := txScope.PaymentReceiptStatusNotificationOutbox

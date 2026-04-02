@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"payrune/internal/domain/entities"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -21,7 +20,7 @@ const (
 )
 
 type PaymentAddressAllocationReservation struct {
-	IssuancePolicy      entities.AddressIssuancePolicy
+	IssuancePolicy      AddressIssuancePolicy
 	ExpectedAmountMinor int64
 	CustomerReference   string
 }
@@ -82,7 +81,7 @@ func NewPaymentAddressAllocationIssuancePolicy(
 }
 
 func (p PaymentAddressAllocationIssuancePolicy) Plan(
-	issuancePolicy entities.AddressIssuancePolicy,
+	issuancePolicy AddressIssuancePolicy,
 	requestedChain valueobjects.SupportedChain,
 	expectedAmountMinor int64,
 	customerReference string,
@@ -110,12 +109,12 @@ func (p PaymentAddressAllocationIssuancePolicy) Plan(
 		},
 		ReceiptTerms: PaymentReceiptIssuanceTerms{
 			RequiredConfirmations: p.requiredConfirmationsForScope(
-				validatedPolicy.AddressPolicy.Chain,
-				validatedPolicy.AddressPolicy.Network,
+				validatedPolicy.Chain,
+				validatedPolicy.Network,
 			),
 			ExpiresAt: issuedAtUTC.Add(p.receiptExpiresAfterForScope(
-				validatedPolicy.AddressPolicy.Chain,
-				validatedPolicy.AddressPolicy.Network,
+				validatedPolicy.Chain,
+				validatedPolicy.Network,
 			)),
 		},
 	}, nil

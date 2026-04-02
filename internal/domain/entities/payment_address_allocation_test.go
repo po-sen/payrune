@@ -33,20 +33,11 @@ func TestPaymentAddressAllocationMarkIssued(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	issuancePolicy := AddressIssuancePolicy{
-		AddressPolicy: AddressPolicy{
-			AddressPolicyID: "policy-a",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-		},
-		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			IssuanceRefPrefix: "m/84'/0'/0'",
-		},
-	}
-
 	issued, err := allocation.MarkIssued(
-		issuancePolicy,
+		"policy-a",
+		valueobjects.SupportedChainBitcoin,
+		valueobjects.NetworkIDMainnet,
+		valueobjects.AddressSchemeNativeSegwit,
 		"bc1qexample",
 		`{"material_type":"bitcoin_hd"}`,
 	)
@@ -70,17 +61,11 @@ func TestPaymentAddressAllocationMarkIssuedRejectPolicyMismatch(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	issuancePolicy := AddressIssuancePolicy{
-		AddressPolicy: AddressPolicy{
-			AddressPolicyID: "policy-b",
-		},
-		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			IssuanceRefPrefix: "m/84'/0'/0'",
-		},
-	}
-
 	if _, err := allocation.MarkIssued(
-		issuancePolicy,
+		"policy-b",
+		valueobjects.SupportedChainBitcoin,
+		valueobjects.NetworkIDMainnet,
+		valueobjects.AddressSchemeNativeSegwit,
 		"bc1qexample",
 		`{"material_type":"bitcoin_hd"}`,
 	); err == nil {
@@ -123,19 +108,11 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	issuancePolicy := AddressIssuancePolicy{
-		AddressPolicy: AddressPolicy{
-			AddressPolicyID: "policy-a",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-		},
-		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			IssuanceRefPrefix: "m/84'/1'/0'",
-		},
-	}
 	issued, err := allocation.MarkIssued(
-		issuancePolicy,
+		"policy-a",
+		valueobjects.SupportedChainBitcoin,
+		valueobjects.NetworkIDTestnet4,
+		valueobjects.AddressSchemeNativeSegwit,
 		"tb1qexample",
 		`{"material_type":"bitcoin_hd"}`,
 	)
@@ -167,17 +144,11 @@ func TestPaymentAddressAllocationMarkIssuedRequiresSweepMaterial(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	issuancePolicy := AddressIssuancePolicy{
-		AddressPolicy: AddressPolicy{
-			AddressPolicyID: "policy-a",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-		},
-	}
-
 	_, err = allocation.MarkIssued(
-		issuancePolicy,
+		"policy-a",
+		valueobjects.SupportedChainBitcoin,
+		valueobjects.NetworkIDMainnet,
+		valueobjects.AddressSchemeNativeSegwit,
 		"bc1qexample",
 		"   ",
 	)

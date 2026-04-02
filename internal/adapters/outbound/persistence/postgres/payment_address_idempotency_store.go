@@ -70,11 +70,15 @@ func (r *PaymentAddressIdempotencyStore) FindByKey(
 	if !ok {
 		return outport.PaymentAddressIdempotencyRecord{}, false, outport.ErrPaymentAddressIdempotencyPersistedChainInvalid
 	}
+	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
+	if err != nil {
+		return outport.PaymentAddressIdempotencyRecord{}, false, outport.ErrPaymentAddressIdempotencyPersistedAddressPolicyIDInvalid
+	}
 
 	return outport.PaymentAddressIdempotencyRecord{
 		Chain:               chain,
 		IdempotencyKey:      idempotencyKey,
-		AddressPolicyID:     strings.TrimSpace(addressPolicyID),
+		AddressPolicyID:     parsedAddressPolicyID,
 		ExpectedAmountMinor: expectedAmountMinor,
 		CustomerReference:   customerReference,
 		PaymentAddressID:    paymentAddressID.Int64,
@@ -86,7 +90,7 @@ func (r *PaymentAddressIdempotencyStore) Claim(
 	input outport.ClaimPaymentAddressIdempotencyInput,
 ) (outport.PaymentAddressIdempotencyRecord, error) {
 	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
-	addressPolicyID := strings.TrimSpace(input.AddressPolicyID)
+	addressPolicyID := input.AddressPolicyID.Normalize()
 	customerReference := strings.TrimSpace(input.CustomerReference)
 
 	if input.Chain == "" {
@@ -95,7 +99,7 @@ func (r *PaymentAddressIdempotencyStore) Claim(
 	if idempotencyKey == "" {
 		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyKeyRequired
 	}
-	if addressPolicyID == "" {
+	if addressPolicyID.IsZero() {
 		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyAddressPolicyIDRequired
 	}
 	if input.ExpectedAmountMinor <= 0 {
@@ -114,7 +118,7 @@ func (r *PaymentAddressIdempotencyStore) Claim(
 		 VALUES ($1, $2, $3, $4, $5)`,
 		string(input.Chain),
 		idempotencyKey,
-		addressPolicyID,
+		string(addressPolicyID),
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
 	)

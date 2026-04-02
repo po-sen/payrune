@@ -9,7 +9,7 @@ import (
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -27,8 +27,8 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 				ExpectedAmountMinor:     120000,
 				CustomerReference:       "order-20260308-001",
 				Chain:                   valueobjects.SupportedChainBitcoin,
-				Network:                 valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:                  string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+				Network:                 valueobjects.NetworkIDMainnet,
+				Scheme:                  valueobjects.AddressSchemeNativeSegwit,
 				Address:                 "bc1qstatus",
 				PaymentStatus:           valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted,
 				ObservedTotalMinor:      80000,
@@ -42,12 +42,12 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 				LastFailureReason:       valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed,
 			},
 		},
-		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 			newAddressIssuancePolicy(
 				"bitcoin-mainnet-native-segwit",
 				valueobjects.SupportedChainBitcoin,
-				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+				valueobjects.NetworkIDMainnet,
+				string(valueobjects.AddressSchemeNativeSegwit),
 				"satoshi",
 				8,
 				"xpub",
@@ -139,8 +139,8 @@ func TestGetPaymentAddressStatusUseCasePolicyMissing(t *testing.T) {
 				PaymentAddressID: 101,
 				AddressPolicyID:  "bitcoin-mainnet-native-segwit",
 				Chain:            valueobjects.SupportedChainBitcoin,
-				Network:          valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:           string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+				Network:          valueobjects.NetworkIDMainnet,
+				Scheme:           valueobjects.AddressSchemeNativeSegwit,
 				Address:          "bc1qstatus",
 				PaymentStatus:    valueobjects.PaymentReceiptStatusWatching,
 				IssuedAt:         time.Date(2026, 3, 8, 11, 0, 0, 0, time.UTC),

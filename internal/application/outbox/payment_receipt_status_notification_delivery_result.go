@@ -1,9 +1,20 @@
-package policies
+package outbox
 
 import (
+	"errors"
 	"time"
 
 	"payrune/internal/domain/valueobjects"
+)
+
+var (
+	ErrPaymentReceiptStatusNotificationIDInvalid              = errors.New("notification id must be greater than zero")
+	ErrPaymentReceiptStatusNotificationDeliveredAtRequired    = errors.New("delivered at is required")
+	ErrPaymentReceiptStatusNotificationCurrentAttemptsInvalid = errors.New("current attempts must be greater than or equal to zero")
+	ErrPaymentReceiptStatusNotificationMaxAttemptsInvalid     = errors.New("max attempts must be greater than zero")
+	ErrPaymentReceiptStatusNotificationNowRequired            = errors.New("now is required")
+	ErrPaymentReceiptStatusNotificationFailureReasonRequired  = errors.New("notification failure reason is required")
+	ErrPaymentReceiptStatusNotificationRetryDelayInvalid      = errors.New("retry delay must be greater than zero")
 )
 
 type PaymentReceiptStatusNotificationDeliveryResult struct {

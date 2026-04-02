@@ -21,7 +21,7 @@ type Create2SaltDeriver struct {
 
 type DeriveCreate2AllocationSaltInput struct {
 	Network          valueobjects.NetworkID
-	AddressPolicyID  string
+	AddressPolicyID  valueobjects.AddressPolicyID
 	PaymentAddressID int64
 	SlotIndex        uint32
 }
@@ -59,7 +59,8 @@ func (d *Create2SaltDeriver) DeriveAllocationSalt(
 	if !ok {
 		return "", fmt.Errorf("ethereum create2 salt deriver is not configured for network: %s", input.Network)
 	}
-	if strings.TrimSpace(input.AddressPolicyID) == "" {
+	addressPolicyID := input.AddressPolicyID.Normalize()
+	if addressPolicyID.IsZero() {
 		return "", errors.New("address policy id is required")
 	}
 	if input.PaymentAddressID <= 0 {
@@ -71,7 +72,7 @@ func (d *Create2SaltDeriver) DeriveAllocationSalt(
 	mac.Write([]byte{'\n'})
 	mac.Write([]byte(strings.TrimSpace(string(input.Network))))
 	mac.Write([]byte{'\n'})
-	mac.Write([]byte(strings.TrimSpace(input.AddressPolicyID)))
+	mac.Write([]byte(string(addressPolicyID)))
 	mac.Write([]byte{'\n'})
 	mac.Write([]byte(strconv.FormatInt(input.PaymentAddressID, 10)))
 	mac.Write([]byte{'\n'})

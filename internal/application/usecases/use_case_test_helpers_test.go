@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	applicationoutbox "payrune/internal/application/outbox"
@@ -15,8 +14,8 @@ import (
 )
 
 type inMemoryAddressPolicyReader struct {
-	ordered      []entities.AddressPolicy
-	issuanceByID map[string]entities.AddressIssuancePolicy
+	ordered      []outport.AddressPolicyRecord
+	issuanceByID map[valueobjects.AddressPolicyID]policies.AddressIssuancePolicy
 	listErr      error
 	findErr      error
 }
@@ -32,16 +31,14 @@ func newAddressIssuancePolicy(
 	decimals uint8,
 	accountPublicKey string,
 	derivationPathPrefix string,
-) entities.AddressIssuancePolicy {
-	return entities.AddressIssuancePolicy{
-		AddressPolicy: entities.AddressPolicy{
-			AddressPolicyID: addressPolicyID,
-			Chain:           chain,
-			Network:         network,
-			Scheme:          scheme,
-			MinorUnit:       minorUnit,
-			Decimals:        decimals,
-		},
+) policies.AddressIssuancePolicy {
+	return policies.AddressIssuancePolicy{
+		AddressPolicyID: valueobjects.AddressPolicyID(addressPolicyID),
+		Chain:           chain,
+		Network:         network,
+		Scheme:          valueobjects.AddressScheme(scheme),
+		MinorUnit:       minorUnit,
+		Decimals:        decimals,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   accountPublicKey,
 			IssuanceRefPrefix: derivationPathPrefix,
@@ -54,7 +51,7 @@ func newEthereumCreate2IssuancePolicy(
 	network valueobjects.NetworkID,
 	addressSourceRef string,
 	addressReferencePrefix string,
-) entities.AddressIssuancePolicy {
+) policies.AddressIssuancePolicy {
 	return newAddressIssuancePolicy(
 		addressPolicyID,
 		valueobjects.SupportedChainEthereum,
@@ -67,20 +64,28 @@ func newEthereumCreate2IssuancePolicy(
 	)
 }
 
-func newInMemoryAddressPolicyReader(policies []entities.AddressIssuancePolicy) *inMemoryAddressPolicyReader {
-	ordered := make([]entities.AddressPolicy, 0, len(policies))
-	issuanceByID := make(map[string]entities.AddressIssuancePolicy, len(policies))
+func newInMemoryAddressPolicyReader(issuancePolicies []policies.AddressIssuancePolicy) *inMemoryAddressPolicyReader {
+	ordered := make([]outport.AddressPolicyRecord, 0, len(issuancePolicies))
+	issuanceByID := make(map[valueobjects.AddressPolicyID]policies.AddressIssuancePolicy, len(issuancePolicies))
 
-	for _, policy := range policies {
+	for _, policy := range issuancePolicies {
 		normalized := policy.Normalize()
-		if normalized.AddressPolicy.AddressPolicyID == "" {
+		if normalized.AddressPolicyID.IsZero() {
 			continue
 		}
-		if _, exists := issuanceByID[normalized.AddressPolicy.AddressPolicyID]; exists {
+		if _, exists := issuanceByID[normalized.AddressPolicyID]; exists {
 			continue
 		}
-		ordered = append(ordered, normalized.AddressPolicy)
-		issuanceByID[normalized.AddressPolicy.AddressPolicyID] = normalized
+		ordered = append(ordered, outport.AddressPolicyRecord{
+			AddressPolicyID: normalized.AddressPolicyID,
+			Chain:           normalized.Chain,
+			Network:         normalized.Network,
+			Scheme:          normalized.Scheme,
+			MinorUnit:       normalized.MinorUnit,
+			Decimals:        normalized.Decimals,
+			Enabled:         normalized.Enabled,
+		})
+		issuanceByID[normalized.AddressPolicyID] = normalized
 	}
 
 	return &inMemoryAddressPolicyReader{
@@ -92,11 +97,11 @@ func newInMemoryAddressPolicyReader(policies []entities.AddressIssuancePolicy) *
 func (r *inMemoryAddressPolicyReader) ListByChain(
 	_ context.Context,
 	chain valueobjects.SupportedChain,
-) ([]entities.AddressPolicy, error) {
+) ([]outport.AddressPolicyRecord, error) {
 	if r.listErr != nil {
 		return nil, r.listErr
 	}
-	policies := make([]entities.AddressPolicy, 0)
+	policies := make([]outport.AddressPolicyRecord, 0)
 	for _, policy := range r.ordered {
 		if policy.Chain != chain {
 			continue
@@ -108,14 +113,14 @@ func (r *inMemoryAddressPolicyReader) ListByChain(
 
 func (r *inMemoryAddressPolicyReader) FindIssuanceByID(
 	_ context.Context,
-	addressPolicyID string,
-) (entities.AddressIssuancePolicy, bool, error) {
+	addressPolicyID valueobjects.AddressPolicyID,
+) (policies.AddressIssuancePolicy, bool, error) {
 	if r.findErr != nil {
-		return entities.AddressIssuancePolicy{}, false, r.findErr
+		return policies.AddressIssuancePolicy{}, false, r.findErr
 	}
-	policy, ok := r.issuanceByID[strings.TrimSpace(addressPolicyID)]
+	policy, ok := r.issuanceByID[addressPolicyID]
 	if !ok {
-		return entities.AddressIssuancePolicy{}, false, nil
+		return policies.AddressIssuancePolicy{}, false, nil
 	}
 	return policy, true, nil
 }
@@ -489,7 +494,7 @@ func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) ClaimPending(
 
 func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) SaveDeliveryResult(
 	_ context.Context,
-	_ policies.PaymentReceiptStatusNotificationDeliveryResult,
+	_ applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	return nil
 }

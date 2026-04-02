@@ -128,6 +128,39 @@ func TestPaymentAddressIdempotencyStoreFindByKeyRejectsInvalidPersistedChain(t *
 	}
 }
 
+func TestPaymentAddressIdempotencyStoreFindByKeyRejectsInvalidPersistedAddressPolicyID(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	store := NewPaymentAddressIdempotencyStore(db)
+
+	rows := sqlmock.NewRows([]string{
+		"chain",
+		"address_policy_id",
+		"expected_amount_minor",
+		"customer_reference",
+		"payment_address_id",
+	}).AddRow(
+		"bitcoin",
+		"bitcoin/mainnet",
+		int64(125000),
+		"order-idem",
+		int64(77),
+	)
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT chain,")).
+		WithArgs("bitcoin", "idem-invalid").
+		WillReturnRows(rows)
+
+	_, _, err = store.FindByKey(context.Background(), newFindPaymentAddressIdempotencyInput("idem-invalid"))
+	if !errors.Is(err, outport.ErrPaymentAddressIdempotencyPersistedAddressPolicyIDInvalid) {
+		t.Fatalf("unexpected invalid address policy id error: %v", err)
+	}
+}
+
 func TestPaymentAddressIdempotencyStoreClaimSuccess(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {

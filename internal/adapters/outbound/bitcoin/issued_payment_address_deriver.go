@@ -37,9 +37,9 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 
 	policy := input.Policy.Normalize()
 	output, err := d.chainAddressDeriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:             policy.AddressPolicy.Chain,
-		Network:           policy.AddressPolicy.Network,
-		Scheme:            policy.AddressPolicy.Scheme,
+		Chain:             policy.Chain,
+		Network:           policy.Network,
+		Scheme:            policy.Scheme,
 		AddressSpaceRef:   policy.IssuanceConfig.AddressSpaceRef,
 		IssuanceRefPrefix: policy.IssuanceConfig.IssuanceRefPrefix,
 		SlotIndex:         input.Allocation.SlotIndex,
@@ -56,12 +56,12 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	}
 
 	sweepMaterialJSON, err := buildSweepMaterialJSON(
-		string(policy.AddressPolicy.Chain),
-		string(policy.AddressPolicy.Network),
+		string(policy.Chain),
+		string(policy.Network),
 		output.Address,
 		output.IssuanceRef,
 		strings.TrimSpace(policy.IssuanceConfig.AddressSpaceRef),
-		strings.TrimSpace(policy.AddressPolicy.Scheme),
+		string(policy.Scheme.Normalize()),
 	)
 	if err != nil {
 		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationFailed

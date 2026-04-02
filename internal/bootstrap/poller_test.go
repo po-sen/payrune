@@ -327,7 +327,7 @@ func TestLoadEthereumRPCConfigsFromEnvEmpty(t *testing.T) {
 func TestFormatPollCycleStartLog(t *testing.T) {
 	got := formatPollCycleStartLog(PollerConfig{
 		Chain:     valueobjects.ChainIDEthereum,
-		Network:   valueobjects.NetworkID("sepolia"),
+		Network:   valueobjects.NetworkIDSepolia,
 		BatchSize: 2,
 	})
 

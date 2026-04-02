@@ -11,7 +11,6 @@ import (
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/events"
-	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -36,7 +35,7 @@ type fakeWebhookDispatchNotificationOutbox struct {
 	claimErr       error
 	saveResultErr  error
 	lastClaimInput outport.ClaimPaymentReceiptStatusNotificationsInput
-	savedResults   []policies.PaymentReceiptStatusNotificationDeliveryResult
+	savedResults   []applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult
 	enqueueInputs  []events.PaymentReceiptStatusChanged
 	enqueueErr     error
 }
@@ -64,7 +63,7 @@ func (f *fakeWebhookDispatchNotificationOutbox) ClaimPending(
 
 func (f *fakeWebhookDispatchNotificationOutbox) SaveDeliveryResult(
 	_ context.Context,
-	result policies.PaymentReceiptStatusNotificationDeliveryResult,
+	result applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	f.savedResults = append(f.savedResults, result)
 	return f.saveResultErr

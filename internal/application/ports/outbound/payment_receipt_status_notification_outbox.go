@@ -7,7 +7,6 @@ import (
 
 	applicationoutbox "payrune/internal/application/outbox"
 	"payrune/internal/domain/events"
-	"payrune/internal/domain/policies"
 )
 
 var (
@@ -35,7 +34,7 @@ type PaymentReceiptStatusNotificationOutbox interface {
 	) ([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error)
 	SaveDeliveryResult(
 		ctx context.Context,
-		result policies.PaymentReceiptStatusNotificationDeliveryResult,
+		result applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
 	) error
 }
 

@@ -66,7 +66,7 @@ func (d *MultiChainIssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (outport.DeriveIssuedPaymentAddressOutput, error) {
 	policy := input.Policy.Normalize()
-	normalizedChain, ok := normalizeSupportedChain(policy.AddressPolicy.Chain)
+	normalizedChain, ok := normalizeSupportedChain(policy.Chain)
 	if !ok {
 		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationInputInvalid
 	}

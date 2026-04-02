@@ -161,6 +161,38 @@ func TestScanPaymentReceiptTrackingRejectsInvalidChain(t *testing.T) {
 	}
 }
 
+func TestScanPaymentReceiptTrackingRejectsInvalidAddressPolicyID(t *testing.T) {
+	_, err := scanPaymentReceiptTracking(stubScanner{
+		values: []any{
+			int64(1),
+			int64(2),
+			"policy/1",
+			"bitcoin",
+			"mainnet",
+			"bc1qabc",
+			sql.NullTime{Valid: true, Time: time.Now().UTC()},
+			int64(100),
+			int32(1),
+			"watching",
+			int64(0),
+			int64(0),
+			int64(0),
+			int64(0),
+			sql.NullTime{},
+			sql.NullTime{},
+			sql.NullTime{},
+			sql.NullTime{},
+			"",
+		},
+	})
+	if err == nil {
+		t.Fatal("expected invalid address policy id error")
+	}
+	if !errors.Is(err, outport.ErrPaymentReceiptTrackingPersistedAddressPolicyIDInvalid) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestScanPaymentReceiptTrackingRejectsInvalidStatus(t *testing.T) {
 	_, err := scanPaymentReceiptTracking(stubScanner{
 		values: []any{
@@ -199,7 +231,7 @@ func newTrackingStoreTestEntity() entities.PaymentReceiptTracking {
 		PaymentAddressID:        501,
 		AddressPolicyID:         "bitcoin-mainnet-native-segwit",
 		Chain:                   valueobjects.ChainIDBitcoin,
-		Network:                 valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Network:                 valueobjects.NetworkIDMainnet,
 		Address:                 "bc1qtracking",
 		IssuedAt:                issuedAt,
 		ExpiresAt:               &expiresAt,

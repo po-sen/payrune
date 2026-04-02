@@ -52,6 +52,7 @@ This section is the direct architecture and workflow contract for this repositor
 - Concrete names over premature generalization.
 - Specs as the source of truth for feature work.
 - Code that is easy to review and reason about without long explanation.
+- Pragmatic Clean Architecture over dogmatic pattern purity.
 
 ### Architecture boundaries
 
@@ -67,6 +68,66 @@ This section is the direct architecture and workflow contract for this repositor
 - Must stay independent from SQL, HTTP, RPC, env parsing, framework types, and transport details.
 - If a rule decides what is valid, payable, expired, retryable, or transitionable, it belongs
   here unless it requires external IO.
+- Keep the current top-level buckets (`entities`, `events`, `valueobjects`, `policies`) unless the
+  user explicitly asks for a broader package strategy migration.
+- Do not add generic new top-level buckets such as `services`, `enums`, `models`, `catalogs`, or
+  `descriptors` just to make misclassified types fit somewhere.
+- This repo may use domain-oriented modeling and some DDD tactical ideas, but it does not require a
+  full strategic DDD rollout or a feature-oriented domain package tree by default.
+
+#### `internal/domain/entities`
+
+- Use for concepts with identity, lifecycle, and meaningful business behavior.
+- In this repo, an aggregate root is usually also an entity; aggregate is a boundary role, not a
+  separate top-level package category.
+- Keep aggregate roots in `entities` and name them with the business noun itself. Do not add
+  `...Entity` or `...Aggregate` suffixes unless the user explicitly asks for that naming style.
+- Do not add a separate `internal/domain/aggregates` bucket just to mark aggregate roots.
+- Entity methods should own their own valid state transitions where that keeps policy local and
+  obvious.
+- Do not keep query-only metadata, deployment catalogs, transport payloads, or workflow result
+  carriers here just because they have an ID field.
+- If a type mostly normalizes fields, mirrors a row, or derives its effective state from nested
+  config owned elsewhere, it is probably not an entity in this repo.
+- Runtime code in `entities` may depend on `valueobjects`, but must not depend on
+  `internal/domain/policies`.
+- If a policy influences an entity transition, compute the decision first and pass plain values or
+  value-object snapshots into the entity method. Do not pass the policy object itself into the
+  entity.
+
+#### `internal/domain/events`
+
+- Use for immutable business facts emitted from domain state transitions.
+- Events should describe what happened in the business domain, not how an outbox row is leased,
+  retried, delivered, or acknowledged.
+- Do not model claimed queue rows, webhook delivery attempts, or other technical workflow messages
+  as domain events.
+
+#### `internal/domain/valueobjects`
+
+- Use for small validated domain concepts defined by value rather than identity.
+- Value objects may canonicalize domain input such as trimming, casing, or validating allowed code
+  sets.
+- If a malformed domain identifier reaches an application boundary, map it to an explicit invalid
+  input error there; do not silently collapse it into `not found` by normalizing it to zero.
+- Enum-like domain codes may live here as canonical domain scalars when they participate in business
+  invariants or branching; do not create a separate `internal/domain/enums` bucket by default.
+- Do not move legacy DB text aliases, vendor/runtime error strings, or unknown fallback mapping into
+  value objects; that compatibility logic belongs in adapters at the persistence/runtime boundary.
+- Do not keep non-domain health/status response enums here unless they are real business concepts.
+- Runtime code in `valueobjects` must not depend on `entities`, `events`, or `policies`.
+
+#### `internal/domain/policies`
+
+- Use for business decision rules that cannot naturally live on one entity method alone.
+- Good examples are cross-entity decisions, lifecycle eligibility rules, or configuration-backed
+  business rules that still belong to the core model.
+- Do not keep thin pass-through wrappers here that only forward to a single entity method without
+  adding a real decision.
+- Do not keep workflow save-result carriers, retry bookkeeping structs, or outbox persistence inputs
+  here unless they are truly domain decisions rather than application workflow state.
+- Policies may depend on `valueobjects` and, when necessary, on `entities`; the dependency must not
+  point back the other way.
 
 #### `internal/application`
 
@@ -75,6 +136,9 @@ This section is the direct architecture and workflow contract for this repositor
 - Compose multiple steps, but do not turn application code into the home for business policy.
 - If a use case grows many private helpers or computes state transitions directly, review whether
   domain logic is leaking upward.
+- Do not mechanically mirror domain packaging changes into `internal/application`; keep application
+  boundary-oriented unless a specific feature area has become large enough to justify local
+  grouping.
 
 #### `internal/adapters`
 
@@ -107,6 +171,8 @@ This section is the direct architecture and workflow contract for this repositor
 - Shape outbound ports around what the application needs, not around vendor SDKs or transport APIs.
 - Keep ports small and use-case-focused.
 - Separate write-side persistence from read/query concerns when that improves clarity.
+- Prefer the narrowest honest port name available: `Repository`, `Store`, `Outbox`, `Reader`,
+  `Finder`, `Gateway`, or similar. Do not collapse everything into one generic persistence label.
 - If something is really a delivery pipeline, queue state, or technical process state, the port name
   should reflect that instead of pretending to be a classic aggregate repository.
 
@@ -134,16 +200,52 @@ This section is the direct architecture and workflow contract for this repositor
 ### Modeling rules
 
 - Use an `Entity` only when the concept has identity, lifecycle, and meaningful business behavior.
+- An entity may also be an aggregate root. These are different dimensions: entity describes what the
+  object is; aggregate root describes the consistency boundary role it plays.
+- Create an aggregate boundary only when multiple fields or nested objects must be kept consistent as
+  one business boundary. Do not invent an aggregate wrapper when a single entity already owns the
+  lifecycle and invariants.
+- In this repo, many valid aggregates are single-entity aggregates. Keep the root in `entities`
+  rather than introducing parallel aggregate-only package or type naming.
 - If something mostly mirrors a row, queue item, or delivery state and the rules live elsewhere, do
   not force it into a domain entity.
+- A type having an `ID` field does not automatically make it an entity.
+- If a type's effective `Enabled` or similar state is derived from external config owned by another
+  object, reconsider whether it belongs in `entities` at all.
 - Use `Value Object` for small validated concepts defined by value rather than identity.
+- Use `Event` for immutable business facts created from domain transitions; if the object mainly
+  exists so an outbox can persist or dispatch something, it may belong at the application boundary
+  instead.
+- Use `Policy` for decision rules, not for technical workflow outputs or wrappers that only forward
+  to another method.
+- Keep domain dependency direction explicit: `valueobjects` sit at the bottom, `entities` depend on
+  `valueobjects`, and `policies` may depend on `entities`/`valueobjects`. Do not introduce
+  `valueobjects -> policies` or `entities -> policies` runtime imports.
+- Query/list shapes belong in application read models or adapter-facing descriptors unless they
+  carry real domain invariants.
+- Deployment/runtime catalogs, bootstrap env config, outbox retry bookkeeping, and health-check
+  response types are not domain objects by default.
+- Keep canonical value parsing in value objects, but keep persistence/runtime compatibility parsing
+  in adapters.
+- Do not let malformed typed identifiers masquerade as unsupported resources; invalid input and
+  not-found are different outcomes and should stay different in review.
+- Do not add `domain/services` unless a rule is truly pure-domain, IO-free, cross-object, and does
+  not fit honestly as an entity method or domain policy.
+- Do not turn this repo into a feature-oriented package tree as part of a small cleanup unless the
+  user explicitly asks for that broader migration.
 - Do not create generic abstractions for concepts that only have one real implementation today.
 
 ### Persistence naming and transactions
 
-- Use `Repository` when the main job is loading and saving aggregate-like domain objects.
-- Use `Store` for technical or process persistence that is not really an aggregate collection.
+- Use `Repository` when the main job is loading and saving aggregate-like domain objects as a
+  collection, usually with methods shaped like `FindByID`/`Save`.
+- Use `Store` for technical or process persistence that is not really an aggregate collection, such
+  as claim/reserve/lease/cursor/retry workflow state.
 - Use `Outbox` when the data exists specifically for reliable asynchronous delivery.
+- Keep `Reader` / `Finder` / `QueryService` for read-side query contracts that return records or
+  views rather than aggregates.
+- Treat `DAO` as an adapter-internal implementation term for row/query helpers only. Do not use
+  `DAO` as an application outbound port name.
 - Use `UnitOfWork` to define one transaction boundary across multiple repositories or stores.
 - Reusing a shared SQL executor is acceptable when it keeps transaction boundaries clean.
 - Repository/store code may enforce persistence invariants, but must not silently own business
@@ -172,9 +274,22 @@ Stop and reconsider if any of these are true:
 - A repository or adapter is deciding business outcomes.
 - A use case is calculating state transitions that should live in domain.
 - A table-shaped record is being modeled as an entity without domain behavior.
+- A type in `entities` mainly normalizes metadata or derives its real state from nested config owned
+  elsewhere.
 - A generic abstraction exists only for a hypothetical future chain or provider.
 - Config becomes harder to read because of prefixes, indirection, or hidden defaults.
 - The user says the design feels too abstract or too hard to understand.
+- A query-only/list-only shape is being kept in domain because it "looks important" even though no
+  domain invariant depends on it.
+- A domain policy exists only to wrap one entity method or to carry retry/save result data for an
+  outbox or worker workflow.
+- A value object parser is absorbing legacy DB strings, vendor errors, or unknown fallback mapping
+  that should live in adapters.
+- An entity method is accepting a policy object instead of the plain values or value-object snapshot
+  the policy decided.
+- A non-domain health/status enum is being stored under `internal/domain`.
+- A new `aggregates/` package, `...Aggregate` suffix, or DAO-named application port is being added
+  only to mirror terminology rather than to express a real boundary.
 - A use case defines a reusable contract error locally instead of reusing `inport`.
 - Two implementations of the same outbound port duplicate the same contract error string instead of
   sharing `outport.Err...`.
@@ -751,7 +866,8 @@ Use these definitions when planning and implementing Step 12.
 
 - Unit tests
   - Definition: Verify a single domain rule or use-case orchestration path in isolation.
-  - Typical scope: `internal/domain/**` entities, value objects, policies, domain services;
+  - Typical scope: `internal/domain/**` entities, value objects, policies, and any rare
+    domain-service-by-exception packages;
     `internal/application/**` use cases with mocked/fake outbound ports.
   - Real DB: Not allowed.
   - Placement: Near the layer under test (for example `internal/domain/**` and
@@ -797,9 +913,9 @@ internal/
   domain/
     entities/
     valueobjects/
-    services/
     policies/
     events/
+    # services/ only by explicit exception for pure-domain cross-object logic
   application/
     ports/
       inbound/
@@ -909,15 +1025,18 @@ or tooling.
   by core needs.
 - Use cases orchestrate: load entities, invoke domain behavior, persist, publish application events
   if needed.
-- Prefer value objects/policies/specifications for pure rules; use domain services only when the
-  logic does not fit naturally on an entity/value object.
-- Domain services contain domain logic that does not naturally belong to a single entity/value
-  object. They have no IO and no repository dependencies.
+- Prefer value objects/policies/specifications for pure rules; use domain services only by explicit
+  exception when the logic does not fit naturally on an entity/value object or policy.
+- Domain services, when they exist, contain pure domain logic that does not naturally belong to a
+  single entity/value object. They have no IO and no repository dependencies.
 - Pure domain rules (policies/strategies) live in `internal/domain/policies`.
 - Repository ports are only for aggregate persistence (get/save by aggregate identity). For queries,
   use `*ReadModel` / `*QueryService` / `*Finder` returning DTOs/views.
 - Repository ports must accept/return aggregates (or aggregate IDs). They must not return view
   models/DTOs.
+- Store ports are valid when the boundary is process persistence rather than aggregate collection
+  persistence.
+- DAO terms belong inside outbound adapter implementations, not at the application port boundary.
 - Read-side ports must return DTOs/views and must not return aggregates.
 - Transport payloads (HTTP/MQ/CLI) must be mapped in inbound adapters to application DTOs/commands.
   Do not leak transport DTOs into `internal/application` or `internal/domain`.
@@ -941,8 +1060,9 @@ Output requirements:
 Naming guidance:
 
 - Inbound: `<Verb><Noun>UseCase` / `<Verb><Noun>Handler` / `<Verb><Noun>Port`.
-- Outbound: `<Noun>Repository` / `<Capability>Gateway` / `<Capability>Publisher`.
-- Query read side: `<Noun>ReadModel` / `<Noun>QueryService` / `<Noun>Finder`.
+- Outbound: `<Noun>Repository` / `<Noun>Store` / `<Noun>Outbox` / `<Capability>Gateway` /
+  `<Capability>Publisher`.
+- Query read side: `<Noun>ReadModel` / `<Noun>QueryService` / `<Noun>Finder` / `<Noun>Reader`.
 - External vendors: `<Vendor><Capability>Client` with ACL mappers in outbound adapters.
 
 # Conventional Commits

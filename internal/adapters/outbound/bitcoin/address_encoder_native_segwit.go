@@ -1,8 +1,6 @@
 package bitcoin
 
 import (
-	"payrune/internal/domain/valueobjects"
-
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -14,8 +12,8 @@ func NewNativeSegwitAddressEncoder() addressEncoder {
 	return nativeSegwitAddressEncoder{}
 }
 
-func (nativeSegwitAddressEncoder) Scheme() valueobjects.BitcoinAddressScheme {
-	return valueobjects.BitcoinAddressSchemeNativeSegwit
+func (nativeSegwitAddressEncoder) Scheme() addressScheme {
+	return addressSchemeNativeSegwit
 }
 
 func (nativeSegwitAddressEncoder) Encode(

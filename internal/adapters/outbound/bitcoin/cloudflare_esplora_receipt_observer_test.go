@@ -73,7 +73,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverObserveAddress(t *testing.T) {
 	})
 
 	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+		Network:               valueobjects.NetworkIDTestnet4,
 		Address:               "tb1qexample",
 		IssuedAt:              issuedAt,
 		RequiredConfirmations: 1,
@@ -100,7 +100,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverFetchLatestBlockHeight(t *testin
 
 	latestBlockHeight, err := observer.FetchLatestBlockHeight(
 		context.Background(),
-		valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		valueobjects.NetworkIDMainnet,
 	)
 	if err != nil {
 		t.Fatalf("FetchLatestBlockHeight returned error: %v", err)
@@ -116,7 +116,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverBridgeError(t *testing.T) {
 	})
 
 	_, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Network:               valueobjects.NetworkIDMainnet,
 		Address:               "bc1qexample",
 		IssuedAt:              time.Date(2026, 3, 11, 12, 0, 0, 0, time.UTC),
 		RequiredConfirmations: 1,

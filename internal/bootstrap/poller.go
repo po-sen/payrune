@@ -17,7 +17,6 @@ import (
 	"payrune/internal/adapters/outbound/system"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/application/usecases"
-	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -237,7 +236,6 @@ func newPollerContainer() (*pollerContainer, error) {
 		unitOfWork,
 		receiptObserver,
 		clock,
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	return &pollerContainer{
@@ -411,10 +409,10 @@ func loadBitcoinEsploraConfigsFromEnv() map[valueobjects.NetworkID]*bitcoin.Bitc
 	configs := make(map[valueobjects.NetworkID]*bitcoin.BitcoinEsploraObserverConfig, 2)
 
 	if mainnetConfig := loadBitcoinMainnetEsploraConfigFromEnv(); mainnetConfig != nil {
-		configs[valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet)] = mainnetConfig
+		configs[valueobjects.NetworkIDMainnet] = mainnetConfig
 	}
 	if testnet4Config := loadBitcoinTestnet4EsploraConfigFromEnv(); testnet4Config != nil {
-		configs[valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4)] = testnet4Config
+		configs[valueobjects.NetworkIDTestnet4] = testnet4Config
 	}
 
 	return configs
@@ -489,7 +487,7 @@ func loadEthereumRPCConfigsFromLookup(
 		timeout:        envEthereumMainnetRPCTimeout,
 		timeoutSeconds: envEthereumMainnetRPCTimeoutSeconds,
 	}); mainnetConfig != nil {
-		configs[valueobjects.NetworkID("mainnet")] = mainnetConfig
+		configs[valueobjects.NetworkIDMainnet] = mainnetConfig
 	}
 	if sepoliaConfig := loadEthereumRPCConfigFromLookup(lookup, ethereumRPCEndpointEnvKeys{
 		url:            envEthereumSepoliaRPCURL,
@@ -498,7 +496,7 @@ func loadEthereumRPCConfigsFromLookup(
 		timeout:        envEthereumSepoliaRPCTimeout,
 		timeoutSeconds: envEthereumSepoliaRPCTimeoutSeconds,
 	}); sepoliaConfig != nil {
-		configs[valueobjects.NetworkID("sepolia")] = sepoliaConfig
+		configs[valueobjects.NetworkIDSepolia] = sepoliaConfig
 	}
 
 	return configs

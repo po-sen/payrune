@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -15,7 +16,7 @@ var (
 )
 
 type DeriveIssuedPaymentAddressInput struct {
-	Policy     entities.AddressIssuancePolicy
+	Policy     policies.AddressIssuancePolicy
 	Allocation entities.PaymentAddressAllocation
 }
 

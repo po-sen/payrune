@@ -8,19 +8,19 @@ import (
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
 func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	deriver := newFakeChainAddressDeriver()
 	deriver.output = dtoToDeriveOutput("1BitcoinAddressExample", "0/9")
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAddressIssuancePolicy(
 			"bitcoin-mainnet-legacy",
 			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"satoshi",
 			8,
 			"xpub-main",
@@ -50,10 +50,10 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	if response.Decimals != 8 {
 		t.Fatalf("unexpected decimals: got %d", response.Decimals)
 	}
-	if deriver.lastInput.Network != valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet) {
+	if deriver.lastInput.Network != valueobjects.NetworkIDMainnet {
 		t.Fatalf("unexpected network: got %q", deriver.lastInput.Network)
 	}
-	if deriver.lastInput.Scheme != string(valueobjects.BitcoinAddressSchemeLegacy) {
+	if deriver.lastInput.Scheme != valueobjects.AddressSchemeLegacy {
 		t.Fatalf("unexpected scheme: got %q", deriver.lastInput.Scheme)
 	}
 	if deriver.lastInput.AddressSpaceRef != "xpub-main" {
@@ -73,10 +73,10 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 func TestGenerateAddressUseCaseRejectsEthereumCreate2Preview(t *testing.T) {
 	deriver := newFakeChainAddressDeriver()
 	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newEthereumCreate2IssuancePolicy(
 			"ethereum-mainnet-create2",
-			valueobjects.NetworkID("mainnet"),
+			valueobjects.NetworkIDMainnet,
 			"create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			"ethereum-mainnet-create2",
 		),
@@ -115,6 +115,22 @@ func TestGenerateAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 	}
 }
 
+func TestGenerateAddressUseCaseRejectInvalidAddressPolicyID(t *testing.T) {
+	useCase := NewGenerateAddressUseCase(
+		newFakeChainAddressDeriver(),
+		newInMemoryAddressPolicyReader(nil),
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.GenerateAddressInput{
+		Chain:           valueobjects.SupportedChainBitcoin,
+		AddressPolicyID: "bitcoin/mainnet",
+		Index:           0,
+	})
+	if !errors.Is(err, inport.ErrInvalidAddressPolicyID) {
+		t.Fatalf("expected invalid address policy id error, got %v", err)
+	}
+}
+
 func TestGenerateAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 	useCase := NewGenerateAddressUseCase(
 		newFakeChainAddressDeriver(),
@@ -132,12 +148,12 @@ func TestGenerateAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 }
 
 func TestGenerateAddressUseCaseRejectDisabledPolicy(t *testing.T) {
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAddressIssuancePolicy(
 			"bitcoin-mainnet-legacy",
 			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"satoshi",
 			8,
 			"",
@@ -157,12 +173,12 @@ func TestGenerateAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 }
 
 func TestGenerateAddressUseCaseDerivationError(t *testing.T) {
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAddressIssuancePolicy(
 			"bitcoin-testnet4-native-segwit",
 			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.NetworkIDTestnet4,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"satoshi",
 			8,
 			"tpub-testnet4",
@@ -202,19 +218,19 @@ func TestGenerateAddressUseCaseRoutesAllSchemes(t *testing.T) {
 	tests := []struct {
 		name            string
 		addressPolicyID string
-		scheme          string
+		scheme          valueobjects.AddressScheme
 	}{
-		{name: "legacy", addressPolicyID: "bitcoin-mainnet-legacy", scheme: string(valueobjects.BitcoinAddressSchemeLegacy)},
-		{name: "segwit", addressPolicyID: "bitcoin-mainnet-segwit", scheme: string(valueobjects.BitcoinAddressSchemeSegwit)},
-		{name: "native segwit", addressPolicyID: "bitcoin-mainnet-native-segwit", scheme: string(valueobjects.BitcoinAddressSchemeNativeSegwit)},
-		{name: "taproot", addressPolicyID: "bitcoin-mainnet-taproot", scheme: string(valueobjects.BitcoinAddressSchemeTaproot)},
+		{name: "legacy", addressPolicyID: "bitcoin-mainnet-legacy", scheme: valueobjects.AddressSchemeLegacy},
+		{name: "segwit", addressPolicyID: "bitcoin-mainnet-segwit", scheme: valueobjects.AddressSchemeSegwit},
+		{name: "native segwit", addressPolicyID: "bitcoin-mainnet-native-segwit", scheme: valueobjects.AddressSchemeNativeSegwit},
+		{name: "taproot", addressPolicyID: "bitcoin-mainnet-taproot", scheme: valueobjects.AddressSchemeTaproot},
 	}
 
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
-		newAddressIssuancePolicy("bitcoin-mainnet-legacy", valueobjects.SupportedChainBitcoin, valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet), string(valueobjects.BitcoinAddressSchemeLegacy), "satoshi", 8, "xpub-main", "m/44'/0'/0'"),
-		newAddressIssuancePolicy("bitcoin-mainnet-segwit", valueobjects.SupportedChainBitcoin, valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet), string(valueobjects.BitcoinAddressSchemeSegwit), "satoshi", 8, "xpub-main", "m/49'/0'/0'"),
-		newAddressIssuancePolicy("bitcoin-mainnet-native-segwit", valueobjects.SupportedChainBitcoin, valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet), string(valueobjects.BitcoinAddressSchemeNativeSegwit), "satoshi", 8, "xpub-main", "m/84'/0'/0'"),
-		newAddressIssuancePolicy("bitcoin-mainnet-taproot", valueobjects.SupportedChainBitcoin, valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet), string(valueobjects.BitcoinAddressSchemeTaproot), "satoshi", 8, "xpub-main", "m/86'/0'/0'"),
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
+		newAddressIssuancePolicy("bitcoin-mainnet-legacy", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeLegacy), "satoshi", 8, "xpub-main", "m/44'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-segwit", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeSegwit), "satoshi", 8, "xpub-main", "m/49'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-native-segwit", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeNativeSegwit), "satoshi", 8, "xpub-main", "m/84'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-taproot", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeTaproot), "satoshi", 8, "xpub-main", "m/86'/0'/0'"),
 	})
 
 	for _, tc := range tests {

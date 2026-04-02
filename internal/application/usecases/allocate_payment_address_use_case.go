@@ -58,7 +58,12 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 		return dto.AllocatePaymentAddressResponse{}, inport.ErrChainNotSupported
 	}
 
-	response, found, err := uc.loadReplayedAllocationResponse(ctx, input)
+	addressPolicyID, err := valueobjects.NewAddressPolicyID(input.AddressPolicyID)
+	if err != nil {
+		return dto.AllocatePaymentAddressResponse{}, inport.ErrInvalidAddressPolicyID
+	}
+
+	response, found, err := uc.loadReplayedAllocationResponse(ctx, input, addressPolicyID)
 	if err != nil {
 		return dto.AllocatePaymentAddressResponse{}, err
 	}
@@ -66,7 +71,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 		return response, nil
 	}
 
-	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, input.AddressPolicyID)
+	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, addressPolicyID)
 	if err != nil {
 		return dto.AllocatePaymentAddressResponse{}, inport.ErrDependencyFailure
 	}
@@ -84,11 +89,11 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 	)
 	if err != nil {
 		switch {
-		case errors.Is(err, entities.ErrAddressPolicyChainMismatch):
+		case errors.Is(err, policies.ErrAddressPolicyChainMismatch):
 			return dto.AllocatePaymentAddressResponse{}, inport.ErrAddressPolicyNotFound
-		case errors.Is(err, entities.ErrAddressPolicyNotEnabled):
+		case errors.Is(err, policies.ErrAddressPolicyNotEnabled):
 			return dto.AllocatePaymentAddressResponse{}, inport.ErrAddressPolicyNotEnabled
-		case errors.Is(err, entities.ErrExpectedAmountMinorInvalid):
+		case errors.Is(err, policies.ErrExpectedAmountMinorInvalid):
 			return dto.AllocatePaymentAddressResponse{}, inport.ErrInvalidExpectedAmount
 		default:
 			return dto.AllocatePaymentAddressResponse{}, inport.ErrInternalFailure
@@ -98,7 +103,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 	issuedAllocation, err := uc.issueAllocation(ctx, input, issuancePlan, issuedAt)
 	if err != nil {
 		if errors.Is(err, outport.ErrPaymentAddressIdempotencyKeyExists) {
-			response, found, lookupErr := uc.loadReplayedAllocationResponse(ctx, input)
+			response, found, lookupErr := uc.loadReplayedAllocationResponse(ctx, input, addressPolicyID)
 			if lookupErr != nil {
 				return dto.AllocatePaymentAddressResponse{}, lookupErr
 			}
@@ -119,13 +124,13 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 
 	return dto.AllocatePaymentAddressResponse{
 		PaymentAddressID:    strconv.FormatInt(issuedAllocation.PaymentAddressID, 10),
-		AddressPolicyID:     policy.AddressPolicy.AddressPolicyID,
+		AddressPolicyID:     string(policy.AddressPolicyID),
 		ExpectedAmountMinor: issuedAllocation.ExpectedAmountMinor,
 		Chain:               string(issuedAllocation.Chain),
 		Network:             string(issuedAllocation.Network),
-		Scheme:              issuedAllocation.Scheme,
-		MinorUnit:           policy.AddressPolicy.MinorUnit,
-		Decimals:            policy.AddressPolicy.Decimals,
+		Scheme:              string(issuedAllocation.Scheme),
+		MinorUnit:           policy.MinorUnit,
+		Decimals:            policy.Decimals,
 		Address:             issuedAllocation.Address,
 		CustomerReference:   issuedAllocation.CustomerReference,
 	}, nil
@@ -134,6 +139,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 	ctx context.Context,
 	input dto.AllocatePaymentAddressInput,
+	addressPolicyID valueobjects.AddressPolicyID,
 ) (dto.AllocatePaymentAddressResponse, bool, error) {
 	if input.IdempotencyKey == "" {
 		return dto.AllocatePaymentAddressResponse{}, false, nil
@@ -168,7 +174,7 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 		if record.PaymentAddressID <= 0 {
 			return inport.ErrPaymentAddressIdempotencyRecordIncomplete
 		}
-		if record.AddressPolicyID != input.AddressPolicyID ||
+		if record.AddressPolicyID != addressPolicyID ||
 			record.ExpectedAmountMinor != input.ExpectedAmountMinor ||
 			record.CustomerReference != input.CustomerReference {
 			return inport.ErrIdempotencyKeyConflict
@@ -222,13 +228,13 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 
 	return dto.AllocatePaymentAddressResponse{
 		PaymentAddressID:    strconv.FormatInt(allocation.PaymentAddressID, 10),
-		AddressPolicyID:     policy.AddressPolicy.AddressPolicyID,
+		AddressPolicyID:     string(policy.AddressPolicyID),
 		ExpectedAmountMinor: allocation.ExpectedAmountMinor,
 		Chain:               string(allocation.Chain),
 		Network:             string(allocation.Network),
-		Scheme:              allocation.Scheme,
-		MinorUnit:           policy.AddressPolicy.MinorUnit,
-		Decimals:            policy.AddressPolicy.Decimals,
+		Scheme:              string(allocation.Scheme),
+		MinorUnit:           policy.MinorUnit,
+		Decimals:            policy.Decimals,
 		Address:             allocation.Address,
 		CustomerReference:   allocation.CustomerReference,
 		IdempotencyReplayed: true,
@@ -271,7 +277,7 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			_, err := idempotencyStore.Claim(ctx, outport.ClaimPaymentAddressIdempotencyInput{
 				Chain:               input.Chain,
 				IdempotencyKey:      idempotencyKey,
-				AddressPolicyID:     issuancePlan.Reservation.IssuancePolicy.AddressPolicy.AddressPolicyID,
+				AddressPolicyID:     issuancePlan.Reservation.IssuancePolicy.AddressPolicyID,
 				ExpectedAmountMinor: issuancePlan.Reservation.ExpectedAmountMinor,
 				CustomerReference:   issuancePlan.Reservation.CustomerReference,
 			})
@@ -304,7 +310,10 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 		}
 
 		issuedAllocation, err = allocation.MarkIssued(
-			issuancePlan.Reservation.IssuancePolicy,
+			issuancePlan.Reservation.IssuancePolicy.AddressPolicyID,
+			issuancePlan.Reservation.IssuancePolicy.Chain,
+			issuancePlan.Reservation.IssuancePolicy.Network,
+			issuancePlan.Reservation.IssuancePolicy.Scheme,
 			derived.Address,
 			derived.SweepMaterialJSON,
 		)

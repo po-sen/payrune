@@ -12,7 +12,6 @@ import (
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/events"
-	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -102,7 +101,7 @@ func (f *fakePaymentReceiptStatusNotificationOutbox) ClaimPending(
 
 func (f *fakePaymentReceiptStatusNotificationOutbox) SaveDeliveryResult(
 	_ context.Context,
-	_ policies.PaymentReceiptStatusNotificationDeliveryResult,
+	_ applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	return nil
 }
@@ -180,7 +179,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 		101,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qreceipt1",
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		1000,
@@ -217,7 +216,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -289,7 +287,7 @@ func TestRunReceiptPollingCycleUseCaseExecutePassesExistingCumulativeTotalsToObs
 		501,
 		"ethereum-sepolia-create2",
 		valueobjects.ChainIDEthereum,
-		valueobjects.NetworkID("sepolia"),
+		valueobjects.NetworkIDSepolia,
 		"0x1111111111111111111111111111111111111111",
 		time.Date(2026, 3, 30, 5, 0, 0, 0, time.UTC),
 		1000,
@@ -330,7 +328,6 @@ func TestRunReceiptPollingCycleUseCaseExecutePassesExistingCumulativeTotalsToObs
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	_, err = useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -338,7 +335,7 @@ func TestRunReceiptPollingCycleUseCaseExecutePassesExistingCumulativeTotalsToObs
 		RescheduleInterval: 5 * time.Minute,
 		ClaimTTL:           30 * time.Second,
 		Chain:              valueobjects.ChainIDEthereum,
-		Network:            valueobjects.NetworkID("sepolia"),
+		Network:            valueobjects.NetworkIDSepolia,
 	})
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
@@ -362,7 +359,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 		202,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qreceipt2",
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		500,
@@ -394,7 +391,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -437,7 +433,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteSharesLatestBlockHeightByNetwork(t 
 		401,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qbatch1",
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		1000,
@@ -450,7 +446,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteSharesLatestBlockHeightByNetwork(t 
 		402,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qbatch2",
 		time.Date(2026, 3, 5, 13, 5, 0, 0, time.UTC),
 		1500,
@@ -492,7 +488,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteSharesLatestBlockHeightByNetwork(t 
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -522,7 +517,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteLatestBlockHeightError(t *testing.T
 		403,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qheightfail",
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		500,
@@ -551,7 +546,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteLatestBlockHeightError(t *testing.T
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -587,7 +581,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 		212,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qreceipt-enqueue-fail",
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		500,
@@ -623,7 +617,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -653,7 +646,6 @@ func TestRunReceiptPollingCycleUseCaseMapsTransactionFailure(t *testing.T) {
 			errorsByAddress:  map[string]error{},
 		},
 		&fakeReceiptPollingClock{now: time.Now().UTC()},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -670,7 +662,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 		303,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexpired",
 		time.Date(2026, 3, 5, 10, 0, 0, 0, time.UTC),
 		500,
@@ -702,7 +694,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -753,7 +744,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExpireWhenFinalObservationFi
 		304,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qpaidunconfirmed",
 		time.Date(2026, 3, 5, 11, 0, 0, 0, time.UTC),
 		1000,
@@ -792,7 +783,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExpireWhenFinalObservationFi
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -835,7 +825,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTrackingObserverErrorRemains
 		307,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qexpiredobservererr",
 		time.Date(2026, 3, 5, 10, 0, 0, 0, time.UTC),
 		500,
@@ -869,7 +859,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTrackingObserverErrorRemains
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -908,7 +897,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteMovesPreviouslyPaidReceiptToReverte
 		305,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qpaidunconfirmedcustom",
 		time.Date(2026, 3, 5, 11, 30, 0, 0, time.UTC),
 		1000,
@@ -947,7 +936,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteMovesPreviouslyPaidReceiptToReverte
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -987,7 +975,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExpirePreviouslyPaidReceipt(
 		306,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qpaidunconfirmedsteady",
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1000,
@@ -1029,7 +1017,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExpirePreviouslyPaidReceipt(
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -1075,7 +1062,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 		203,
 		"bitcoin-testnet4-native-segwit",
 		valueobjects.ChainIDBitcoin,
-		valueobjects.NetworkID("testnet4"),
+		valueobjects.NetworkIDTestnet4,
 		"tb1qreceipt3",
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		500,
@@ -1103,7 +1090,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	output, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{
@@ -1147,7 +1133,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteValidation(t *testing.T) {
 			errorsByAddress:  map[string]error{},
 		},
 		&fakeReceiptPollingClock{now: time.Now().UTC()},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{BatchSize: 0})
@@ -1190,7 +1175,6 @@ func TestRunReceiptPollingCycleUseCaseExecuteWithScope(t *testing.T) {
 		unitOfWork,
 		observer,
 		&fakeReceiptPollingClock{now: now},
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	_, err := useCase.Execute(context.Background(), dto.RunReceiptPollingCycleInput{

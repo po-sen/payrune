@@ -9,14 +9,14 @@ import (
 
 type PaymentAddressAllocation struct {
 	PaymentAddressID        int64
-	AddressPolicyID         string
+	AddressPolicyID         valueobjects.AddressPolicyID
 	SlotIndex               uint32
 	ExpectedAmountMinor     int64
 	CustomerReference       string
 	Status                  valueobjects.PaymentAddressAllocationStatus
 	Chain                   valueobjects.SupportedChain
 	Network                 valueobjects.NetworkID
-	Scheme                  string
+	Scheme                  valueobjects.AddressScheme
 	Address                 string
 	SweepMaterialJSON       string
 	DerivationFailureReason valueobjects.PaymentAddressAllocationDerivationFailureReason
@@ -24,16 +24,16 @@ type PaymentAddressAllocation struct {
 
 func NewPaymentAddressAllocation(
 	paymentAddressID int64,
-	addressPolicyID string,
+	addressPolicyID valueobjects.AddressPolicyID,
 	slotIndex uint32,
 	expectedAmountMinor int64,
 	customerReference string,
 ) (PaymentAddressAllocation, error) {
-	normalizedPolicyID := strings.TrimSpace(addressPolicyID)
+	normalizedPolicyID := addressPolicyID.Normalize()
 	if paymentAddressID <= 0 {
 		return PaymentAddressAllocation{}, ErrPaymentAddressIDInvalid
 	}
-	if normalizedPolicyID == "" {
+	if normalizedPolicyID.IsZero() {
 		return PaymentAddressAllocation{}, ErrAddressPolicyIDRequired
 	}
 	if expectedAmountMinor <= 0 {
@@ -51,17 +51,21 @@ func NewPaymentAddressAllocation(
 }
 
 func (a PaymentAddressAllocation) MarkIssued(
-	policy AddressIssuancePolicy,
+	addressPolicyID valueobjects.AddressPolicyID,
+	chain valueobjects.SupportedChain,
+	network valueobjects.NetworkID,
+	scheme valueobjects.AddressScheme,
 	address string,
 	sweepMaterialJSON string,
 ) (PaymentAddressAllocation, error) {
-	policy = policy.Normalize()
-	if policy.AddressPolicy.AddressPolicyID == "" {
+	normalizedPolicyID := addressPolicyID.Normalize()
+	if normalizedPolicyID.IsZero() {
 		return PaymentAddressAllocation{}, ErrAddressPolicyIDRequired
 	}
-	if policy.AddressPolicy.AddressPolicyID != a.AddressPolicyID {
+	if normalizedPolicyID != a.AddressPolicyID {
 		return PaymentAddressAllocation{}, ErrAddressPolicyMismatch
 	}
+	normalizedScheme := scheme.Normalize()
 
 	normalizedAddress := strings.TrimSpace(address)
 	if normalizedAddress == "" {
@@ -74,9 +78,9 @@ func (a PaymentAddressAllocation) MarkIssued(
 
 	issued := a
 	issued.Status = valueobjects.PaymentAddressAllocationStatusIssued
-	issued.Chain = policy.AddressPolicy.Chain
-	issued.Network = policy.AddressPolicy.Network
-	issued.Scheme = policy.AddressPolicy.Scheme
+	issued.Chain = chain
+	issued.Network = network
+	issued.Scheme = normalizedScheme
 	issued.Address = normalizedAddress
 	issued.SweepMaterialJSON = normalizedSweepMaterialJSON
 	issued.DerivationFailureReason = ""

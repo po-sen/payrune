@@ -78,7 +78,7 @@ func TestBitcoinEsploraReceiptObserverObserveAddressIssueTimeScoped(t *testing.T
 
 	observer, err := NewBitcoinEsploraReceiptObserver(
 		map[valueobjects.NetworkID]*BitcoinEsploraObserverConfig{
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4): {
+			valueobjects.NetworkIDTestnet4: {
 				Endpoint: server.URL,
 				Timeout:  3 * time.Second,
 			},
@@ -89,7 +89,7 @@ func TestBitcoinEsploraReceiptObserverObserveAddressIssueTimeScoped(t *testing.T
 	}
 
 	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID("testnet4"),
+		Network:               valueobjects.NetworkIDTestnet4,
 		Address:               "tb1qexample",
 		IssuedAt:              issuedAt,
 		RequiredConfirmations: 2,
@@ -115,7 +115,7 @@ func TestBitcoinEsploraReceiptObserverObserveAddressIssueTimeScoped(t *testing.T
 func TestBitcoinEsploraReceiptObserverMissingNetworkEndpoint(t *testing.T) {
 	observer, err := NewBitcoinEsploraReceiptObserver(
 		map[valueobjects.NetworkID]*BitcoinEsploraObserverConfig{
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet): {Endpoint: "http://127.0.0.1:18443"},
+			valueobjects.NetworkIDMainnet: {Endpoint: "http://127.0.0.1:18443"},
 		},
 	)
 	if err != nil {
@@ -123,7 +123,7 @@ func TestBitcoinEsploraReceiptObserverMissingNetworkEndpoint(t *testing.T) {
 	}
 
 	_, err = observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID("testnet4"),
+		Network:               valueobjects.NetworkIDTestnet4,
 		Address:               "tb1qexample",
 		IssuedAt:              time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		RequiredConfirmations: 1,
@@ -142,14 +142,14 @@ func TestBitcoinEsploraReceiptObserverEndpointError(t *testing.T) {
 
 	observer, err := NewBitcoinEsploraReceiptObserver(
 		map[valueobjects.NetworkID]*BitcoinEsploraObserverConfig{
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet): {Endpoint: server.URL},
+			valueobjects.NetworkIDMainnet: {Endpoint: server.URL},
 		},
 	)
 	if err != nil {
 		t.Fatalf("unexpected constructor error: %v", err)
 	}
 
-	_, err = observer.FetchLatestBlockHeight(context.Background(), valueobjects.NetworkID("mainnet"))
+	_, err = observer.FetchLatestBlockHeight(context.Background(), valueobjects.NetworkIDMainnet)
 	if err == nil {
 		t.Fatal("expected endpoint error but got nil")
 	}
@@ -166,7 +166,7 @@ func TestBitcoinEsploraReceiptObserverValidation(t *testing.T) {
 
 	observer, err := NewBitcoinEsploraReceiptObserver(
 		map[valueobjects.NetworkID]*BitcoinEsploraObserverConfig{
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet): {Endpoint: server.URL},
+			valueobjects.NetworkIDMainnet: {Endpoint: server.URL},
 		},
 	)
 	if err != nil {
@@ -174,7 +174,7 @@ func TestBitcoinEsploraReceiptObserverValidation(t *testing.T) {
 	}
 
 	_, err = observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID("mainnet"),
+		Network:               valueobjects.NetworkIDMainnet,
 		Address:               "bc1qexample",
 		RequiredConfirmations: 1,
 	})
@@ -194,14 +194,14 @@ func TestBitcoinEsploraReceiptObserverFetchLatestBlockHeight(t *testing.T) {
 
 	observer, err := NewBitcoinEsploraReceiptObserver(
 		map[valueobjects.NetworkID]*BitcoinEsploraObserverConfig{
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet): {Endpoint: server.URL},
+			valueobjects.NetworkIDMainnet: {Endpoint: server.URL},
 		},
 	)
 	if err != nil {
 		t.Fatalf("unexpected constructor error: %v", err)
 	}
 
-	latestBlockHeight, err := observer.FetchLatestBlockHeight(context.Background(), valueobjects.NetworkID("mainnet"))
+	latestBlockHeight, err := observer.FetchLatestBlockHeight(context.Background(), valueobjects.NetworkIDMainnet)
 	if err != nil {
 		t.Fatalf("FetchLatestBlockHeight returned error: %v", err)
 	}

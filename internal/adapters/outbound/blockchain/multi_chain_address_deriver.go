@@ -80,7 +80,7 @@ func (d *MultiChainAddressDeriver) DeriveAddress(
 	output, err := deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
 		Chain:               normalizedChain,
 		Network:             normalizedNetwork,
-		Scheme:              strings.TrimSpace(input.Scheme),
+		Scheme:              input.Scheme.Normalize(),
 		AddressSpaceRef:     strings.TrimSpace(input.AddressSpaceRef),
 		IssuanceRefPrefix:   strings.TrimSpace(input.IssuanceRefPrefix),
 		RelativeIssuanceRef: strings.TrimSpace(input.RelativeIssuanceRef),

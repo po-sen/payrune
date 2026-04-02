@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/domain/entities"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -14,12 +13,10 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
 	issuedAt := time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC)
 
 	plan, err := policy.Plan(
-		entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			},
+		AddressIssuancePolicy{
+			AddressPolicyID: "bitcoin-mainnet-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",
@@ -58,25 +55,23 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testi
 		map[PaymentReceiptTermsScope]int32{
 			{
 				Chain:   valueobjects.SupportedChainBitcoin,
-				Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+				Network: valueobjects.NetworkIDMainnet,
 			}: 6,
 		},
 		map[PaymentReceiptTermsScope]time.Duration{
 			{
 				Chain:   valueobjects.SupportedChainBitcoin,
-				Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+				Network: valueobjects.NetworkIDMainnet,
 			}: 48 * time.Hour,
 		},
 	)
 	issuedAt := time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC)
 
 	plan, err := policy.Plan(
-		entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			},
+		AddressIssuancePolicy{
+			AddressPolicyID: "bitcoin-mainnet-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",
@@ -104,36 +99,34 @@ func TestPaymentAddressAllocationIssuancePolicyPlanScopesOverridesByChainAndNetw
 		map[PaymentReceiptTermsScope]int32{
 			{
 				Chain:   valueobjects.SupportedChainBitcoin,
-				Network: valueobjects.NetworkID("mainnet"),
+				Network: valueobjects.NetworkIDMainnet,
 			}: 6,
 			{
 				Chain:   valueobjects.SupportedChainEthereum,
-				Network: valueobjects.NetworkID("mainnet"),
+				Network: valueobjects.NetworkIDMainnet,
 			}: 12,
 		},
 		map[PaymentReceiptTermsScope]time.Duration{
 			{
 				Chain:   valueobjects.SupportedChainBitcoin,
-				Network: valueobjects.NetworkID("mainnet"),
+				Network: valueobjects.NetworkIDMainnet,
 			}: 48 * time.Hour,
 			{
 				Chain:   valueobjects.SupportedChainEthereum,
-				Network: valueobjects.NetworkID("mainnet"),
+				Network: valueobjects.NetworkIDMainnet,
 			}: 72 * time.Hour,
 		},
 	)
 	issuedAt := time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC)
 
 	plan, err := policy.Plan(
-		entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "ethereum-mainnet-create2",
-				Chain:           valueobjects.SupportedChainEthereum,
-				Network:         valueobjects.NetworkID("mainnet"),
-				Scheme:          "create2",
-				MinorUnit:       "wei",
-				Decimals:        18,
-			},
+		AddressIssuancePolicy{
+			AddressPolicyID: "ethereum-mainnet-create2",
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          "create2",
+			MinorUnit:       "wei",
+			Decimals:        18,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 				IssuanceRefPrefix: "ethereum-mainnet-create2",
@@ -160,20 +153,18 @@ func TestPaymentAddressAllocationIssuancePolicyPlanRejectsDisabledPolicy(t *test
 	policy := NewPaymentAddressAllocationIssuancePolicy(nil, nil)
 
 	_, err := policy.Plan(
-		entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			},
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{},
+		AddressIssuancePolicy{
+			AddressPolicyID: "bitcoin-mainnet-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			IssuanceConfig:  valueobjects.AddressIssuanceConfig{},
 		},
 		valueobjects.SupportedChainBitcoin,
 		1200,
 		"order-001",
 		time.Date(2026, 3, 7, 10, 0, 0, 0, time.UTC),
 	)
-	if !errors.Is(err, entities.ErrAddressPolicyNotEnabled) {
+	if !errors.Is(err, ErrAddressPolicyNotEnabled) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }
@@ -182,12 +173,10 @@ func TestPaymentAddressAllocationIssuancePolicyPlanRejectsMissingIssuedAt(t *tes
 	policy := NewPaymentAddressAllocationIssuancePolicy(nil, nil)
 
 	_, err := policy.Plan(
-		entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			},
+		AddressIssuancePolicy{
+			AddressPolicyID: "bitcoin-mainnet-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",

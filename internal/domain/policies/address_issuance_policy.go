@@ -1,21 +1,41 @@
-package entities
+package policies
 
-import "payrune/internal/domain/valueobjects"
+import (
+	"strings"
+
+	"payrune/internal/domain/valueobjects"
+)
 
 type AddressIssuancePolicy struct {
-	AddressPolicy  AddressPolicy
-	IssuanceConfig valueobjects.AddressIssuanceConfig
+	AddressPolicyID valueobjects.AddressPolicyID
+	Chain           valueobjects.SupportedChain
+	Network         valueobjects.NetworkID
+	Scheme          valueobjects.AddressScheme
+	MinorUnit       string
+	Decimals        uint8
+	Enabled         bool
+	IssuanceConfig  valueobjects.AddressIssuanceConfig
 }
 
 func (p AddressIssuancePolicy) Normalize() AddressIssuancePolicy {
-	p.AddressPolicy = p.AddressPolicy.Normalize()
+	p.AddressPolicyID = p.AddressPolicyID.Normalize()
 	p.IssuanceConfig = p.IssuanceConfig.Normalize()
-	p.AddressPolicy.Enabled = p.IssuanceConfig.IsEnabled()
+	if normalizedChain, ok := valueobjects.ParseSupportedChain(string(p.Chain)); ok {
+		p.Chain = normalizedChain
+	}
+	if normalizedNetwork, ok := valueobjects.ParseNetworkID(string(p.Network)); ok {
+		p.Network = normalizedNetwork
+	} else {
+		p.Network = valueobjects.NetworkID(strings.ToLower(strings.TrimSpace(string(p.Network))))
+	}
+	p.Scheme = p.Scheme.Normalize()
+	p.MinorUnit = strings.TrimSpace(p.MinorUnit)
+	p.Enabled = p.IssuanceConfig.IsEnabled()
 	return p
 }
 
 func (p AddressIssuancePolicy) IsEnabled() bool {
-	return p.Normalize().IssuanceConfig.IsEnabled()
+	return p.Normalize().Enabled
 }
 
 func (p AddressIssuancePolicy) ValidateForAllocationIssuance(
@@ -23,10 +43,10 @@ func (p AddressIssuancePolicy) ValidateForAllocationIssuance(
 	expectedAmountMinor int64,
 ) (AddressIssuancePolicy, error) {
 	normalized := p.Normalize()
-	if normalized.AddressPolicy.AddressPolicyID == "" {
+	if normalized.AddressPolicyID.IsZero() {
 		return AddressIssuancePolicy{}, ErrAddressPolicyIDRequired
 	}
-	if normalized.AddressPolicy.Chain != requestedChain {
+	if normalized.Chain != requestedChain {
 		return AddressIssuancePolicy{}, ErrAddressPolicyChainMismatch
 	}
 	if !normalized.IsEnabled() {
@@ -40,18 +60,17 @@ func (p AddressIssuancePolicy) ValidateForAllocationIssuance(
 
 func (p AddressIssuancePolicy) SupportsAddressPreview() bool {
 	normalized := p.Normalize()
-	return !(normalized.AddressPolicy.Chain == valueobjects.SupportedChainEthereum &&
-		normalized.AddressPolicy.Scheme == "create2")
+	return !(normalized.Chain == valueobjects.SupportedChainEthereum && normalized.Scheme.IsCreate2())
 }
 
 func (p AddressIssuancePolicy) ValidateForAddressPreview(
 	requestedChain valueobjects.SupportedChain,
 ) (AddressIssuancePolicy, error) {
 	normalized := p.Normalize()
-	if normalized.AddressPolicy.AddressPolicyID == "" {
+	if normalized.AddressPolicyID.IsZero() {
 		return AddressIssuancePolicy{}, ErrAddressPolicyIDRequired
 	}
-	if normalized.AddressPolicy.Chain != requestedChain {
+	if normalized.Chain != requestedChain {
 		return AddressIssuancePolicy{}, ErrAddressPolicyChainMismatch
 	}
 	if !normalized.IsEnabled() {

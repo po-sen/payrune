@@ -4,30 +4,26 @@ import (
 	"context"
 	"testing"
 
-	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
 func TestAddressPolicyReaderPreservesAddressSpaceRef(t *testing.T) {
-	reader := NewAddressPolicyReader([]entities.AddressIssuancePolicy{
+	reader := NewAddressPolicyReader([]policies.AddressIssuancePolicy{
 		{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "policy-a",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:          string(valueobjects.BitcoinAddressSchemeLegacy),
-			},
+			AddressPolicyID: "policy-a",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeLegacy,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: "xpub-a",
 			},
 		},
 		{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "policy-b",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:          string(valueobjects.BitcoinAddressSchemeLegacy),
-			},
+			AddressPolicyID: "policy-b",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeLegacy,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: "xpub-b",
 			},
@@ -62,26 +58,22 @@ func TestAddressPolicyReaderPreservesAddressSpaceRef(t *testing.T) {
 }
 
 func TestAddressPolicyReaderUsesConfiguredIssuanceRefPrefix(t *testing.T) {
-	reader := NewAddressPolicyReader([]entities.AddressIssuancePolicy{
+	reader := NewAddressPolicyReader([]policies.AddressIssuancePolicy{
 		{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "native-mainnet",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-			},
+			AddressPolicyID: "native-mainnet",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeNativeSegwit,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-a",
 				IssuanceRefPrefix: "m/84'/0'/0'",
 			},
 		},
 		{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "taproot-testnet4",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-				Scheme:          string(valueobjects.BitcoinAddressSchemeTaproot),
-			},
+			AddressPolicyID: "taproot-testnet4",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDTestnet4,
+			Scheme:          valueobjects.AddressSchemeTaproot,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-b",
 				IssuanceRefPrefix: "m/86'/1'/0'",
@@ -119,30 +111,26 @@ func TestAddressPolicyReaderUsesConfiguredIssuanceRefPrefix(t *testing.T) {
 }
 
 func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
-	reader := NewAddressPolicyReader([]entities.AddressIssuancePolicy{
+	reader := NewAddressPolicyReader([]policies.AddressIssuancePolicy{
 		{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "ethereum-mainnet-create2",
-				Chain:           valueobjects.SupportedChainEthereum,
-				Network:         valueobjects.NetworkID("mainnet"),
-				Scheme:          "create2",
-				MinorUnit:       "wei",
-				Decimals:        18,
-			},
+			AddressPolicyID: "ethereum-mainnet-create2",
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          "create2",
+			MinorUnit:       "wei",
+			Decimals:        18,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 				IssuanceRefPrefix: "ethereum-mainnet-create2/",
 			},
 		},
 		{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "ethereum-sepolia-create2",
-				Chain:           valueobjects.SupportedChainEthereum,
-				Network:         valueobjects.NetworkID("sepolia"),
-				Scheme:          "create2",
-				MinorUnit:       "wei",
-				Decimals:        18,
-			},
+			AddressPolicyID: "ethereum-sepolia-create2",
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkIDSepolia,
+			Scheme:          "create2",
+			MinorUnit:       "wei",
+			Decimals:        18,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 				IssuanceRefPrefix: "ethereum-sepolia-create2/",
@@ -157,14 +145,14 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 	if !ok {
 		t.Fatal("expected ethereum-mainnet-create2 exists")
 	}
-	if policy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
-		t.Fatalf("unexpected chain: got %q", policy.AddressPolicy.Chain)
+	if policy.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain: got %q", policy.Chain)
 	}
-	if policy.AddressPolicy.MinorUnit != "wei" {
-		t.Fatalf("unexpected minor unit: got %q", policy.AddressPolicy.MinorUnit)
+	if policy.MinorUnit != "wei" {
+		t.Fatalf("unexpected minor unit: got %q", policy.MinorUnit)
 	}
-	if policy.AddressPolicy.Decimals != 18 {
-		t.Fatalf("unexpected decimals: got %d", policy.AddressPolicy.Decimals)
+	if policy.Decimals != 18 {
+		t.Fatalf("unexpected decimals: got %d", policy.Decimals)
 	}
 	if policy.IssuanceConfig.IssuanceRefPrefix != "ethereum-mainnet-create2" {
 		t.Fatalf("unexpected address reference prefix: got %q", policy.IssuanceConfig.IssuanceRefPrefix)
@@ -180,8 +168,8 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 	if !ok {
 		t.Fatal("expected ethereum-sepolia-create2 exists")
 	}
-	if sepoliaPolicy.AddressPolicy.Network != valueobjects.NetworkID("sepolia") {
-		t.Fatalf("unexpected sepolia network: got %q", sepoliaPolicy.AddressPolicy.Network)
+	if sepoliaPolicy.Network != valueobjects.NetworkIDSepolia {
+		t.Fatalf("unexpected sepolia network: got %q", sepoliaPolicy.Network)
 	}
 	if sepoliaPolicy.IssuanceConfig.IssuanceRefPrefix != "ethereum-sepolia-create2" {
 		t.Fatalf("unexpected sepolia address reference prefix: got %q", sepoliaPolicy.IssuanceConfig.IssuanceRefPrefix)

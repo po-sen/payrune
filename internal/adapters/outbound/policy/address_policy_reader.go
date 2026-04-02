@@ -2,35 +2,42 @@ package policy
 
 import (
 	"context"
-	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
 type addressPolicyReader struct {
-	ordered      []entities.AddressPolicy
-	issuanceByID map[string]entities.AddressIssuancePolicy
+	ordered      []outport.AddressPolicyRecord
+	issuanceByID map[valueobjects.AddressPolicyID]policies.AddressIssuancePolicy
 }
 
 var _ outport.AddressPolicyReader = (*addressPolicyReader)(nil)
 
-func NewAddressPolicyReader(policies []entities.AddressIssuancePolicy) outport.AddressPolicyReader {
-	ordered := make([]entities.AddressPolicy, 0, len(policies))
-	issuanceByID := make(map[string]entities.AddressIssuancePolicy, len(policies))
+func NewAddressPolicyReader(issuancePolicies []policies.AddressIssuancePolicy) outport.AddressPolicyReader {
+	ordered := make([]outport.AddressPolicyRecord, 0, len(issuancePolicies))
+	issuanceByID := make(map[valueobjects.AddressPolicyID]policies.AddressIssuancePolicy, len(issuancePolicies))
 
-	for _, issuancePolicy := range policies {
+	for _, issuancePolicy := range issuancePolicies {
 		issuancePolicy = issuancePolicy.Normalize()
-		if issuancePolicy.AddressPolicy.AddressPolicyID == "" {
+		if issuancePolicy.AddressPolicyID.IsZero() {
 			continue
 		}
-		if _, exists := issuanceByID[issuancePolicy.AddressPolicy.AddressPolicyID]; exists {
+		if _, exists := issuanceByID[issuancePolicy.AddressPolicyID]; exists {
 			continue
 		}
 
-		ordered = append(ordered, issuancePolicy.AddressPolicy)
-		issuanceByID[issuancePolicy.AddressPolicy.AddressPolicyID] = issuancePolicy
+		ordered = append(ordered, outport.AddressPolicyRecord{
+			AddressPolicyID: issuancePolicy.AddressPolicyID,
+			Chain:           issuancePolicy.Chain,
+			Network:         issuancePolicy.Network,
+			Scheme:          issuancePolicy.Scheme,
+			MinorUnit:       issuancePolicy.MinorUnit,
+			Decimals:        issuancePolicy.Decimals,
+			Enabled:         issuancePolicy.Enabled,
+		})
+		issuanceByID[issuancePolicy.AddressPolicyID] = issuancePolicy
 	}
 
 	return &addressPolicyReader{
@@ -42,8 +49,8 @@ func NewAddressPolicyReader(policies []entities.AddressIssuancePolicy) outport.A
 func (r *addressPolicyReader) ListByChain(
 	_ context.Context,
 	chain valueobjects.SupportedChain,
-) ([]entities.AddressPolicy, error) {
-	policies := make([]entities.AddressPolicy, 0)
+) ([]outport.AddressPolicyRecord, error) {
+	policies := make([]outport.AddressPolicyRecord, 0)
 	for _, policy := range r.ordered {
 		if policy.Chain != chain {
 			continue
@@ -55,11 +62,11 @@ func (r *addressPolicyReader) ListByChain(
 
 func (r *addressPolicyReader) FindIssuanceByID(
 	_ context.Context,
-	addressPolicyID string,
-) (entities.AddressIssuancePolicy, bool, error) {
-	policy, ok := r.issuanceByID[strings.TrimSpace(addressPolicyID)]
+	addressPolicyID valueobjects.AddressPolicyID,
+) (policies.AddressIssuancePolicy, bool, error) {
+	policy, ok := r.issuanceByID[addressPolicyID]
 	if !ok {
-		return entities.AddressIssuancePolicy{}, false, nil
+		return policies.AddressIssuancePolicy{}, false, nil
 	}
 	return policy, true, nil
 }

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
+	applicationoutbox "payrune/internal/application/outbox"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/events"
-	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -277,7 +277,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
-		policies.PaymentReceiptStatusNotificationDeliveryResult{
+		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
 			Status: valueobjects.PaymentReceiptNotificationDeliveryStatusSent,
 		},
 	)
@@ -289,7 +289,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 
 	err = outboxStore.SaveDeliveryResult(
 		context.Background(),
-		policies.PaymentReceiptStatusNotificationDeliveryResult{
+		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
 			Status: valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
 		},
 	)
@@ -299,7 +299,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 
 	err = outboxStore.SaveDeliveryResult(
 		context.Background(),
-		policies.PaymentReceiptStatusNotificationDeliveryResult{
+		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
 			Status:        "mystery",
 			NextAttemptAt: &nextAttemptAt,
 		},
@@ -342,7 +342,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultPendingSuccess(
 
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
-		policies.PaymentReceiptStatusNotificationDeliveryResult{
+		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID:    99,
 			Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
 			Attempts:          2,
@@ -366,7 +366,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultFailedSuccess(t
 
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
-		policies.PaymentReceiptStatusNotificationDeliveryResult{
+		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID:    99,
 			Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
 			Attempts:          3,

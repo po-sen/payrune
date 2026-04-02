@@ -1,4 +1,4 @@
-package entities
+package policies
 
 import (
 	"errors"
@@ -9,14 +9,12 @@ import (
 
 func newTestAddressIssuancePolicy() AddressIssuancePolicy {
 	return AddressIssuancePolicy{
-		AddressPolicy: AddressPolicy{
-			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-			MinorUnit:       "satoshi",
-			Decimals:        8,
-		},
+		AddressPolicyID: " bitcoin-mainnet-native-segwit ",
+		Chain:           valueobjects.SupportedChainBitcoin,
+		Network:         valueobjects.NetworkID(" MAINNET "),
+		Scheme:          " native-segwit ",
+		MinorUnit:       " satoshi ",
+		Decimals:        8,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   " xpub-main ",
 			IssuanceRefPrefix: "m/84'/0'/0'",
@@ -29,13 +27,22 @@ func TestAddressIssuancePolicyNormalize(t *testing.T) {
 
 	normalized := policy.Normalize()
 
-	if normalized.AddressPolicy.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
-		t.Fatalf("unexpected address policy id: got %q", normalized.AddressPolicy.AddressPolicyID)
+	if normalized.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
+		t.Fatalf("unexpected address policy id: got %q", normalized.AddressPolicyID)
+	}
+	if normalized.Network != valueobjects.NetworkIDMainnet {
+		t.Fatalf("unexpected network: got %q", normalized.Network)
+	}
+	if normalized.Scheme != "native-segwit" {
+		t.Fatalf("unexpected scheme: got %q", normalized.Scheme)
+	}
+	if normalized.MinorUnit != "satoshi" {
+		t.Fatalf("unexpected minor unit: got %q", normalized.MinorUnit)
 	}
 	if normalized.IssuanceConfig.AddressSpaceRef != "xpub-main" {
 		t.Fatalf("unexpected account public key: got %q", normalized.IssuanceConfig.AddressSpaceRef)
 	}
-	if !normalized.AddressPolicy.Enabled {
+	if !normalized.Enabled {
 		t.Fatal("expected normalized address policy enabled")
 	}
 }
@@ -72,10 +79,8 @@ func TestAddressIssuancePolicyValidateForAllocationIssuanceRejectsInvalidInput(t
 		{
 			name: "not enabled",
 			policy: AddressIssuancePolicy{
-				AddressPolicy: AddressPolicy{
-					AddressPolicyID: "bitcoin-mainnet-native-segwit",
-					Chain:           valueobjects.SupportedChainBitcoin,
-				},
+				AddressPolicyID: "bitcoin-mainnet-native-segwit",
+				Chain:           valueobjects.SupportedChainBitcoin,
 			},
 			chain:   valueobjects.SupportedChainBitcoin,
 			amount:  1000,
@@ -114,14 +119,12 @@ func TestAddressIssuancePolicyValidateForAddressPreview(t *testing.T) {
 
 func TestAddressIssuancePolicyValidateForAddressPreviewRejectsUnsupportedPolicy(t *testing.T) {
 	policy := AddressIssuancePolicy{
-		AddressPolicy: AddressPolicy{
-			AddressPolicyID: "ethereum-mainnet-create2",
-			Chain:           valueobjects.SupportedChainEthereum,
-			Network:         valueobjects.NetworkID("mainnet"),
-			Scheme:          "create2",
-			MinorUnit:       "wei",
-			Decimals:        18,
-		},
+		AddressPolicyID: "ethereum-mainnet-create2",
+		Chain:           valueobjects.SupportedChainEthereum,
+		Network:         valueobjects.NetworkIDMainnet,
+		Scheme:          "create2",
+		MinorUnit:       "wei",
+		Decimals:        18,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   "configured",
 			IssuanceRefPrefix: "ethereum-mainnet-create2",

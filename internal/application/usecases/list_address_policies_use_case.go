@@ -25,21 +25,21 @@ func (uc *listAddressPoliciesUseCase) Execute(
 		return dto.ListAddressPoliciesResponse{}, inport.ErrAddressPolicyReaderNotConfigured
 	}
 
-	policyEntities, err := uc.policyReader.ListByChain(ctx, chain)
+	policyRecords, err := uc.policyReader.ListByChain(ctx, chain)
 	if err != nil {
 		return dto.ListAddressPoliciesResponse{}, inport.ErrDependencyFailure
 	}
 
 	policies := make([]dto.AddressPolicy, 0)
-	for _, policy := range policyEntities {
+	for _, policy := range policyRecords {
 		policies = append(policies, dto.AddressPolicy{
-			AddressPolicyID: policy.AddressPolicyID,
+			AddressPolicyID: string(policy.AddressPolicyID),
 			Chain:           string(policy.Chain),
 			Network:         string(policy.Network),
 			Scheme:          string(policy.Scheme),
 			MinorUnit:       policy.MinorUnit,
 			Decimals:        policy.Decimals,
-			Enabled:         policy.IsEnabled(),
+			Enabled:         policy.Enabled,
 		})
 	}
 

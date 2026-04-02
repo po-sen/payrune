@@ -3,8 +3,6 @@ package bitcoin
 import (
 	"testing"
 
-	"payrune/internal/domain/valueobjects"
-
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -12,8 +10,8 @@ import (
 
 type providedAddressVector struct {
 	name     string
-	network  valueobjects.BitcoinNetwork
-	scheme   valueobjects.BitcoinAddressScheme
+	network  network
+	scheme   addressScheme
 	xpub     string
 	expected string
 }

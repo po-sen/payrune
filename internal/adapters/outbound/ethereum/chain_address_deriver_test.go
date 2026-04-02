@@ -87,7 +87,7 @@ func TestChainAddressDeriverDeriveAddressDeterministically(t *testing.T) {
 	deriver := NewChainAddressDeriver()
 	input := outport.DeriveChainAddressInput{
 		Chain:               valueobjects.SupportedChainEthereum,
-		Network:             valueobjects.NetworkID("mainnet"),
+		Network:             valueobjects.NetworkIDMainnet,
 		Scheme:              "create2",
 		AddressSpaceRef:     "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 		RelativeIssuanceRef: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -139,28 +139,28 @@ func TestChainAddressDeriverRejectsInvalidInput(t *testing.T) {
 	tests := []outport.DeriveChainAddressInput{
 		{
 			Chain:               valueobjects.SupportedChainBitcoin,
-			Network:             valueobjects.NetworkID("mainnet"),
+			Network:             valueobjects.NetworkIDMainnet,
 			Scheme:              "create2",
 			AddressSpaceRef:     "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			RelativeIssuanceRef: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
 			Chain:               valueobjects.SupportedChainEthereum,
-			Network:             valueobjects.NetworkID("mainnet"),
+			Network:             valueobjects.NetworkIDMainnet,
 			Scheme:              "legacy",
 			AddressSpaceRef:     "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			RelativeIssuanceRef: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
 			Chain:               valueobjects.SupportedChainEthereum,
-			Network:             valueobjects.NetworkID("mainnet"),
+			Network:             valueobjects.NetworkIDMainnet,
 			Scheme:              "create2",
 			AddressSpaceRef:     "",
 			RelativeIssuanceRef: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
 			Chain:               valueobjects.SupportedChainEthereum,
-			Network:             valueobjects.NetworkID("mainnet"),
+			Network:             valueobjects.NetworkIDMainnet,
 			Scheme:              "create2",
 			AddressSpaceRef:     "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			RelativeIssuanceRef: "",

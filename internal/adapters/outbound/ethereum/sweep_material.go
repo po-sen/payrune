@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
 
@@ -26,7 +26,7 @@ type sweepMaterial struct {
 }
 
 func buildSweepMaterialJSON(
-	policy entities.AddressIssuancePolicy,
+	policy policies.AddressIssuancePolicy,
 	address string,
 	create2Salt string,
 ) (string, error) {
@@ -37,9 +37,9 @@ func buildSweepMaterialJSON(
 		return "", err
 	}
 
-	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(string(policy.AddressPolicy.Network))
+	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(string(policy.Network))
 	if !ok {
-		return "", fmt.Errorf("ethereum create2 metadata not found for network: %s", policy.AddressPolicy.Network)
+		return "", fmt.Errorf("ethereum create2 metadata not found for network: %s", policy.Network)
 	}
 
 	initCodeHex, ok := metadata.Receiver.InitCodeHex(sourceRef.collector)
@@ -50,8 +50,8 @@ func buildSweepMaterialJSON(
 	raw, err := json.Marshal(sweepMaterial{
 		MaterialType:     "ethereum_create2",
 		MaterialVersion:  create2SweepMaterialVersion,
-		Chain:            string(policy.AddressPolicy.Chain),
-		Network:          string(policy.AddressPolicy.Network),
+		Chain:            string(policy.Chain),
+		Network:          string(policy.Network),
 		Address:          strings.TrimSpace(address),
 		PredictedAddress: strings.TrimSpace(address),
 		FactoryAddress:   sourceRef.factoryAddress,

@@ -3,6 +3,7 @@ package valueobjects
 import "errors"
 
 var (
+	ErrAddressPolicyIDInvalid                                = errors.New("address policy id is invalid")
 	ErrPaymentReceiptObservationObservedTotalMinorInvalid    = errors.New("observed total minor must be non-negative")
 	ErrPaymentReceiptObservationConfirmedTotalMinorInvalid   = errors.New("confirmed total minor must be non-negative")
 	ErrPaymentReceiptObservationUnconfirmedTotalMinorInvalid = errors.New("unconfirmed total minor must be non-negative")

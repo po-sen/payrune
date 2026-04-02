@@ -99,12 +99,12 @@ func (o *CloudflareBitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 
 func (o *CloudflareBitcoinEsploraReceiptObserver) validateNetwork(
 	network valueobjects.NetworkID,
-) (valueobjects.BitcoinNetwork, error) {
+) (network, error) {
 	if strings.TrimSpace(o.bridgeID) == "" {
 		return "", outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 
-	bitcoinNetwork, ok := valueobjects.ParseBitcoinNetwork(string(network))
+	bitcoinNetwork, ok := parseNetwork(network)
 	if !ok {
 		return "", outport.ErrBlockchainReceiptObserverInputInvalid
 	}

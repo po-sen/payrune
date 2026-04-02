@@ -126,6 +126,14 @@ func (f *PaymentAddressStatusFinder) FindByID(
 			rawChain,
 		)
 	}
+	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
+	if err != nil {
+		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentAddressStatusPersistedAddressPolicyIDInvalid,
+			strings.TrimSpace(addressPolicyID),
+		)
+	}
 	network, ok := valueobjects.ParseNetworkID(rawNetwork)
 	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
@@ -150,16 +158,16 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
 	}
 
-	lastFailureReason, _ := valueobjects.ParsePaymentReceiptTrackingFailureReason(strings.TrimSpace(lastError.String))
+	lastFailureReason := normalizePaymentReceiptTrackingFailureReason(lastError.String)
 
 	record := outport.PaymentAddressStatusRecord{
 		PaymentAddressID:        paymentAddressID,
-		AddressPolicyID:         strings.TrimSpace(addressPolicyID),
+		AddressPolicyID:         parsedAddressPolicyID,
 		ExpectedAmountMinor:     expectedAmountMinor,
 		CustomerReference:       strings.TrimSpace(customerReference),
 		Chain:                   chain,
 		Network:                 network,
-		Scheme:                  strings.TrimSpace(scheme),
+		Scheme:                  valueobjects.AddressScheme(scheme).Normalize(),
 		Address:                 strings.TrimSpace(address),
 		PaymentStatus:           status,
 		ObservedTotalMinor:      observedTotalMinor.Int64,

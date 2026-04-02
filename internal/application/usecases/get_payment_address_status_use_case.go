@@ -62,19 +62,19 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 	if err != nil {
 		return dto.GetPaymentAddressStatusResponse{}, inport.ErrDependencyFailure
 	}
-	if !ok || policy.AddressPolicy.Chain != input.Chain {
+	if !ok || policy.Chain != input.Chain {
 		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressPolicyNotConfigured
 	}
 
 	return dto.GetPaymentAddressStatusResponse{
 		PaymentAddressID:        strconv.FormatInt(record.PaymentAddressID, 10),
-		AddressPolicyID:         record.AddressPolicyID,
+		AddressPolicyID:         string(record.AddressPolicyID),
 		ExpectedAmountMinor:     record.ExpectedAmountMinor,
 		Chain:                   string(record.Chain),
 		Network:                 string(record.Network),
-		Scheme:                  record.Scheme,
-		MinorUnit:               policy.AddressPolicy.MinorUnit,
-		Decimals:                policy.AddressPolicy.Decimals,
+		Scheme:                  string(record.Scheme),
+		MinorUnit:               policy.MinorUnit,
+		Decimals:                policy.Decimals,
 		Address:                 record.Address,
 		CustomerReference:       record.CustomerReference,
 		PaymentStatus:           string(record.PaymentStatus),

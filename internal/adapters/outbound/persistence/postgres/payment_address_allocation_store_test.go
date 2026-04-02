@@ -12,17 +12,16 @@ import (
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
-func newAllocationStoreTestPolicy() entities.AddressIssuancePolicy {
-	return entities.AddressIssuancePolicy{
-		AddressPolicy: entities.AddressPolicy{
-			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-		},
+func newAllocationStoreTestPolicy() policies.AddressIssuancePolicy {
+	return policies.AddressIssuancePolicy{
+		AddressPolicyID: "bitcoin-mainnet-native-segwit",
+		Chain:           valueobjects.SupportedChainBitcoin,
+		Network:         valueobjects.NetworkIDMainnet,
+		Scheme:          valueobjects.AddressSchemeNativeSegwit,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef: "xpub-main",
 		},
@@ -64,8 +63,8 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 	allocation := entities.PaymentAddressAllocation{
 		PaymentAddressID:  44,
 		Chain:             valueobjects.SupportedChainBitcoin,
-		Network:           valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-		Scheme:            string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+		Network:           valueobjects.NetworkIDMainnet,
+		Scheme:            valueobjects.AddressSchemeNativeSegwit,
 		Address:           " bc1qallocated ",
 		SweepMaterialJSON: ` {"material_type":"bitcoin_hd"} `,
 	}
@@ -232,6 +231,51 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain
 	}
 }
 
+func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedAddressPolicyID(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	store := NewPaymentAddressAllocationStore(db)
+
+	rows := sqlmock.NewRows([]string{
+		"id",
+		"address_policy_id",
+		"slot_index",
+		"expected_amount_minor",
+		"customer_reference",
+		"chain",
+		"network",
+		"scheme",
+		"address",
+		"sweep_material_json",
+		"failure_reason",
+	}).AddRow(
+		int64(199),
+		"bitcoin/mainnet",
+		int64(21),
+		int64(125000),
+		"order-lookup",
+		"bitcoin",
+		"mainnet",
+		"nativeSegwit",
+		"bc1qlookup",
+		`{"material_type":"bitcoin_hd"}`,
+		"",
+	)
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT a.id,")).
+		WithArgs(int64(199)).
+		WillReturnRows(rows)
+
+	_, _, err = store.FindIssuedByID(context.Background(), newFindIssuedPaymentAddressAllocationByIDInput(199))
+	if !errors.Is(err, outport.ErrPaymentAddressAllocationPersistedAddressPolicyIDInvalid) {
+		t.Fatalf("unexpected invalid address policy id error: %v", err)
+	}
+}
+
 func TestPaymentAddressAllocationStoreMarkDerivationFailedSuccess(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -287,7 +331,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationNotFound(t *testing
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, slot_index")).
 		WithArgs(
-			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			input.IssuancePolicy.AddressPolicyID,
 			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 		).
 		WillReturnError(sql.ErrNoRows)
@@ -317,7 +361,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationSuccess(t *testing.
 	rows := sqlmock.NewRows([]string{"id", "slot_index"}).AddRow(int64(99), int64(11))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, slot_index")).
 		WithArgs(
-			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			input.IssuancePolicy.AddressPolicyID,
 			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 		).
 		WillReturnRows(rows)
@@ -350,21 +394,21 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO address_policy_cursors")).
 		WithArgs(
-			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			input.IssuancePolicy.AddressPolicyID,
 			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT next_index")).
 		WithArgs(
-			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			input.IssuancePolicy.AddressPolicyID,
 			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"next_index"}).AddRow(int64(21)))
 
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO address_policy_allocations")).
 		WithArgs(
-			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			input.IssuancePolicy.AddressPolicyID,
 			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 			int64(21),
 			int64(125000),
@@ -374,7 +418,7 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_cursors")).
 		WithArgs(
-			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			input.IssuancePolicy.AddressPolicyID,
 			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -406,14 +450,14 @@ func TestPaymentAddressAllocationStoreReserveFreshRejectsOverflowIndex(t *testin
 
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO address_policy_cursors")).
 		WithArgs(
-			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			input.IssuancePolicy.AddressPolicyID,
 			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT next_index")).
 		WithArgs(
-			input.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			input.IssuancePolicy.AddressPolicyID,
 			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"next_index"}).AddRow(maxSlotIndex + 1))

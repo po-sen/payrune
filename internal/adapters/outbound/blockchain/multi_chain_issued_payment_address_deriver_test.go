@@ -7,6 +7,7 @@ import (
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -86,13 +87,11 @@ func TestMultiChainIssuedPaymentAddressDeriverDispatchesByChain(t *testing.T) {
 	}
 
 	output, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-			},
+		Policy: policies.AddressIssuancePolicy{
+			AddressPolicyID: "bitcoin-mainnet-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeNativeSegwit,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",
@@ -129,13 +128,11 @@ func TestMultiChainIssuedPaymentAddressDeriverPropagatesChainSpecificError(t *te
 	}
 
 	_, err = deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-			},
+		Policy: policies.AddressIssuancePolicy{
+			AddressPolicyID: "bitcoin-mainnet-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeNativeSegwit,
 		},
 	})
 	if !errors.Is(err, outport.ErrIssuedPaymentAddressDerivationFailed) {

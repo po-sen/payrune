@@ -22,18 +22,6 @@ var paymentReceiptTrackingFailureReasons = map[string]PaymentReceiptTrackingFail
 	"processing_failed":               PaymentReceiptTrackingFailureReasonProcessingFailed,
 }
 
-var paymentReceiptTrackingFailureReasonLegacyAliases = map[string]PaymentReceiptTrackingFailureReason{
-	"receipt tracking is invalid":     PaymentReceiptTrackingFailureReasonTrackingInvalid,
-	"issued at is required":           PaymentReceiptTrackingFailureReasonTrackingInvalid,
-	"latest block height unavailable": PaymentReceiptTrackingFailureReasonLatestBlockHeightUnavailable,
-	"tip height timeout":              PaymentReceiptTrackingFailureReasonLatestBlockHeightUnavailable,
-	"receipt observation failed":      PaymentReceiptTrackingFailureReasonObservationFailed,
-	"rpc timeout":                     PaymentReceiptTrackingFailureReasonObservationFailed,
-	"receipt tracking update failed":  PaymentReceiptTrackingFailureReasonTrackingUpdateFailed,
-	"payment window expired":          PaymentReceiptTrackingFailureReasonPaymentWindowExpired,
-	"receipt processing failed":       PaymentReceiptTrackingFailureReasonProcessingFailed,
-}
-
 func ParsePaymentReceiptTrackingFailureReason(raw string) (PaymentReceiptTrackingFailureReason, bool) {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" {
@@ -42,10 +30,7 @@ func ParsePaymentReceiptTrackingFailureReason(raw string) (PaymentReceiptTrackin
 	if reason, ok := paymentReceiptTrackingFailureReasons[normalized]; ok {
 		return reason, true
 	}
-	if reason, ok := paymentReceiptTrackingFailureReasonLegacyAliases[normalized]; ok {
-		return reason, true
-	}
-	return PaymentReceiptTrackingFailureReasonProcessingFailed, true
+	return "", false
 }
 
 func (r PaymentReceiptTrackingFailureReason) IsZero() bool {

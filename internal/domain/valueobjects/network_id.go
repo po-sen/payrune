@@ -4,6 +4,12 @@ import "strings"
 
 type NetworkID string
 
+const (
+	NetworkIDMainnet  NetworkID = "mainnet"
+	NetworkIDTestnet4 NetworkID = "testnet4"
+	NetworkIDSepolia  NetworkID = "sepolia"
+)
+
 func ParseNetworkID(raw string) (NetworkID, bool) {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" || len(normalized) > maxIDLength {

@@ -11,7 +11,7 @@ import (
 type PaymentReceiptTracking struct {
 	TrackingID              int64
 	PaymentAddressID        int64
-	AddressPolicyID         string
+	AddressPolicyID         valueobjects.AddressPolicyID
 	Chain                   valueobjects.ChainID
 	Network                 valueobjects.NetworkID
 	Address                 string
@@ -32,7 +32,7 @@ type PaymentReceiptTracking struct {
 
 func NewPaymentReceiptTracking(
 	paymentAddressID int64,
-	addressPolicyID string,
+	addressPolicyID valueobjects.AddressPolicyID,
 	chain valueobjects.ChainID,
 	network valueobjects.NetworkID,
 	address string,
@@ -40,7 +40,7 @@ func NewPaymentReceiptTracking(
 	expectedAmountMinor int64,
 	requiredConfirmations int32,
 ) (PaymentReceiptTracking, error) {
-	normalizedPolicyID := strings.TrimSpace(addressPolicyID)
+	normalizedPolicyID := addressPolicyID.Normalize()
 	normalizedAddress := strings.TrimSpace(address)
 	normalizedChain, chainOK := valueobjects.ParseChainID(string(chain))
 	normalizedNetwork, networkOK := valueobjects.ParseNetworkID(string(network))
@@ -48,7 +48,7 @@ func NewPaymentReceiptTracking(
 	if paymentAddressID <= 0 {
 		return PaymentReceiptTracking{}, ErrPaymentAddressIDInvalid
 	}
-	if normalizedPolicyID == "" {
+	if normalizedPolicyID.IsZero() {
 		return PaymentReceiptTracking{}, ErrAddressPolicyIDRequired
 	}
 	if !chainOK {
@@ -154,6 +154,21 @@ func (t PaymentReceiptTracking) MarkExpired(
 	return updated, nil
 }
 
+func (t PaymentReceiptTracking) ExpireIfDue(now time.Time) (PaymentReceiptTracking, bool, error) {
+	if !t.CanExpireByPaymentWindow() {
+		return t, false, nil
+	}
+	if !t.IsExpired(now) {
+		return t, false, nil
+	}
+
+	expiredTracking, err := t.MarkExpired(valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired)
+	if err != nil {
+		return PaymentReceiptTracking{}, false, err
+	}
+	return expiredTracking, true, nil
+}
+
 func (t PaymentReceiptTracking) StatusChangedEvent(
 	previousStatus valueobjects.PaymentReceiptStatus,
 	changedAt time.Time,
@@ -175,15 +190,6 @@ func (t PaymentReceiptTracking) StatusChangedEvent(
 		return events.PaymentReceiptStatusChanged{}, false, err
 	}
 	return event, true, nil
-}
-
-func PollablePaymentReceiptStatuses() []valueobjects.PaymentReceiptStatus {
-	return []valueobjects.PaymentReceiptStatus{
-		valueobjects.PaymentReceiptStatusWatching,
-		valueobjects.PaymentReceiptStatusPartiallyPaid,
-		valueobjects.PaymentReceiptStatusPaidUnconfirmed,
-		valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted,
-	}
 }
 
 func decidePaymentReceiptStatus(

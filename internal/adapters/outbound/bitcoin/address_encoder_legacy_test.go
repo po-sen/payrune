@@ -3,16 +3,14 @@ package bitcoin
 import (
 	"testing"
 
-	"payrune/internal/domain/valueobjects"
-
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 )
 
 func TestLegacyAddressEncoderScheme(t *testing.T) {
 	encoder := NewLegacyAddressEncoder()
-	if got := encoder.Scheme(); got != valueobjects.BitcoinAddressSchemeLegacy {
-		t.Fatalf("unexpected scheme: got %q, want %q", got, valueobjects.BitcoinAddressSchemeLegacy)
+	if got := encoder.Scheme(); got != addressSchemeLegacy {
+		t.Fatalf("unexpected scheme: got %q, want %q", got, addressSchemeLegacy)
 	}
 }
 
@@ -37,15 +35,15 @@ func TestLegacyAddressEncoderProvidedVectors(t *testing.T) {
 	vectors := []providedAddressVector{
 		{
 			name:     "mainnet legacy",
-			network:  valueobjects.BitcoinNetworkMainnet,
-			scheme:   valueobjects.BitcoinAddressSchemeLegacy,
+			network:  networkMainnet,
+			scheme:   addressSchemeLegacy,
 			xpub:     "xpub6DUmTFpDUjs36einPToqDQXgUNXWZgUP7TFxsP1ToiBqmbNyyNusGnEdjKfaBr7TL66E9AoEWY6ap5Ra7a5cC6scE4gG4u31fJL1HFmrQ2a",
 			expected: "1KpBQPxVLPqPfPvF9ozignj53hPJEMQEmw",
 		},
 		{
 			name:     "testnet4 legacy",
-			network:  valueobjects.BitcoinNetworkTestnet4,
-			scheme:   valueobjects.BitcoinAddressSchemeLegacy,
+			network:  networkTestnet4,
+			scheme:   addressSchemeLegacy,
 			xpub:     "tpubDDoLYVq7AUqYP63QvYZxnxk1pCJnWDWdzu9w3BYTP9dJAX47xknZiEKUheaAahn6zBNT5ndCzY2x6MQ8iVj7QpFwuhm5bDF6Ggt3q1Rn2Qs",
 			expected: "mtFJ951QbSd5FtBsD8JSfSnizqHBJY3SAB",
 		},

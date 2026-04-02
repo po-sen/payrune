@@ -1,8 +1,6 @@
 package bitcoin
 
 import (
-	"payrune/internal/domain/valueobjects"
-
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -14,8 +12,8 @@ func NewLegacyAddressEncoder() addressEncoder {
 	return legacyAddressEncoder{}
 }
 
-func (legacyAddressEncoder) Scheme() valueobjects.BitcoinAddressScheme {
-	return valueobjects.BitcoinAddressSchemeLegacy
+func (legacyAddressEncoder) Scheme() addressScheme {
+	return addressSchemeLegacy
 }
 
 func (legacyAddressEncoder) Encode(

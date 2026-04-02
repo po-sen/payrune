@@ -5,6 +5,7 @@ import "errors"
 var (
 	// Business / user-facing application errors.
 	ErrChainNotSupported          = errors.New("chain is not supported")
+	ErrInvalidAddressPolicyID     = errors.New("address policy id is invalid")
 	ErrAddressPolicyNotFound      = errors.New("address policy is not supported")
 	ErrAddressPolicyNotEnabled    = errors.New("address policy is not enabled")
 	ErrAddressPreviewNotSupported = errors.New("address preview is not supported for this address policy")

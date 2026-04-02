@@ -124,7 +124,7 @@ func TestEthereumRPCReceiptObserverObserveAddress(t *testing.T) {
 	state.balancesByKey[ethereumBalanceKey("0x1111111111111111111111111111111111111111", "0x2")] = "0x7"
 
 	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
-		valueobjects.NetworkID("mainnet"): {
+		valueobjects.NetworkIDMainnet: {
 			Endpoint: server.URL,
 			Username: "user",
 			Password: "pass",
@@ -136,7 +136,7 @@ func TestEthereumRPCReceiptObserverObserveAddress(t *testing.T) {
 	}
 
 	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID("mainnet"),
+		Network:               valueobjects.NetworkIDMainnet,
 		Address:               "0x1111111111111111111111111111111111111111",
 		IssuedAt:              time.Unix(2500, 0).UTC(),
 		ObservedTotalMinor:    0,
@@ -180,7 +180,7 @@ func TestEthereumRPCReceiptObserverObserveAddressWithInsufficientConfirmations(t
 	state.balancesByKey[ethereumBalanceKey("0x1111111111111111111111111111111111111111", "0x3")] = "0xa"
 
 	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
-		valueobjects.NetworkID("mainnet"): {
+		valueobjects.NetworkIDMainnet: {
 			Endpoint: server.URL,
 		},
 	})
@@ -189,7 +189,7 @@ func TestEthereumRPCReceiptObserverObserveAddressWithInsufficientConfirmations(t
 	}
 
 	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID("mainnet"),
+		Network:               valueobjects.NetworkIDMainnet,
 		Address:               "0x1111111111111111111111111111111111111111",
 		IssuedAt:              time.Unix(2500, 0).UTC(),
 		ObservedTotalMinor:    0,
@@ -221,7 +221,7 @@ func TestEthereumRPCReceiptObserverObserveAddressRejectsInconsistentBalances(t *
 	state.balancesByKey[ethereumBalanceKey("0x1111111111111111111111111111111111111111", "0x2")] = "0x7"
 
 	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
-		valueobjects.NetworkID("mainnet"): {
+		valueobjects.NetworkIDMainnet: {
 			Endpoint: server.URL,
 		},
 	})
@@ -230,7 +230,7 @@ func TestEthereumRPCReceiptObserverObserveAddressRejectsInconsistentBalances(t *
 	}
 
 	_, err = observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID("mainnet"),
+		Network:               valueobjects.NetworkIDMainnet,
 		Address:               "0x1111111111111111111111111111111111111111",
 		IssuedAt:              time.Unix(2500, 0).UTC(),
 		ObservedTotalMinor:    0,
@@ -249,7 +249,7 @@ func TestEthereumRPCReceiptObserverFetchLatestBlockHeight(t *testing.T) {
 	defer server.Close()
 
 	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
-		valueobjects.NetworkID("sepolia"): {
+		valueobjects.NetworkIDSepolia: {
 			Endpoint: server.URL,
 		},
 	})
@@ -257,7 +257,7 @@ func TestEthereumRPCReceiptObserverFetchLatestBlockHeight(t *testing.T) {
 		t.Fatalf("NewEthereumRPCReceiptObserver returned error: %v", err)
 	}
 
-	height, err := observer.FetchLatestBlockHeight(context.Background(), valueobjects.NetworkID("sepolia"))
+	height, err := observer.FetchLatestBlockHeight(context.Background(), valueobjects.NetworkIDSepolia)
 	if err != nil {
 		t.Fatalf("FetchLatestBlockHeight returned error: %v", err)
 	}
@@ -271,14 +271,14 @@ func TestEthereumRPCReceiptObserverValidation(t *testing.T) {
 	defer server.Close()
 
 	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
-		valueobjects.NetworkID("mainnet"): {Endpoint: server.URL},
+		valueobjects.NetworkIDMainnet: {Endpoint: server.URL},
 	})
 	if err != nil {
 		t.Fatalf("NewEthereumRPCReceiptObserver returned error: %v", err)
 	}
 
 	_, err = observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkID("mainnet"),
+		Network:               valueobjects.NetworkIDMainnet,
 		Address:               "",
 		IssuedAt:              time.Unix(2500, 0).UTC(),
 		RequiredConfirmations: 1,
@@ -309,13 +309,13 @@ func TestEthereumRPCReceiptObserverEndpointError(t *testing.T) {
 	defer server.Close()
 
 	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
-		valueobjects.NetworkID("mainnet"): {Endpoint: server.URL},
+		valueobjects.NetworkIDMainnet: {Endpoint: server.URL},
 	})
 	if err != nil {
 		t.Fatalf("NewEthereumRPCReceiptObserver returned error: %v", err)
 	}
 
-	_, err = observer.FetchLatestBlockHeight(context.Background(), valueobjects.NetworkID("mainnet"))
+	_, err = observer.FetchLatestBlockHeight(context.Background(), valueobjects.NetworkIDMainnet)
 	if err == nil {
 		t.Fatal("expected endpoint error")
 	}

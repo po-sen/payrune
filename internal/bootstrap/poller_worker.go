@@ -13,7 +13,6 @@ import (
 	"payrune/internal/adapters/outbound/system"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/application/usecases"
-	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 	cloudflarepostgresinfra "payrune/internal/infrastructure/cloudflarepostgres"
 )
@@ -109,7 +108,6 @@ func buildCloudflarePollerRuntime(
 		unitOfWork,
 		receiptObserver,
 		clock,
-		policies.NewPaymentReceiptTrackingLifecyclePolicy(),
 	)
 
 	handler := scheduleradapter.NewPollerHandler(scheduleradapter.PollerDependencies{

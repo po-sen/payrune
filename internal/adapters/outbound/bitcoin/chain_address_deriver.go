@@ -9,8 +9,8 @@ import (
 
 type addressDeriver interface {
 	DeriveAddress(
-		network valueobjects.BitcoinNetwork,
-		scheme valueobjects.BitcoinAddressScheme,
+		network network,
+		scheme addressScheme,
 		xpub string,
 		index uint32,
 	) (string, error)
@@ -44,11 +44,11 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	if input.Chain != valueobjects.SupportedChainBitcoin {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
-	network, ok := valueobjects.ParseBitcoinNetwork(string(input.Network))
+	network, ok := parseNetwork(input.Network)
 	if !ok {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
-	scheme, ok := valueobjects.ParseBitcoinAddressScheme(input.Scheme)
+	scheme, ok := parseAddressScheme(input.Scheme)
 	if !ok {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}

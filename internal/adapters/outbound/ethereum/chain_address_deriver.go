@@ -68,7 +68,7 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	if input.Chain != valueobjects.SupportedChainEthereum {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
-	if strings.TrimSpace(input.Scheme) != "create2" {
+	if !input.Scheme.Normalize().IsCreate2() {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 

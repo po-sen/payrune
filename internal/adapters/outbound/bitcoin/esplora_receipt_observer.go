@@ -58,7 +58,7 @@ func NewBitcoinEsploraReceiptObserver(
 ) (*BitcoinEsploraReceiptObserver, error) {
 	clients := make(map[valueobjects.NetworkID]*bitcoinAPIClient, len(configs))
 	for rawNetwork, config := range configs {
-		bitcoinNetwork, ok := valueobjects.ParseBitcoinNetwork(string(rawNetwork))
+		bitcoinNetwork, ok := parseNetwork(rawNetwork)
 		if !ok {
 			return nil, fmt.Errorf("bitcoin network is not supported: %s", rawNetwork)
 		}
@@ -71,7 +71,7 @@ func NewBitcoinEsploraReceiptObserver(
 			continue
 		}
 
-		clients[valueobjects.NetworkID(bitcoinNetwork)] = client
+		clients[bitcoinNetwork.NetworkID()] = client
 	}
 	if len(clients) == 0 {
 		return nil, errors.New("at least one bitcoin endpoint is required")
@@ -155,12 +155,12 @@ func (o *BitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 func (o *BitcoinEsploraReceiptObserver) selectClient(
 	network valueobjects.NetworkID,
 ) (*bitcoinAPIClient, error) {
-	bitcoinNetwork, ok := valueobjects.ParseBitcoinNetwork(string(network))
+	bitcoinNetwork, ok := parseNetwork(network)
 	if !ok {
 		return nil, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
 
-	client, ok := o.clients[valueobjects.NetworkID(bitcoinNetwork)]
+	client, ok := o.clients[bitcoinNetwork.NetworkID()]
 	if !ok || client == nil {
 		return nil, outport.ErrBlockchainReceiptObserverNotConfigured
 	}

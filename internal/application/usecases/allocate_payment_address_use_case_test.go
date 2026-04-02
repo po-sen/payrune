@@ -58,7 +58,7 @@ func newAllocationPolicy(
 	scheme string,
 	publicKey string,
 	derivationPathPrefix string,
-) entities.AddressIssuancePolicy {
+) policies.AddressIssuancePolicy {
 	return newAddressIssuancePolicy(
 		addressPolicyID,
 		valueobjects.SupportedChainBitcoin,
@@ -92,11 +92,11 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	txManager := newFakeUnitOfWork(allocator)
 	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qallocatedaddress", "m/84'/0'/0'/0/11")
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"xpub-main",
 			"m/84'/0'/0'",
 		),
@@ -135,10 +135,10 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.reserveFreshCalls != 1 {
 		t.Fatalf("expected reserve fresh index call count 1, got %d", allocator.reserveFreshCalls)
 	}
-	if allocator.lastReopenInput.IssuancePolicy.AddressPolicy.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
+	if allocator.lastReopenInput.IssuancePolicy.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
 		t.Fatalf(
 			"unexpected address policy id passed to allocator reopen: got %q",
-			allocator.lastReopenInput.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			allocator.lastReopenInput.IssuancePolicy.AddressPolicyID,
 		)
 	}
 	if allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSpaceRef != "xpub-main" {
@@ -153,10 +153,10 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if allocator.lastReopenInput.ExpectedAmountMinor != 120000 {
 		t.Fatalf("unexpected expected amount minor passed to allocator reopen: got %d", allocator.lastReopenInput.ExpectedAmountMinor)
 	}
-	if allocator.lastReserveFreshInput.IssuancePolicy.AddressPolicy.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
+	if allocator.lastReserveFreshInput.IssuancePolicy.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
 		t.Fatalf(
 			"unexpected address policy id passed to allocator reserve fresh: got %q",
-			allocator.lastReserveFreshInput.IssuancePolicy.AddressPolicy.AddressPolicyID,
+			allocator.lastReserveFreshInput.IssuancePolicy.AddressPolicyID,
 		)
 	}
 	if allocator.lastReserveFreshInput.CustomerReference != "order-001" {
@@ -218,11 +218,11 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if deriver.lastInput.Allocation.SlotIndex != 11 {
 		t.Fatalf("unexpected derivation index passed to issued deriver: got %d", deriver.lastInput.Allocation.SlotIndex)
 	}
-	if deriver.lastInput.Policy.AddressPolicy.Network != valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet) {
-		t.Fatalf("unexpected network passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Network)
+	if deriver.lastInput.Policy.Network != valueobjects.NetworkIDMainnet {
+		t.Fatalf("unexpected network passed to issued deriver: got %q", deriver.lastInput.Policy.Network)
 	}
-	if deriver.lastInput.Policy.AddressPolicy.Scheme != string(valueobjects.BitcoinAddressSchemeNativeSegwit) {
-		t.Fatalf("unexpected scheme passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Scheme)
+	if deriver.lastInput.Policy.Scheme != valueobjects.AddressSchemeNativeSegwit {
+		t.Fatalf("unexpected scheme passed to issued deriver: got %q", deriver.lastInput.Policy.Scheme)
 	}
 	if deriver.lastInput.Policy.IssuanceConfig.AddressSpaceRef != "xpub-main" {
 		t.Fatalf("unexpected address source ref passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.AddressSpaceRef)
@@ -259,10 +259,10 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 		"0x1234567890abcdef1234567890abcdef12345678",
 		"ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 	)
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newEthereumCreate2IssuancePolicy(
 			"ethereum-mainnet-create2",
-			valueobjects.NetworkID("mainnet"),
+			valueobjects.NetworkIDMainnet,
 			"create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			"ethereum-mainnet-create2",
 		),
@@ -282,7 +282,7 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 			map[policies.PaymentReceiptTermsScope]int32{
 				{
 					Chain:   valueobjects.SupportedChainEthereum,
-					Network: valueobjects.NetworkID("mainnet"),
+					Network: valueobjects.NetworkIDMainnet,
 				}: 12,
 			},
 			nil,
@@ -308,8 +308,8 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	if !strings.Contains(allocator.lastCompleteInput.SweepMaterialJSON, `"ethereum_create2"`) {
 		t.Fatalf("unexpected ethereum sweep material persisted on allocation: got %q", allocator.lastCompleteInput.SweepMaterialJSON)
 	}
-	if deriver.lastInput.Policy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
-		t.Fatalf("unexpected chain passed to issued deriver: got %q", deriver.lastInput.Policy.AddressPolicy.Chain)
+	if deriver.lastInput.Policy.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain passed to issued deriver: got %q", deriver.lastInput.Policy.Chain)
 	}
 	if deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix != "ethereum-mainnet-create2" {
 		t.Fatalf(
@@ -351,10 +351,10 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenIssuedAddress
 	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
 	deriver.err = expectedErr
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newEthereumCreate2IssuancePolicy(
 			"ethereum-mainnet-create2",
-			valueobjects.NetworkID("mainnet"),
+			valueobjects.NetworkIDMainnet,
 			"create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			"ethereum-mainnet-create2",
 		),
@@ -374,7 +374,7 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenIssuedAddress
 			map[policies.PaymentReceiptTermsScope]int32{
 				{
 					Chain:   valueobjects.SupportedChainEthereum,
-					Network: valueobjects.NetworkID("mainnet"),
+					Network: valueobjects.NetworkIDMainnet,
 				}: 12,
 			},
 			nil,
@@ -413,8 +413,8 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 			CustomerReference:   "order-duplicate",
 			Status:              valueobjects.PaymentAddressAllocationStatusIssued,
 			Chain:               valueobjects.SupportedChainBitcoin,
-			Network:             valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:              string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			Network:             valueobjects.NetworkIDMainnet,
+			Scheme:              valueobjects.AddressSchemeNativeSegwit,
 			Address:             "bc1qexistingduplicate",
 		},
 	}
@@ -432,11 +432,11 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 	txManager := newFakeUnitOfWork(allocator)
 	txManager.idempotencyStore = idempotencyStore
 	deriver := newFakeIssuedPaymentAddressDeriver()
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"xpub-main",
 			"m/84'/0'/0'",
 		),
@@ -509,11 +509,11 @@ func TestAllocatePaymentAddressUseCaseRejectsConflictingDuplicateIdempotencyKey(
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
 		newFakeIssuedPaymentAddressDeriver(),
-		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 			newAllocationPolicy(
 				"bitcoin-mainnet-native-segwit",
-				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+				valueobjects.NetworkIDMainnet,
+				string(valueobjects.AddressSchemeNativeSegwit),
 				"xpub-main",
 				"m/84'/0'/0'",
 			),
@@ -554,8 +554,8 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 			CustomerReference:   "order-race",
 			Status:              valueobjects.PaymentAddressAllocationStatusIssued,
 			Chain:               valueobjects.SupportedChainBitcoin,
-			Network:             valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			Scheme:              string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			Network:             valueobjects.NetworkIDMainnet,
+			Scheme:              valueobjects.AddressSchemeNativeSegwit,
 			Address:             "bc1qracewinner",
 		},
 	}
@@ -583,11 +583,11 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
 		deriver,
-		newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+		newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 			newAllocationPolicy(
 				"bitcoin-mainnet-native-segwit",
-				valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+				valueobjects.NetworkIDMainnet,
+				string(valueobjects.AddressSchemeNativeSegwit),
 				"xpub-main",
 				"m/84'/0'/0'",
 			),
@@ -644,11 +644,11 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 	txManager := newFakeUnitOfWork(allocator)
 	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qnetworkconfirmations", "0/15")
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"xpub-main",
 			"m/84'/0'/0'",
 		),
@@ -669,11 +669,11 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 			map[policies.PaymentReceiptTermsScope]int32{
 				{
 					Chain:   valueobjects.SupportedChainBitcoin,
-					Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+					Network: valueobjects.NetworkIDMainnet,
 				}: 6,
 				{
 					Chain:   valueobjects.SupportedChainBitcoin,
-					Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+					Network: valueobjects.NetworkIDTestnet4,
 				}: 2,
 			},
 			nil,
@@ -708,11 +708,11 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testin
 	txManager := newFakeUnitOfWork(allocator)
 	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qnetworkexpiry", "0/16")
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"xpub-main",
 			"m/84'/0'/0'",
 		),
@@ -741,11 +741,11 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testin
 			map[policies.PaymentReceiptTermsScope]time.Duration{
 				{
 					Chain:   valueobjects.SupportedChainBitcoin,
-					Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+					Network: valueobjects.NetworkIDMainnet,
 				}: 48 * time.Hour,
 				{
 					Chain:   valueobjects.SupportedChainBitcoin,
-					Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+					Network: valueobjects.NetworkIDTestnet4,
 				}: 24 * time.Hour,
 			},
 		),
@@ -792,11 +792,11 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 	txManager := newFakeUnitOfWork(allocator)
 	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qreusedaddress", "0/7")
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"xpub-main",
 			"m/84'/0'/0'",
 		),
@@ -856,11 +856,11 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 
 func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 	expectedErr := errors.New("transaction failed")
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-legacy",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"xpub-main",
 			"m/44'/0'/0'",
 		),
@@ -917,11 +917,11 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 	trackingStore.createErr = expectedErr
 	deriver := newFakeIssuedPaymentAddressDeriver()
 	deriver.output = newAllocateDeriveOutput("bc1qtrackingerror", "0/4")
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"xpub-main",
 			"m/84'/0'/0'",
 		),
@@ -971,6 +971,27 @@ func TestAllocatePaymentAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 	}
 }
 
+func TestAllocatePaymentAddressUseCaseRejectInvalidAddressPolicyID(t *testing.T) {
+	allocator := &fakePaymentAddressAllocationStore{}
+	txManager := newFakeUnitOfWork(allocator)
+	useCase := newAllocatePaymentAddressUseCaseForTest(
+		txManager,
+		newFakeIssuedPaymentAddressDeriver(),
+		newInMemoryAddressPolicyReader(nil),
+		policies.NewPaymentAddressAllocationIssuancePolicy(nil, nil),
+		newAllocatePaymentAddressClock(),
+	)
+
+	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
+		Chain:               valueobjects.SupportedChainBitcoin,
+		AddressPolicyID:     "bitcoin/mainnet",
+		ExpectedAmountMinor: 1,
+	})
+	if !errors.Is(err, inport.ErrInvalidAddressPolicyID) {
+		t.Fatalf("expected invalid address policy id error, got %v", err)
+	}
+}
+
 func TestAllocatePaymentAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
@@ -993,12 +1014,12 @@ func TestAllocatePaymentAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 }
 
 func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAddressIssuancePolicy(
 			"bitcoin-mainnet-legacy",
 			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"satoshi",
 			8,
 			"",
@@ -1026,11 +1047,11 @@ func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 }
 
 func TestAllocatePaymentAddressUseCaseMapsExhaustedError(t *testing.T) {
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-legacy",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"xpub-main",
 			"m/44'/0'/0'",
 		),
@@ -1065,11 +1086,11 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 			ExpectedAmountMinor: 1,
 		},
 	}
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-legacy",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"xpub-main",
 			"m/44'/0'/0'",
 		),
@@ -1137,11 +1158,11 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 			ExpectedAmountMinor: 1,
 		},
 	}
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-legacy",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"xpub-main",
 			"m/44'/0'/0'",
 		),
@@ -1177,11 +1198,11 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 }
 
 func TestAllocatePaymentAddressUseCaseRejectInvalidExpectedAmount(t *testing.T) {
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAllocationPolicy(
 			"bitcoin-mainnet-legacy",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"xpub-main",
 			"m/44'/0'/0'",
 		),

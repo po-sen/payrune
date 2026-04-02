@@ -7,8 +7,9 @@ import (
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
+
+const healthStatusUp = "up"
 
 type checkHealthUseCase struct {
 	clock outport.Clock
@@ -25,7 +26,7 @@ func (uc *checkHealthUseCase) Execute(_ context.Context) (dto.HealthResponse, er
 	now := uc.clock.NowUTC().Format(time.RFC3339)
 
 	return dto.HealthResponse{
-		Status:    string(valueobjects.ServiceStatusUp),
+		Status:    healthStatusUp,
 		Timestamp: now,
 	}, nil
 }

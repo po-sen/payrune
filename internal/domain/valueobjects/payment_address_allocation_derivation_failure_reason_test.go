@@ -18,16 +18,22 @@ func TestParsePaymentAddressAllocationDerivationFailureReason(t *testing.T) {
 			ok:   true,
 		},
 		{
-			name: "legacy alias",
-			raw:  " derive failed ",
+			name: "canonical code with whitespace",
+			raw:  " derivation_failed ",
 			want: PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
 			ok:   true,
 		},
 		{
-			name: "unknown legacy text falls back",
+			name: "legacy alias rejected",
+			raw:  " derive failed ",
+			want: "",
+			ok:   false,
+		},
+		{
+			name: "unknown raw detail rejected",
 			raw:  "xpub parse exploded",
-			want: PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
-			ok:   true,
+			want: "",
+			ok:   false,
 		},
 		{
 			name: "empty",

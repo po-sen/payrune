@@ -7,7 +7,6 @@ import (
 
 	"payrune/internal/adapters/outbound/bitcoin"
 	"payrune/internal/adapters/outbound/ethereum"
-	"payrune/internal/domain/entities"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
@@ -38,25 +37,25 @@ func TestLoadReceiptRequiredConfirmationsFromEnvDefaults(t *testing.T) {
 
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Network: valueobjects.NetworkIDMainnet,
 	}]; got != 1 {
 		t.Fatalf("unexpected mainnet confirmations: got %d", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+		Network: valueobjects.NetworkIDTestnet4,
 	}]; got != 1 {
 		t.Fatalf("unexpected testnet4 confirmations: got %d", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("mainnet"),
+		Network: valueobjects.NetworkIDMainnet,
 	}]; got != 1 {
 		t.Fatalf("unexpected ethereum mainnet confirmations: got %d", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("sepolia"),
+		Network: valueobjects.NetworkIDSepolia,
 	}]; got != 1 {
 		t.Fatalf("unexpected ethereum sepolia confirmations: got %d", got)
 	}
@@ -75,25 +74,25 @@ func TestLoadReceiptRequiredConfirmationsFromEnvCustom(t *testing.T) {
 
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Network: valueobjects.NetworkIDMainnet,
 	}]; got != 6 {
 		t.Fatalf("unexpected mainnet confirmations: got %d", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+		Network: valueobjects.NetworkIDTestnet4,
 	}]; got != 2 {
 		t.Fatalf("unexpected testnet4 confirmations: got %d", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("mainnet"),
+		Network: valueobjects.NetworkIDMainnet,
 	}]; got != 12 {
 		t.Fatalf("unexpected ethereum mainnet confirmations: got %d", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("sepolia"),
+		Network: valueobjects.NetworkIDSepolia,
 	}]; got != 4 {
 		t.Fatalf("unexpected ethereum sepolia confirmations: got %d", got)
 	}
@@ -136,25 +135,25 @@ func TestLoadReceiptExpiresAfterByScopeFromEnvDefaults(t *testing.T) {
 
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Network: valueobjects.NetworkIDMainnet,
 	}]; got != defaultBitcoinReceiptExpiresAfter {
 		t.Fatalf("unexpected mainnet receipt expires after: got %s", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+		Network: valueobjects.NetworkIDTestnet4,
 	}]; got != defaultBitcoinReceiptExpiresAfter {
 		t.Fatalf("unexpected testnet4 receipt expires after: got %s", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("mainnet"),
+		Network: valueobjects.NetworkIDMainnet,
 	}]; got != defaultBitcoinReceiptExpiresAfter {
 		t.Fatalf("unexpected ethereum mainnet receipt expires after: got %s", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("sepolia"),
+		Network: valueobjects.NetworkIDSepolia,
 	}]; got != defaultBitcoinReceiptExpiresAfter {
 		t.Fatalf("unexpected ethereum sepolia receipt expires after: got %s", got)
 	}
@@ -173,25 +172,25 @@ func TestLoadReceiptExpiresAfterByScopeFromEnvCustom(t *testing.T) {
 
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
+		Network: valueobjects.NetworkIDMainnet,
 	}]; got != 240*time.Hour {
 		t.Fatalf("unexpected mainnet receipt expires after: got %s", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
+		Network: valueobjects.NetworkIDTestnet4,
 	}]; got != 36*time.Hour {
 		t.Fatalf("unexpected testnet4 receipt expires after: got %s", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("mainnet"),
+		Network: valueobjects.NetworkIDMainnet,
 	}]; got != 72*time.Hour {
 		t.Fatalf("unexpected ethereum mainnet receipt expires after: got %s", got)
 	}
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("sepolia"),
+		Network: valueobjects.NetworkIDSepolia,
 	}]; got != 12*time.Hour {
 		t.Fatalf("unexpected ethereum sepolia receipt expires after: got %s", got)
 	}
@@ -222,7 +221,7 @@ func TestLoadReceiptExpiresAfterByScopeFromEnvNonPositive(t *testing.T) {
 }
 
 func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetadata(t *testing.T) {
-	network := valueobjects.NetworkID("sepolia")
+	network := valueobjects.NetworkIDSepolia
 	collectorAddress := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
 		network: "0x1111111111111111111111111111111111111111111111111111111111111111",
@@ -247,8 +246,8 @@ func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetada
 
 	policy := newEthereumCreate2AddressIssuancePolicy(network, collectorAddress, saltDeriver)
 
-	if policy.AddressPolicy.AddressPolicyID != "ethereum-sepolia-create2" {
-		t.Fatalf("unexpected address policy id: got %q", policy.AddressPolicy.AddressPolicyID)
+	if policy.AddressPolicyID != valueobjects.AddressPolicyIDEthereumSepoliaCreate2 {
+		t.Fatalf("unexpected address policy id: got %q", policy.AddressPolicyID)
 	}
 	if policy.IssuanceConfig.IssuanceRefPrefix != "" {
 		t.Fatalf("unexpected address reference prefix: got %q", policy.IssuanceConfig.IssuanceRefPrefix)
@@ -260,9 +259,9 @@ func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetada
 
 func TestNewEthereumCreate2AddressIssuancePolicyRequiresCollectorAddress(t *testing.T) {
 	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
-		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
+		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
-	policy := newEthereumCreate2AddressIssuancePolicy(valueobjects.NetworkID("mainnet"), "", saltDeriver)
+	policy := newEthereumCreate2AddressIssuancePolicy(valueobjects.NetworkIDMainnet, "", saltDeriver)
 	if policy.IssuanceConfig.AddressSpaceRef != "" {
 		t.Fatalf("expected disabled policy when collector is missing, got %q", policy.IssuanceConfig.AddressSpaceRef)
 	}
@@ -270,7 +269,7 @@ func TestNewEthereumCreate2AddressIssuancePolicyRequiresCollectorAddress(t *test
 
 func TestNewEthereumCreate2AddressIssuancePolicyRequiresSaltSecret(t *testing.T) {
 	policy := newEthereumCreate2AddressIssuancePolicy(
-		valueobjects.NetworkID("mainnet"),
+		valueobjects.NetworkIDMainnet,
 		"0x2222222222222222222222222222222222222222",
 		ethereum.NewCreate2SaltDeriver(nil),
 	)
@@ -281,7 +280,7 @@ func TestNewEthereumCreate2AddressIssuancePolicyRequiresSaltSecret(t *testing.T)
 
 func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
-		valueobjects.NetworkID("mainnet"): "0x1111111111111111111111111111111111111111111111111111111111111111",
+		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	env := map[string]string{
 		envBitcoinMainnetLegacyXPub:        " xpub-mainnet-legacy ",
@@ -292,7 +291,7 @@ func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 		return env[key]
 	}, saltDeriver)
 
-	bitcoinPolicy := findAddressIssuancePolicyByID(policies, "bitcoin-mainnet-legacy")
+	bitcoinPolicy := findAddressIssuancePolicyByID(policies, valueobjects.AddressPolicyIDBitcoinMainnetLegacy)
 	if bitcoinPolicy.IssuanceConfig.AddressSpaceRef != "xpub-mainnet-legacy" {
 		t.Fatalf("unexpected bitcoin address source ref: got %q", bitcoinPolicy.IssuanceConfig.AddressSpaceRef)
 	}
@@ -303,9 +302,9 @@ func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 		)
 	}
 
-	ethereumPolicy := findAddressIssuancePolicyByID(policies, "ethereum-mainnet-create2")
-	if ethereumPolicy.AddressPolicy.Chain != valueobjects.SupportedChainEthereum {
-		t.Fatalf("unexpected ethereum policy chain: got %q", ethereumPolicy.AddressPolicy.Chain)
+	ethereumPolicy := findAddressIssuancePolicyByID(policies, valueobjects.AddressPolicyIDEthereumMainnetCreate2)
+	if ethereumPolicy.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected ethereum policy chain: got %q", ethereumPolicy.Chain)
 	}
 	if ethereumPolicy.IssuanceConfig.IssuanceRefPrefix != "" {
 		t.Fatalf(
@@ -319,11 +318,11 @@ func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 }
 
 func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidBitcoinXPub(t *testing.T) {
-	policies := []entities.AddressIssuancePolicy{
+	policies := []policies.AddressIssuancePolicy{
 		newBitcoinAddressIssuancePolicy(
-			"bitcoin-testnet4-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.AddressPolicyIDBitcoinTestnet4NativeSegwit,
+			valueobjects.NetworkIDTestnet4,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"tpubDCiB1iLoNxaaj4MTSk2DoTuwUpEfgm4E3vAcTnvG64rR1smhcEsoTeqNCB4af1XHGspgNfWBA3ccpXiwX5JtxwZMTFct6DQWzrKundqdwEa",
 			"m/84'/1'/0'",
 		),
@@ -333,7 +332,7 @@ func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidBitcoinXPub(t *t
 	if err == nil {
 		t.Fatal("expected invalid xpub validation error")
 	}
-	if !strings.Contains(err.Error(), "bitcoin-testnet4-native-segwit") {
+	if !strings.Contains(err.Error(), string(valueobjects.AddressPolicyIDBitcoinTestnet4NativeSegwit)) {
 		t.Fatalf("expected policy id in error, got %q", err)
 	}
 	if !strings.Contains(err.Error(), envBitcoinTestnet4NativeSegwitXPub) {
@@ -345,18 +344,18 @@ func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidBitcoinXPub(t *t
 }
 
 func TestValidateConfiguredAddressIssuancePoliciesAcceptsValidBitcoinPolicies(t *testing.T) {
-	policies := []entities.AddressIssuancePolicy{
+	policies := []policies.AddressIssuancePolicy{
 		newBitcoinAddressIssuancePolicy(
-			"bitcoin-testnet4-legacy",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.AddressPolicyIDBitcoinTestnet4Legacy,
+			valueobjects.NetworkIDTestnet4,
+			string(valueobjects.AddressSchemeLegacy),
 			"tpubDDoLYVq7AUqYP63QvYZxnxk1pCJnWDWdzu9w3BYTP9dJAX47xknZiEKUheaAahn6zBNT5ndCzY2x6MQ8iVj7QpFwuhm5bDF6Ggt3q1Rn2Qs",
 			"m/44'/1'/0'",
 		),
 		newBitcoinAddressIssuancePolicy(
-			"bitcoin-testnet4-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.AddressPolicyIDBitcoinTestnet4NativeSegwit,
+			valueobjects.NetworkIDTestnet4,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"tpubDCiB1iLoNxaaj4MTSk2DoTuwUpEfgm4E3vAcTnvG64rR1smhcEsoTeqNCB4af1XHGspgNfWBA3ccpXiwX5JtxwZMTFct6DQWzrKundqdwEq",
 			"m/84'/1'/0'",
 		),
@@ -368,21 +367,19 @@ func TestValidateConfiguredAddressIssuancePoliciesAcceptsValidBitcoinPolicies(t 
 }
 
 func TestValidateConfiguredAddressIssuancePoliciesSkipsDisabledAndNonBitcoinPolicies(t *testing.T) {
-	policies := []entities.AddressIssuancePolicy{
+	policies := []policies.AddressIssuancePolicy{
 		newBitcoinAddressIssuancePolicy(
-			"bitcoin-testnet4-native-segwit",
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.AddressPolicyIDBitcoinTestnet4NativeSegwit,
+			valueobjects.NetworkIDTestnet4,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"",
 			"m/84'/1'/0'",
 		),
 		{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "ethereum-sepolia-create2",
-				Chain:           valueobjects.SupportedChainEthereum,
-				Network:         valueobjects.NetworkID("sepolia"),
-				Scheme:          "create2",
-			},
+			AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaCreate2,
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkIDSepolia,
+			Scheme:          "create2",
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0x1111111111111111111111111111111111111111111111111111111111111111",
 			},
@@ -395,15 +392,15 @@ func TestValidateConfiguredAddressIssuancePoliciesSkipsDisabledAndNonBitcoinPoli
 }
 
 func findAddressIssuancePolicyByID(
-	policies []entities.AddressIssuancePolicy,
-	addressPolicyID string,
-) entities.AddressIssuancePolicy {
-	for _, policy := range policies {
-		if policy.AddressPolicy.AddressPolicyID == addressPolicyID {
+	issuancePolicies []policies.AddressIssuancePolicy,
+	addressPolicyID valueobjects.AddressPolicyID,
+) policies.AddressIssuancePolicy {
+	for _, policy := range issuancePolicies {
+		if policy.AddressPolicyID == addressPolicyID.Normalize() {
 			return policy
 		}
 	}
-	return entities.AddressIssuancePolicy{}
+	return policies.AddressIssuancePolicy{}
 }
 
 func newBootstrapBitcoinDeriver() *bitcoin.HDXPubAddressDeriver {

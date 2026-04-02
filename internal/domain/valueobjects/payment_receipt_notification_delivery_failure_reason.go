@@ -12,12 +12,6 @@ var paymentReceiptNotificationDeliveryFailureReasons = map[string]PaymentReceipt
 	"delivery_failed": PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 }
 
-var paymentReceiptNotificationDeliveryFailureReasonLegacyAliases = map[string]PaymentReceiptNotificationDeliveryFailureReason{
-	"receipt webhook delivery failed": PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
-	"timeout":                         PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
-	"webhook returned status 500":     PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
-}
-
 func ParsePaymentReceiptNotificationDeliveryFailureReason(raw string) (PaymentReceiptNotificationDeliveryFailureReason, bool) {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" {
@@ -26,10 +20,7 @@ func ParsePaymentReceiptNotificationDeliveryFailureReason(raw string) (PaymentRe
 	if reason, ok := paymentReceiptNotificationDeliveryFailureReasons[normalized]; ok {
 		return reason, true
 	}
-	if reason, ok := paymentReceiptNotificationDeliveryFailureReasonLegacyAliases[normalized]; ok {
-		return reason, true
-	}
-	return PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed, true
+	return "", false
 }
 
 func (r PaymentReceiptNotificationDeliveryFailureReason) IsZero() bool {

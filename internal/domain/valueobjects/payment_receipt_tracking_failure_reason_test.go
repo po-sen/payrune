@@ -16,16 +16,22 @@ func TestParsePaymentReceiptTrackingFailureReason(t *testing.T) {
 			ok:   true,
 		},
 		{
-			name: "legacy public text alias",
-			raw:  "payment window expired",
-			want: PaymentReceiptTrackingFailureReasonPaymentWindowExpired,
+			name: "canonical code with whitespace",
+			raw:  " observation_failed ",
+			want: PaymentReceiptTrackingFailureReasonObservationFailed,
 			ok:   true,
 		},
 		{
-			name: "legacy raw detail falls back to generic processing failure",
+			name: "legacy public text alias rejected",
+			raw:  "payment window expired",
+			want: "",
+			ok:   false,
+		},
+		{
+			name: "unknown raw detail rejected",
 			raw:  "dial tcp timeout",
-			want: PaymentReceiptTrackingFailureReasonProcessingFailed,
-			ok:   true,
+			want: "",
+			ok:   false,
 		},
 		{
 			name: "blank",

@@ -7,7 +7,8 @@ import (
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
+	"payrune/internal/domain/valueobjects"
 )
 
 type generateAddressUseCase struct {
@@ -39,7 +40,12 @@ func (uc *generateAddressUseCase) Execute(
 		return dto.GenerateAddressResponse{}, inport.ErrChainNotSupported
 	}
 
-	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, input.AddressPolicyID)
+	addressPolicyID, err := valueobjects.NewAddressPolicyID(input.AddressPolicyID)
+	if err != nil {
+		return dto.GenerateAddressResponse{}, inport.ErrInvalidAddressPolicyID
+	}
+
+	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, addressPolicyID)
 	if err != nil {
 		return dto.GenerateAddressResponse{}, inport.ErrDependencyFailure
 	}
@@ -49,11 +55,11 @@ func (uc *generateAddressUseCase) Execute(
 	policy, err = policy.ValidateForAddressPreview(input.Chain)
 	if err != nil {
 		switch {
-		case errors.Is(err, entities.ErrAddressPolicyChainMismatch):
+		case errors.Is(err, policies.ErrAddressPolicyChainMismatch):
 			return dto.GenerateAddressResponse{}, inport.ErrAddressPolicyNotFound
-		case errors.Is(err, entities.ErrAddressPolicyNotEnabled):
+		case errors.Is(err, policies.ErrAddressPolicyNotEnabled):
 			return dto.GenerateAddressResponse{}, inport.ErrAddressPolicyNotEnabled
-		case errors.Is(err, entities.ErrAddressPolicyPreviewNotSupported):
+		case errors.Is(err, policies.ErrAddressPolicyPreviewNotSupported):
 			return dto.GenerateAddressResponse{}, inport.ErrAddressPreviewNotSupported
 		default:
 			return dto.GenerateAddressResponse{}, inport.ErrInternalFailure
@@ -62,8 +68,8 @@ func (uc *generateAddressUseCase) Execute(
 
 	output, err := uc.deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
 		Chain:             input.Chain,
-		Network:           policy.AddressPolicy.Network,
-		Scheme:            policy.AddressPolicy.Scheme,
+		Network:           policy.Network,
+		Scheme:            policy.Scheme,
 		AddressSpaceRef:   policy.IssuanceConfig.AddressSpaceRef,
 		IssuanceRefPrefix: policy.IssuanceConfig.IssuanceRefPrefix,
 		SlotIndex:         input.Index,
@@ -73,12 +79,12 @@ func (uc *generateAddressUseCase) Execute(
 	}
 
 	return dto.GenerateAddressResponse{
-		AddressPolicyID: policy.AddressPolicy.AddressPolicyID,
-		Chain:           string(policy.AddressPolicy.Chain),
-		Network:         string(policy.AddressPolicy.Network),
-		Scheme:          string(policy.AddressPolicy.Scheme),
-		MinorUnit:       policy.AddressPolicy.MinorUnit,
-		Decimals:        policy.AddressPolicy.Decimals,
+		AddressPolicyID: string(policy.AddressPolicyID),
+		Chain:           string(policy.Chain),
+		Network:         string(policy.Network),
+		Scheme:          string(policy.Scheme),
+		MinorUnit:       policy.MinorUnit,
+		Decimals:        policy.Decimals,
 		Index:           input.Index,
 		Address:         output.Address,
 	}, nil

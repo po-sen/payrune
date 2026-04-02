@@ -94,6 +94,14 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 			rawChain,
 		)
 	}
+	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
+	if err != nil {
+		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentAddressAllocationPersistedAddressPolicyIDInvalid,
+			strings.TrimSpace(addressPolicyID),
+		)
+	}
 	network, ok := valueobjects.ParseNetworkID(rawNetwork)
 	if !ok {
 		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
@@ -103,20 +111,18 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		)
 	}
 
-	derivationFailureReason, _ := valueobjects.ParsePaymentAddressAllocationDerivationFailureReason(
-		strings.TrimSpace(failureReason),
-	)
+	derivationFailureReason := normalizePaymentAddressAllocationDerivationFailureReason(failureReason)
 
 	return entities.PaymentAddressAllocation{
 		PaymentAddressID:        paymentAddressID,
-		AddressPolicyID:         strings.TrimSpace(addressPolicyID),
+		AddressPolicyID:         parsedAddressPolicyID,
 		SlotIndex:               uint32(slotIndex),
 		ExpectedAmountMinor:     expectedAmountMinor,
 		CustomerReference:       customerReference,
 		Status:                  valueobjects.PaymentAddressAllocationStatusIssued,
 		Chain:                   chain,
 		Network:                 network,
-		Scheme:                  strings.TrimSpace(scheme),
+		Scheme:                  valueobjects.AddressScheme(scheme).Normalize(),
 		Address:                 strings.TrimSpace(address),
 		SweepMaterialJSON:       strings.TrimSpace(sweepMaterialJSON),
 		DerivationFailureReason: derivationFailureReason,
@@ -198,7 +204,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, bool, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
-	addressPolicyID := input.IssuancePolicy.AddressPolicy.AddressPolicyID
+	addressPolicyID := input.IssuancePolicy.AddressPolicyID
 	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSpaceRef)
 
 	var paymentAddressID int64
@@ -263,7 +269,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 	input outport.ReservePaymentAddressAllocationInput,
 ) (entities.PaymentAddressAllocation, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
-	addressPolicyID := input.IssuancePolicy.AddressPolicy.AddressPolicyID
+	addressPolicyID := input.IssuancePolicy.AddressPolicyID
 	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSpaceRef)
 
 	if _, err := r.executor.ExecContext(

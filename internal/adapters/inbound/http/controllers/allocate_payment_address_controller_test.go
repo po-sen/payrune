@@ -266,6 +266,7 @@ func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) 
 		statusCode int
 		message    string
 	}{
+		{name: "invalid address policy id", err: inport.ErrInvalidAddressPolicyID, statusCode: http.StatusBadRequest, message: "addressPolicyId is invalid"},
 		{name: "policy not found", err: inport.ErrAddressPolicyNotFound, statusCode: http.StatusBadRequest, message: "address policy is not supported"},
 		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented, message: "address policy is not enabled"},
 		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound, message: publicUnsupportedChainMessage},

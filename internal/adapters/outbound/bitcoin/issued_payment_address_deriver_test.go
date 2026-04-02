@@ -8,6 +8,7 @@ import (
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -16,15 +17,15 @@ type fakeIssuedBitcoinAddressDeriver struct {
 	derivationPath         string
 	absoluteDerivationPath string
 	err                    error
-	lastNetwork            valueobjects.BitcoinNetwork
-	lastScheme             valueobjects.BitcoinAddressScheme
+	lastNetwork            network
+	lastScheme             addressScheme
 	lastXPub               string
 	lastIndex              uint32
 }
 
 func (f *fakeIssuedBitcoinAddressDeriver) DeriveAddress(
-	network valueobjects.BitcoinNetwork,
-	scheme valueobjects.BitcoinAddressScheme,
+	network network,
+	scheme addressScheme,
 	xpub string,
 	index uint32,
 ) (string, error) {
@@ -61,13 +62,11 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 	deriver := NewIssuedPaymentAddressDeriver(NewChainAddressDeriver(underlying))
 
 	output, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-			},
+		Policy: policies.AddressIssuancePolicy{
+			AddressPolicyID: "bitcoin-mainnet-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeNativeSegwit,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",
@@ -100,10 +99,10 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 	if sweepMaterial["hd_derivation_path"] != "m/84'/0'/0'/0/5" {
 		t.Fatalf("unexpected derivation path in sweep material: got %v", sweepMaterial["hd_derivation_path"])
 	}
-	if underlying.lastNetwork != valueobjects.BitcoinNetworkMainnet {
+	if underlying.lastNetwork != networkMainnet {
 		t.Fatalf("unexpected network: got %q", underlying.lastNetwork)
 	}
-	if underlying.lastScheme != valueobjects.BitcoinAddressSchemeNativeSegwit {
+	if underlying.lastScheme != addressSchemeNativeSegwit {
 		t.Fatalf("unexpected scheme: got %q", underlying.lastScheme)
 	}
 	if underlying.lastXPub != "xpub-main" {
@@ -120,13 +119,11 @@ func TestIssuedPaymentAddressDeriverPropagatesChainDeriverError(t *testing.T) {
 	}))
 
 	_, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: entities.AddressIssuancePolicy{
-			AddressPolicy: entities.AddressPolicy{
-				AddressPolicyID: "bitcoin-mainnet-native-segwit",
-				Chain:           valueobjects.SupportedChainBitcoin,
-				Network:         valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-				Scheme:          string(valueobjects.BitcoinAddressSchemeNativeSegwit),
-			},
+		Policy: policies.AddressIssuancePolicy{
+			AddressPolicyID: "bitcoin-mainnet-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeNativeSegwit,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",

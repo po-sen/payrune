@@ -48,9 +48,9 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	}
 
 	output, err := d.chainAddressDeriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:               policy.AddressPolicy.Chain,
-		Network:             policy.AddressPolicy.Network,
-		Scheme:              policy.AddressPolicy.Scheme,
+		Chain:               policy.Chain,
+		Network:             policy.Network,
+		Scheme:              policy.Scheme,
 		AddressSpaceRef:     policy.IssuanceConfig.AddressSpaceRef,
 		IssuanceRefPrefix:   policy.IssuanceConfig.IssuanceRefPrefix,
 		RelativeIssuanceRef: relativeIssuanceRef,
@@ -89,7 +89,7 @@ func (d *IssuedPaymentAddressDeriver) deriveRelativeIssuanceRef(
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (string, error) {
 	policy := input.Policy.Normalize()
-	if policy.AddressPolicy.Scheme != "create2" {
+	if !policy.Scheme.IsCreate2() {
 		return "", nil
 	}
 	if d.create2SaltDeriver == nil {
@@ -97,8 +97,8 @@ func (d *IssuedPaymentAddressDeriver) deriveRelativeIssuanceRef(
 	}
 
 	relativeIssuanceRef, err := d.create2SaltDeriver.DeriveAllocationSalt(ctx, DeriveCreate2AllocationSaltInput{
-		Network:          policy.AddressPolicy.Network,
-		AddressPolicyID:  policy.AddressPolicy.AddressPolicyID,
+		Network:          policy.Network,
+		AddressPolicyID:  policy.AddressPolicyID,
 		PaymentAddressID: input.Allocation.PaymentAddressID,
 		SlotIndex:        input.Allocation.SlotIndex,
 	})

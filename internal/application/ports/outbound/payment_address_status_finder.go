@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	ErrPaymentAddressStatusFindFailed                    = errors.New("payment address status finder failed")
-	ErrPaymentAddressStatusIncomplete                    = errors.New("payment address status is incomplete")
-	ErrPaymentAddressStatusPersistedChainInvalid         = errors.New("persisted payment address chain is invalid")
-	ErrPaymentAddressStatusPersistedNetworkInvalid       = errors.New("persisted payment address network is invalid")
-	ErrPaymentAddressStatusPersistedReceiptStatusInvalid = errors.New("persisted payment receipt status is invalid")
+	ErrPaymentAddressStatusFindFailed                      = errors.New("payment address status finder failed")
+	ErrPaymentAddressStatusIncomplete                      = errors.New("payment address status is incomplete")
+	ErrPaymentAddressStatusPersistedAddressPolicyIDInvalid = errors.New("persisted payment address policy id is invalid")
+	ErrPaymentAddressStatusPersistedChainInvalid           = errors.New("persisted payment address chain is invalid")
+	ErrPaymentAddressStatusPersistedNetworkInvalid         = errors.New("persisted payment address network is invalid")
+	ErrPaymentAddressStatusPersistedReceiptStatusInvalid   = errors.New("persisted payment receipt status is invalid")
 )
 
 type FindPaymentAddressStatusInput struct {
@@ -23,12 +24,12 @@ type FindPaymentAddressStatusInput struct {
 
 type PaymentAddressStatusRecord struct {
 	PaymentAddressID        int64
-	AddressPolicyID         string
+	AddressPolicyID         valueobjects.AddressPolicyID
 	ExpectedAmountMinor     int64
 	CustomerReference       string
 	Chain                   valueobjects.SupportedChain
 	Network                 valueobjects.NetworkID
-	Scheme                  string
+	Scheme                  valueobjects.AddressScheme
 	Address                 string
 	PaymentStatus           valueobjects.PaymentReceiptStatus
 	ObservedTotalMinor      int64

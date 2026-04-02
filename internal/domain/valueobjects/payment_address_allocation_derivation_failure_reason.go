@@ -12,13 +12,6 @@ var paymentAddressAllocationDerivationFailureReasons = map[string]PaymentAddress
 	"derivation_failed": PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
 }
 
-var paymentAddressAllocationDerivationFailureReasonLegacyAliases = map[string]PaymentAddressAllocationDerivationFailureReason{
-	"derive failed":                     PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
-	"derivation failed":                 PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
-	"address derivation failed":         PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
-	"payment address derivation failed": PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
-}
-
 func ParsePaymentAddressAllocationDerivationFailureReason(raw string) (PaymentAddressAllocationDerivationFailureReason, bool) {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" {
@@ -27,10 +20,7 @@ func ParsePaymentAddressAllocationDerivationFailureReason(raw string) (PaymentAd
 	if reason, ok := paymentAddressAllocationDerivationFailureReasons[normalized]; ok {
 		return reason, true
 	}
-	if reason, ok := paymentAddressAllocationDerivationFailureReasonLegacyAliases[normalized]; ok {
-		return reason, true
-	}
-	return PaymentAddressAllocationDerivationFailureReasonDerivationFailed, true
+	return "", false
 }
 
 func (r PaymentAddressAllocationDerivationFailureReason) IsZero() bool {

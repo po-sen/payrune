@@ -7,17 +7,17 @@ import (
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
-	"payrune/internal/domain/entities"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
 func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
-	catalog := newInMemoryAddressPolicyReader([]entities.AddressIssuancePolicy{
+	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newAddressIssuancePolicy(
 			"bitcoin-mainnet-legacy",
 			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkMainnet),
-			string(valueobjects.BitcoinAddressSchemeLegacy),
+			valueobjects.NetworkIDMainnet,
+			string(valueobjects.AddressSchemeLegacy),
 			"satoshi",
 			8,
 			"xpub-main",
@@ -26,8 +26,8 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 		newAddressIssuancePolicy(
 			"bitcoin-testnet4-native-segwit",
 			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkID(valueobjects.BitcoinNetworkTestnet4),
-			string(valueobjects.BitcoinAddressSchemeNativeSegwit),
+			valueobjects.NetworkIDTestnet4,
+			string(valueobjects.AddressSchemeNativeSegwit),
 			"satoshi",
 			8,
 			"",

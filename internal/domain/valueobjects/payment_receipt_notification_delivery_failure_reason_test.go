@@ -16,16 +16,22 @@ func TestParsePaymentReceiptNotificationDeliveryFailureReason(t *testing.T) {
 			ok:   true,
 		},
 		{
-			name: "legacy public text alias",
-			raw:  "receipt webhook delivery failed",
+			name: "canonical code with whitespace",
+			raw:  " delivery_failed ",
 			want: PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 			ok:   true,
 		},
 		{
-			name: "legacy raw detail falls back to generic delivery failure",
+			name: "legacy public text alias rejected",
+			raw:  "receipt webhook delivery failed",
+			want: "",
+			ok:   false,
+		},
+		{
+			name: "unknown raw detail rejected",
 			raw:  "webhook returned status 429",
-			want: PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
-			ok:   true,
+			want: "",
+			ok:   false,
 		},
 		{
 			name: "blank",

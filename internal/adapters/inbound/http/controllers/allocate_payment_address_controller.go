@@ -93,6 +93,8 @@ func mapAllocatePaymentAddressError(err error) (int, string) {
 	switch {
 	case errors.Is(err, inport.ErrChainNotSupported):
 		return http.StatusNotFound, publicUnsupportedChainMessage
+	case errors.Is(err, inport.ErrInvalidAddressPolicyID):
+		return http.StatusBadRequest, "addressPolicyId is invalid"
 	case errors.Is(err, inport.ErrAddressPolicyNotFound):
 		return http.StatusBadRequest, "address policy is not supported"
 	case errors.Is(err, inport.ErrAddressPolicyNotEnabled):

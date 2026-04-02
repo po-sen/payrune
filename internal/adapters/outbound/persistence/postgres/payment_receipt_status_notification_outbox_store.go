@@ -9,7 +9,6 @@ import (
 	applicationoutbox "payrune/internal/application/outbox"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/events"
-	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -144,7 +143,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 
 func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 	ctx context.Context,
-	result policies.PaymentReceiptStatusNotificationDeliveryResult,
+	result applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	switch result.Status {
 	case valueobjects.PaymentReceiptNotificationDeliveryStatusSent:
@@ -265,7 +264,7 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedDeliveryStatusInvalid, deliveryStatusRaw)
 	}
 
-	lastFailureReason, _ := valueobjects.ParsePaymentReceiptNotificationDeliveryFailureReason(lastError)
+	lastFailureReason := normalizePaymentReceiptNotificationDeliveryFailureReason(lastError)
 
 	notification := applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
 		NotificationID:        notificationID,

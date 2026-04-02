@@ -302,6 +302,14 @@ func scanPaymentReceiptTracking(scanner interface {
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedChainInvalid, chainRaw)
 	}
+	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
+	if err != nil {
+		return entities.PaymentReceiptTracking{}, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentReceiptTrackingPersistedAddressPolicyIDInvalid,
+			strings.TrimSpace(addressPolicyID),
+		)
+	}
 	network, ok := valueobjects.ParseNetworkID(networkRaw)
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedNetworkInvalid, networkRaw)
@@ -310,12 +318,12 @@ func scanPaymentReceiptTracking(scanner interface {
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedStatusInvalid, receiptStatusRaw)
 	}
-	lastFailureReason, _ := valueobjects.ParsePaymentReceiptTrackingFailureReason(lastError)
+	lastFailureReason := normalizePaymentReceiptTrackingFailureReason(lastError)
 
 	tracking := entities.PaymentReceiptTracking{
 		TrackingID:              trackingID,
 		PaymentAddressID:        paymentAddressID,
-		AddressPolicyID:         addressPolicyID,
+		AddressPolicyID:         parsedAddressPolicyID,
 		Chain:                   chain,
 		Network:                 network,
 		Address:                 address,

@@ -15,7 +15,7 @@ var (
 type DeriveChainAddressInput struct {
 	Chain               valueobjects.SupportedChain
 	Network             valueobjects.NetworkID
-	Scheme              string
+	Scheme              valueobjects.AddressScheme
 	AddressSpaceRef     string
 	IssuanceRefPrefix   string
 	RelativeIssuanceRef string

@@ -129,7 +129,7 @@ func TestMultiChainAddressDeriverRoutesToChainSpecificDeriver(t *testing.T) {
 	if bitcoin.lastInput.Chain != valueobjects.SupportedChainBitcoin {
 		t.Fatalf("unexpected normalized chain: got %q", bitcoin.lastInput.Chain)
 	}
-	if bitcoin.lastInput.Network != valueobjects.NetworkID("mainnet") {
+	if bitcoin.lastInput.Network != valueobjects.NetworkIDMainnet {
 		t.Fatalf("unexpected normalized network: got %q", bitcoin.lastInput.Network)
 	}
 	if bitcoin.lastInput.Scheme != "nativeSegwit" {
@@ -156,7 +156,7 @@ func TestMultiChainAddressDeriverDeriveAddressValidation(t *testing.T) {
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
 		Chain:   valueobjects.SupportedChain("eth/mainnet"),
-		Network: valueobjects.NetworkID("mainnet"),
+		Network: valueobjects.NetworkIDMainnet,
 	})
 	if err == nil {
 		t.Fatal("expected invalid chain error")
@@ -172,7 +172,7 @@ func TestMultiChainAddressDeriverDeriveAddressValidation(t *testing.T) {
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
 		Chain:   valueobjects.SupportedChain("eth"),
-		Network: valueobjects.NetworkID("mainnet"),
+		Network: valueobjects.NetworkIDMainnet,
 	})
 	if err == nil {
 		t.Fatal("expected invalid chain error")
@@ -180,7 +180,7 @@ func TestMultiChainAddressDeriverDeriveAddressValidation(t *testing.T) {
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
 		Chain:   valueobjects.SupportedChainEthereum,
-		Network: valueobjects.NetworkID("mainnet"),
+		Network: valueobjects.NetworkIDMainnet,
 	})
 	if err == nil {
 		t.Fatal("expected missing deriver error")
@@ -198,7 +198,7 @@ func TestMultiChainAddressDeriverPassesThroughErrors(t *testing.T) {
 
 	_, err = deriver.DeriveAddress(context.Background(), outport.DeriveChainAddressInput{
 		Chain:   valueobjects.SupportedChainBitcoin,
-		Network: valueobjects.NetworkID("mainnet"),
+		Network: valueobjects.NetworkIDMainnet,
 	})
 	if !errors.Is(err, outport.ErrChainAddressDerivationFailed) {
 		t.Fatalf("expected %v, got %v", outport.ErrChainAddressDerivationFailed, err)
