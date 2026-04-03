@@ -18,9 +18,9 @@ type PaymentReceiptStatusNotificationOutboxMessage struct {
 	ConfirmedTotalMinor   int64
 	UnconfirmedTotalMinor int64
 	StatusChangedAt       time.Time
-	DeliveryStatus        valueobjects.PaymentReceiptNotificationDeliveryStatus
+	DeliveryStatus        PaymentReceiptNotificationDeliveryStatus
 	DeliveryAttempts      int32
 	NextAttemptAt         time.Time
-	LastFailureReason     valueobjects.PaymentReceiptNotificationDeliveryFailureReason
+	LastFailureReason     PaymentReceiptNotificationDeliveryFailureReason
 	DeliveredAt           *time.Time
 }

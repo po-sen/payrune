@@ -8,7 +8,6 @@ import (
 	applicationoutbox "payrune/internal/application/outbox"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type runReceiptWebhookDispatchCycleUseCase struct {
@@ -92,11 +91,11 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 			return output, err
 		}
 		switch outcome {
-		case valueobjects.PaymentReceiptNotificationDeliveryStatusSent:
+		case applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent:
 			output.SentCount++
-		case valueobjects.PaymentReceiptNotificationDeliveryStatusPending:
+		case applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending:
 			output.RetriedCount++
-		case valueobjects.PaymentReceiptNotificationDeliveryStatusFailed:
+		case applicationoutbox.PaymentReceiptNotificationDeliveryStatusFailed:
 			output.FailedCount++
 		}
 	}
@@ -108,7 +107,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 	ctx context.Context,
 	notification applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage,
 	input dto.RunReceiptWebhookDispatchCycleInput,
-) (valueobjects.PaymentReceiptNotificationDeliveryStatus, error) {
+) (applicationoutbox.PaymentReceiptNotificationDeliveryStatus, error) {
 	err := uc.notifier.NotifyStatusChanged(ctx, outport.NotifyPaymentReceiptStatusChangedInput{
 		NotificationID:        notification.NotificationID,
 		PaymentAddressID:      notification.PaymentAddressID,
@@ -127,7 +126,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 			input.MaxAttempts,
 			uc.clock.NowUTC(),
 			input.RetryDelay,
-			valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		)
 		if resultErr != nil {
 			return "", inport.ErrInternalFailure

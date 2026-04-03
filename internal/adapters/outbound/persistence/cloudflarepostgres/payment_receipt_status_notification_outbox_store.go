@@ -138,7 +138,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 	result applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	switch result.Status {
-	case valueobjects.PaymentReceiptNotificationDeliveryStatusSent:
+	case applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent:
 		if result.DeliveredAt == nil {
 			return outport.ErrPaymentReceiptStatusNotificationDeliveredAtRequired
 		}
@@ -158,7 +158,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 		}
 		return ensureNotificationRowsAffected(execResult)
-	case valueobjects.PaymentReceiptNotificationDeliveryStatusPending:
+	case applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending:
 		if result.NextAttemptAt == nil {
 			return outport.ErrPaymentReceiptStatusNotificationNextAttemptRequired
 		}
@@ -181,7 +181,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 		}
 		return ensureNotificationRowsAffected(execResult)
-	case valueobjects.PaymentReceiptNotificationDeliveryStatusFailed:
+	case applicationoutbox.PaymentReceiptNotificationDeliveryStatusFailed:
 		execResult, err := r.executor.ExecContext(
 			ctx,
 			`UPDATE payment_receipt_status_notifications
@@ -251,7 +251,7 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 	if !ok {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedCurrentStatusInvalid, currentStatusRaw)
 	}
-	deliveryStatus, ok := valueobjects.ParsePaymentReceiptNotificationDeliveryStatus(deliveryStatusRaw)
+	deliveryStatus, ok := applicationoutbox.ParsePaymentReceiptNotificationDeliveryStatus(deliveryStatusRaw)
 	if !ok {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedDeliveryStatusInvalid, deliveryStatusRaw)
 	}

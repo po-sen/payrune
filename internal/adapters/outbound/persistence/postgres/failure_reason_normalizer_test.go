@@ -3,6 +3,7 @@ package postgres
 import (
 	"testing"
 
+	applicationoutbox "payrune/internal/application/outbox"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -47,22 +48,22 @@ func TestNormalizePaymentReceiptNotificationDeliveryFailureReason(t *testing.T) 
 	tests := []struct {
 		name string
 		raw  string
-		want valueobjects.PaymentReceiptNotificationDeliveryFailureReason
+		want applicationoutbox.PaymentReceiptNotificationDeliveryFailureReason
 	}{
 		{
 			name: "canonical code",
 			raw:  "delivery_failed",
-			want: valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			want: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 		{
 			name: "legacy alias",
 			raw:  "receipt webhook delivery failed",
-			want: valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			want: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 		{
 			name: "unknown raw detail falls back",
 			raw:  "webhook returned status 429",
-			want: valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			want: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 		{
 			name: "blank remains zero",

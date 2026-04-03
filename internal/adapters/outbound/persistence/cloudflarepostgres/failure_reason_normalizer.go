@@ -3,6 +3,7 @@ package cloudflarepostgres
 import (
 	"strings"
 
+	applicationoutbox "payrune/internal/application/outbox"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -35,20 +36,20 @@ func normalizePaymentReceiptTrackingFailureReason(raw string) valueobjects.Payme
 
 func normalizePaymentReceiptNotificationDeliveryFailureReason(
 	raw string,
-) valueobjects.PaymentReceiptNotificationDeliveryFailureReason {
+) applicationoutbox.PaymentReceiptNotificationDeliveryFailureReason {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" {
 		return ""
 	}
-	if reason, ok := valueobjects.ParsePaymentReceiptNotificationDeliveryFailureReason(normalized); ok {
+	if reason, ok := applicationoutbox.ParsePaymentReceiptNotificationDeliveryFailureReason(normalized); ok {
 		return reason
 	}
 
 	switch normalized {
 	case "receipt webhook delivery failed", "timeout", "webhook returned status 500":
-		return valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed
+		return applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed
 	default:
-		return valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed
+		return applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed
 	}
 }
 

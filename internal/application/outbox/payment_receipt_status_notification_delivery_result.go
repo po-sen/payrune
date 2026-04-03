@@ -3,8 +3,6 @@ package outbox
 import (
 	"errors"
 	"time"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 var (
@@ -19,9 +17,9 @@ var (
 
 type PaymentReceiptStatusNotificationDeliveryResult struct {
 	NotificationID    int64
-	Status            valueobjects.PaymentReceiptNotificationDeliveryStatus
+	Status            PaymentReceiptNotificationDeliveryStatus
 	Attempts          int32
-	LastFailureReason valueobjects.PaymentReceiptNotificationDeliveryFailureReason
+	LastFailureReason PaymentReceiptNotificationDeliveryFailureReason
 	NextAttemptAt     *time.Time
 	DeliveredAt       *time.Time
 }
@@ -40,7 +38,7 @@ func MarkPaymentReceiptStatusNotificationSent(
 	deliveredAtUTC := deliveredAt.UTC()
 	return PaymentReceiptStatusNotificationDeliveryResult{
 		NotificationID: notificationID,
-		Status:         valueobjects.PaymentReceiptNotificationDeliveryStatusSent,
+		Status:         PaymentReceiptNotificationDeliveryStatusSent,
 		DeliveredAt:    &deliveredAtUTC,
 	}, nil
 }
@@ -51,7 +49,7 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	maxAttempts int32,
 	now time.Time,
 	retryDelay time.Duration,
-	failureReason valueobjects.PaymentReceiptNotificationDeliveryFailureReason,
+	failureReason PaymentReceiptNotificationDeliveryFailureReason,
 ) (PaymentReceiptStatusNotificationDeliveryResult, error) {
 	if notificationID <= 0 {
 		return PaymentReceiptStatusNotificationDeliveryResult{}, ErrPaymentReceiptStatusNotificationIDInvalid
@@ -73,7 +71,7 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	if attempts >= maxAttempts {
 		return PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID:    notificationID,
-			Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
+			Status:            PaymentReceiptNotificationDeliveryStatusFailed,
 			Attempts:          attempts,
 			LastFailureReason: failureReason,
 		}, nil
@@ -86,7 +84,7 @@ func ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 	nextAttemptAt := now.Add(retryDelay).UTC()
 	return PaymentReceiptStatusNotificationDeliveryResult{
 		NotificationID:    notificationID,
-		Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
+		Status:            PaymentReceiptNotificationDeliveryStatusPending,
 		Attempts:          attempts,
 		LastFailureReason: failureReason,
 		NextAttemptAt:     &nextAttemptAt,

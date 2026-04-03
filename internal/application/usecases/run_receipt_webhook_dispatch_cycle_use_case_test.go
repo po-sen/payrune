@@ -149,7 +149,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 	if got := len(outbox.savedResults); got != 1 {
 		t.Fatalf("unexpected saved result count: got %d", got)
 	}
-	if outbox.savedResults[0].Status != valueobjects.PaymentReceiptNotificationDeliveryStatusSent {
+	if outbox.savedResults[0].Status != applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected delivery status: got %q", outbox.savedResults[0].Status)
 	}
 	if outbox.savedResults[0].DeliveredAt == nil || !outbox.savedResults[0].DeliveredAt.Equal(deliveredAt) {
@@ -209,13 +209,13 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteRetry(t *testing.T) {
 	if got := len(outbox.savedResults); got != 1 {
 		t.Fatalf("unexpected saved result count: got %d", got)
 	}
-	if outbox.savedResults[0].Status != valueobjects.PaymentReceiptNotificationDeliveryStatusPending {
+	if outbox.savedResults[0].Status != applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending {
 		t.Fatalf("unexpected delivery status: got %q", outbox.savedResults[0].Status)
 	}
 	if outbox.savedResults[0].Attempts != 2 {
 		t.Fatalf("unexpected attempts: got %d", outbox.savedResults[0].Attempts)
 	}
-	if outbox.savedResults[0].LastFailureReason != valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+	if outbox.savedResults[0].LastFailureReason != applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
 		t.Fatalf("unexpected delivery failure reason: got %q", outbox.savedResults[0].LastFailureReason)
 	}
 	expectedNextAttemptAt := failedAt.Add(2 * time.Minute)
@@ -267,13 +267,13 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteTerminalFailure(t *testing.
 	if got := len(outbox.savedResults); got != 1 {
 		t.Fatalf("unexpected saved result count: got %d", got)
 	}
-	if outbox.savedResults[0].Status != valueobjects.PaymentReceiptNotificationDeliveryStatusFailed {
+	if outbox.savedResults[0].Status != applicationoutbox.PaymentReceiptNotificationDeliveryStatusFailed {
 		t.Fatalf("unexpected delivery status: got %q", outbox.savedResults[0].Status)
 	}
 	if outbox.savedResults[0].Attempts != 3 {
 		t.Fatalf("unexpected attempts: got %d", outbox.savedResults[0].Attempts)
 	}
-	if outbox.savedResults[0].LastFailureReason != valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+	if outbox.savedResults[0].LastFailureReason != applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
 		t.Fatalf("unexpected delivery failure reason: got %q", outbox.savedResults[0].LastFailureReason)
 	}
 }

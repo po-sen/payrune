@@ -232,7 +232,7 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 	if err != nil {
 		t.Fatalf("scanPaymentReceiptStatusNotificationOutboxMessage returned error: %v", err)
 	}
-	if notification.DeliveryStatus != valueobjects.PaymentReceiptNotificationDeliveryStatusSent {
+	if notification.DeliveryStatus != applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected delivery status: got %q", notification.DeliveryStatus)
 	}
 	if notification.DeliveredAt == nil || !notification.DeliveredAt.Equal(deliveredAt) {
@@ -278,7 +278,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
 		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
-			Status: valueobjects.PaymentReceiptNotificationDeliveryStatusSent,
+			Status: applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent,
 		},
 	)
 	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationDeliveredAtRequired) {
@@ -290,7 +290,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 	err = outboxStore.SaveDeliveryResult(
 		context.Background(),
 		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
-			Status: valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
+			Status: applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending,
 		},
 	)
 	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationNextAttemptRequired) {
@@ -344,9 +344,9 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultPendingSuccess(
 		context.Background(),
 		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID:    99,
-			Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusPending,
+			Status:            applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending,
 			Attempts:          2,
-			LastFailureReason: valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			LastFailureReason: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 			NextAttemptAt:     &nextAttemptAt,
 		},
 	)
@@ -368,9 +368,9 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultFailedSuccess(t
 		context.Background(),
 		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID:    99,
-			Status:            valueobjects.PaymentReceiptNotificationDeliveryStatusFailed,
+			Status:            applicationoutbox.PaymentReceiptNotificationDeliveryStatusFailed,
 			Attempts:          3,
-			LastFailureReason: valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			LastFailureReason: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 	)
 	if err != nil {

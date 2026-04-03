@@ -4,8 +4,6 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 func TestMarkPaymentReceiptStatusNotificationSent(t *testing.T) {
@@ -15,7 +13,7 @@ func TestMarkPaymentReceiptStatusNotificationSent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("MarkPaymentReceiptStatusNotificationSent returned error: %v", err)
 	}
-	if result.Status != valueobjects.PaymentReceiptNotificationDeliveryStatusSent {
+	if result.Status != PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected status: got %q", result.Status)
 	}
 	if result.DeliveredAt == nil || !result.DeliveredAt.Equal(now) {
@@ -32,18 +30,18 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureRetry(t *testing.
 		5,
 		now,
 		2*time.Minute,
-		valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+		PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 	)
 	if err != nil {
 		t.Fatalf("ResolvePaymentReceiptStatusNotificationDeliveryFailure returned error: %v", err)
 	}
-	if result.Status != valueobjects.PaymentReceiptNotificationDeliveryStatusPending {
+	if result.Status != PaymentReceiptNotificationDeliveryStatusPending {
 		t.Fatalf("unexpected status: got %q", result.Status)
 	}
 	if result.Attempts != 2 {
 		t.Fatalf("unexpected attempts: got %d", result.Attempts)
 	}
-	if result.LastFailureReason != valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+	if result.LastFailureReason != PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
 		t.Fatalf("unexpected last failure reason: got %q", result.LastFailureReason)
 	}
 	if result.NextAttemptAt == nil || !result.NextAttemptAt.Equal(now.Add(2*time.Minute)) {
@@ -60,18 +58,18 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureTerminal(t *testi
 		3,
 		now,
 		2*time.Minute,
-		valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+		PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 	)
 	if err != nil {
 		t.Fatalf("ResolvePaymentReceiptStatusNotificationDeliveryFailure returned error: %v", err)
 	}
-	if result.Status != valueobjects.PaymentReceiptNotificationDeliveryStatusFailed {
+	if result.Status != PaymentReceiptNotificationDeliveryStatusFailed {
 		t.Fatalf("unexpected status: got %q", result.Status)
 	}
 	if result.Attempts != 3 {
 		t.Fatalf("unexpected attempts: got %d", result.Attempts)
 	}
-	if result.LastFailureReason != valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+	if result.LastFailureReason != PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
 		t.Fatalf("unexpected last failure reason: got %q", result.LastFailureReason)
 	}
 	if result.NextAttemptAt != nil {
@@ -86,7 +84,7 @@ func TestResolvePaymentReceiptStatusNotificationDeliveryFailureValidation(t *tes
 		3,
 		time.Now().UTC(),
 		time.Minute,
-		valueobjects.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+		PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 	)
 	if !errors.Is(err, ErrPaymentReceiptStatusNotificationIDInvalid) {
 		t.Fatalf("unexpected error: got %v", err)
