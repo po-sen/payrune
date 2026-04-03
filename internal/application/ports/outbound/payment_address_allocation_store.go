@@ -31,9 +31,9 @@ type FindIssuedPaymentAddressAllocationByIDInput struct {
 }
 
 type CompletePaymentAddressAllocationInput struct {
-	Allocation        entities.PaymentAddressAllocation
-	SweepMaterialJSON string
-	IssuedAt          time.Time
+	Allocation    entities.PaymentAddressAllocation
+	SweepMaterial string
+	IssuedAt      time.Time
 }
 
 type PaymentAddressAllocationStore interface {

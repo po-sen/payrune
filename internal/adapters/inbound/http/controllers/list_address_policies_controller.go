@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 )
 
@@ -25,18 +24,18 @@ func (c *ListAddressPoliciesController) ServeHTTP(w http.ResponseWriter, r *http
 	}
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
-		writeJSON(w, http.StatusMethodNotAllowed, dto.ErrorResponse{Error: "method not allowed"})
+		writeErrorJSON(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
 	response, err := c.listAddressPolicies.Execute(r.Context(), chain)
 	if err != nil {
 		statusCode, message := mapListAddressPoliciesError(err)
-		writeJSON(w, statusCode, dto.ErrorResponse{Error: message})
+		writeErrorJSON(w, statusCode, message)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	writeJSON(w, http.StatusOK, newListAddressPoliciesResponse(response))
 }
 
 func mapListAddressPoliciesError(err error) (int, string) {

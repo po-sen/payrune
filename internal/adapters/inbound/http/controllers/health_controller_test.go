@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"payrune/internal/application/dto"
 )
@@ -21,7 +22,10 @@ func (f *fakeCheckHealthUseCase) Execute(_ context.Context) (dto.HealthResponse,
 
 func TestHealthControllerGetHealth(t *testing.T) {
 	controller := NewHealthController(&fakeCheckHealthUseCase{
-		response: dto.HealthResponse{Status: "up", Timestamp: "2026-03-03T11:00:00Z"},
+		response: dto.HealthResponse{
+			Status:    "up",
+			Timestamp: time.Date(2026, 3, 3, 11, 0, 0, 0, time.UTC),
+		},
 	})
 
 	mux := http.NewServeMux()
@@ -36,13 +40,16 @@ func TestHealthControllerGetHealth(t *testing.T) {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
 
-	var body dto.HealthResponse
+	var body healthResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
 	if body.Status != "up" {
 		t.Fatalf("unexpected status body: got %s", body.Status)
+	}
+	if body.Timestamp != "2026-03-03T11:00:00Z" {
+		t.Fatalf("unexpected timestamp body: got %s", body.Timestamp)
 	}
 }
 

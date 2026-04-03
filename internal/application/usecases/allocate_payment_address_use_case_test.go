@@ -44,10 +44,10 @@ func newAllocateDeriveOutput(address string, path string) outport.DeriveIssuedPa
 		kind = valueobjects.IssuanceRefKindCreate2Salt
 	}
 	return outport.DeriveIssuedPaymentAddressOutput{
-		Address:           address,
-		IssuanceRefKind:   kind,
-		IssuanceRef:       path,
-		SweepMaterialJSON: fmt.Sprintf(`{"address":%q,"issuance_ref":%q}`, address, path),
+		Address:         address,
+		IssuanceRefKind: kind,
+		IssuanceRef:     path,
+		SweepMaterial:   fmt.Sprintf(`{"address":%q,"issuance_ref":%q}`, address, path),
 	}
 }
 
@@ -214,11 +214,11 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 			allocator.lastCompleteInput.Allocation.PaymentAddressID,
 		)
 	}
-	if allocator.lastCompleteInput.SweepMaterialJSON != deriver.output.SweepMaterialJSON {
+	if allocator.lastCompleteInput.SweepMaterial != deriver.output.SweepMaterial {
 		t.Fatalf(
-			"unexpected sweep material json in complete input:\nwant: %s\n got: %s",
-			deriver.output.SweepMaterialJSON,
-			allocator.lastCompleteInput.SweepMaterialJSON,
+			"unexpected sweep material in complete input:\nwant: %s\n got: %s",
+			deriver.output.SweepMaterial,
+			allocator.lastCompleteInput.SweepMaterial,
 		)
 	}
 	if deriver.lastInput.Allocation.SlotIndex != 11 {
@@ -311,11 +311,11 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	if allocator.lastCompleteInput.Allocation.Scheme != "create2" {
 		t.Fatalf("unexpected scheme persisted on allocation: got %q", allocator.lastCompleteInput.Allocation.Scheme)
 	}
-	if allocator.lastCompleteInput.SweepMaterialJSON != deriver.output.SweepMaterialJSON {
+	if allocator.lastCompleteInput.SweepMaterial != deriver.output.SweepMaterial {
 		t.Fatalf(
-			"unexpected ethereum sweep material json in complete input:\nwant: %s\n got: %s",
-			deriver.output.SweepMaterialJSON,
-			allocator.lastCompleteInput.SweepMaterialJSON,
+			"unexpected ethereum sweep material in complete input:\nwant: %s\n got: %s",
+			deriver.output.SweepMaterial,
+			allocator.lastCompleteInput.SweepMaterial,
 		)
 	}
 	if deriver.lastInput.Policy.Chain != valueobjects.SupportedChainEthereum {

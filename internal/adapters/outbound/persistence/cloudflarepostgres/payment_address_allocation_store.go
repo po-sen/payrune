@@ -131,7 +131,7 @@ func (r *PaymentAddressAllocationStore) Complete(
 	if input.IssuedAt.IsZero() {
 		return outport.ErrPaymentAddressAllocationIssuedAtRequired
 	}
-	sweepMaterialJSON := strings.TrimSpace(input.SweepMaterialJSON)
+	sweepMaterialJSON := strings.TrimSpace(input.SweepMaterial)
 	if sweepMaterialJSON == "" {
 		return outport.ErrPaymentAddressAllocationStoreFailed
 	}

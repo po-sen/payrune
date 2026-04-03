@@ -27,13 +27,13 @@ func (c *GetPaymentAddressStatusController) ServeHTTP(w http.ResponseWriter, r *
 	}
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
-		writeJSON(w, http.StatusMethodNotAllowed, dto.ErrorResponse{Error: "method not allowed"})
+		writeErrorJSON(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
 	paymentAddressID, err := parsePositiveInt64Segment(r.PathValue("paymentAddressId"))
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "invalid paymentAddressId"})
+		writeErrorJSON(w, http.StatusBadRequest, "invalid paymentAddressId")
 		return
 	}
 
@@ -43,11 +43,11 @@ func (c *GetPaymentAddressStatusController) ServeHTTP(w http.ResponseWriter, r *
 	})
 	if err != nil {
 		statusCode, message := mapGetPaymentAddressStatusError(err)
-		writeJSON(w, statusCode, dto.ErrorResponse{Error: message})
+		writeErrorJSON(w, statusCode, message)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	writeJSON(w, http.StatusOK, newPaymentAddressStatusResponse(response))
 }
 
 func parsePositiveInt64Segment(raw string) (int64, error) {

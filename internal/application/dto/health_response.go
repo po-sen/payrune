@@ -1,6 +1,8 @@
 package dto
 
+import "time"
+
 type HealthResponse struct {
-	Status    string `json:"status"`
-	Timestamp string `json:"timestamp"`
+	Status    string
+	Timestamp time.Time
 }

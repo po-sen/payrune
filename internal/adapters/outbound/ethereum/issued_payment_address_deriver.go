@@ -77,10 +77,10 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	}
 
 	return outport.DeriveIssuedPaymentAddressOutput{
-		Address:           output.Address,
-		IssuanceRefKind:   output.IssuanceRefKind,
-		IssuanceRef:       output.IssuanceRef,
-		SweepMaterialJSON: sweepMaterialJSON,
+		Address:         output.Address,
+		IssuanceRefKind: output.IssuanceRefKind,
+		IssuanceRef:     output.IssuanceRef,
+		SweepMaterial:   sweepMaterialJSON,
 	}, nil
 }
 

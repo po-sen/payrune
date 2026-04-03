@@ -30,7 +30,7 @@ func TestCheckHealthUseCaseExecute(t *testing.T) {
 		t.Fatalf("unexpected status: got %s", response.Status)
 	}
 
-	if response.Timestamp != expected.Format(time.RFC3339) {
+	if !response.Timestamp.Equal(expected) {
 		t.Fatalf("unexpected timestamp: got %s", response.Timestamp)
 	}
 }

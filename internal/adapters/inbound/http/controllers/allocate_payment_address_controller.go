@@ -37,7 +37,7 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 	}
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeJSON(w, http.StatusMethodNotAllowed, dto.ErrorResponse{Error: "method not allowed"})
+		writeErrorJSON(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
@@ -45,21 +45,21 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&request); err != nil {
-		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request body"})
+		writeErrorJSON(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request body"})
+		writeErrorJSON(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	addressPolicyID := strings.TrimSpace(request.AddressPolicyID)
 	if addressPolicyID == "" {
-		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "addressPolicyId is required"})
+		writeErrorJSON(w, http.StatusBadRequest, "addressPolicyId is required")
 		return
 	}
 	if request.ExpectedAmountMinor == nil {
-		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "expectedAmountMinor is required"})
+		writeErrorJSON(w, http.StatusBadRequest, "expectedAmountMinor is required")
 		return
 	}
 
@@ -72,14 +72,14 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 	})
 	if err != nil {
 		statusCode, message := mapAllocatePaymentAddressError(err)
-		writeJSON(w, statusCode, dto.ErrorResponse{Error: message})
+		writeErrorJSON(w, statusCode, message)
 		return
 	}
 
 	if response.IdempotencyReplayed {
 		w.Header().Set(idempotencyReplayedHeader, "true")
 	}
-	writeJSON(w, http.StatusCreated, response)
+	writeJSON(w, http.StatusCreated, newAllocatePaymentAddressResponse(response))
 }
 
 func trimOptionalString(raw *string) string {

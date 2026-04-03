@@ -62,7 +62,7 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 		t.Fatalf("unexpected idempotency key in input: got %q", allocateUC.lastInput.IdempotencyKey)
 	}
 
-	var response dto.AllocatePaymentAddressResponse
+	var response allocatePaymentAddressResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

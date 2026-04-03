@@ -58,7 +58,7 @@ func TestChainAddressControllerGetPaymentStatusSuccess(t *testing.T) {
 		t.Fatalf("unexpected payment address id in input: got %d", getStatusUC.lastInput.PaymentAddressID)
 	}
 
-	var response dto.GetPaymentAddressStatusResponse
+	var response paymentAddressStatusResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

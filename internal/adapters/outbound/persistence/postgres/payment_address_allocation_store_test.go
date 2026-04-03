@@ -82,9 +82,9 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	if err := store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
-		Allocation:        allocation,
-		SweepMaterialJSON: `{"material_type":"bitcoin_hd"}`,
-		IssuedAt:          issuedAt,
+		Allocation:    allocation,
+		SweepMaterial: `{"material_type":"bitcoin_hd"}`,
+		IssuedAt:      issuedAt,
 	}); err != nil {
 		t.Fatalf("Complete returned error: %v", err)
 	}
@@ -115,8 +115,8 @@ func TestPaymentAddressAllocationStoreCompleteNotReserved(t *testing.T) {
 			Scheme:           valueobjects.AddressSchemeNativeSegwit,
 			Address:          "bc1qallocated",
 		},
-		SweepMaterialJSON: `{"material_type":"bitcoin_hd"}`,
-		IssuedAt:          issuedAt,
+		SweepMaterial: `{"material_type":"bitcoin_hd"}`,
+		IssuedAt:      issuedAt,
 	})
 	if !errors.Is(err, outport.ErrPaymentAddressAllocationNotReserved) {
 		t.Fatalf("expected ErrPaymentAddressAllocationNotReserved, got %v", err)
@@ -141,8 +141,8 @@ func TestPaymentAddressAllocationStoreCompleteRejectsInvalidSweepMaterialInput(t
 			Scheme:           valueobjects.AddressSchemeNativeSegwit,
 			Address:          "bc1qallocated",
 		},
-		SweepMaterialJSON: " ",
-		IssuedAt:          time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC),
+		SweepMaterial: " ",
+		IssuedAt:      time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC),
 	})
 	if !errors.Is(err, outport.ErrPaymentAddressAllocationStoreFailed) {
 		t.Fatalf("expected ErrPaymentAddressAllocationStoreFailed, got %v", err)

@@ -41,7 +41,7 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 		t.Fatalf("unexpected chain passed to use case: got %q", listUC.lastChain)
 	}
 
-	var body dto.ListAddressPoliciesResponse
+	var body listAddressPoliciesResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

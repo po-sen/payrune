@@ -120,7 +120,7 @@ func assertErrorResponse(
 		t.Fatalf("unexpected status code: got %d, want %d", rr.Code, wantStatus)
 	}
 
-	var body dto.ErrorResponse
+	var body errorResponse
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

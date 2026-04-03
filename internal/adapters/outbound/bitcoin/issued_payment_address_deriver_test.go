@@ -88,8 +88,8 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 	if output.IssuanceRefKind != valueobjects.IssuanceRefKindHDPathAbsolute {
 		t.Fatalf("unexpected issuance ref kind: got %q", output.IssuanceRefKind)
 	}
-	if output.SweepMaterialJSON != `{"material_type":"bitcoin_hd","material_version":1,"chain":"bitcoin","network":"mainnet","address":"bc1qallocated","hd_derivation_path":"m/84'/0'/0'/0/5","account_xpub":"xpub-main","script_type":"nativeSegwit"}` {
-		t.Fatalf("unexpected sweep material json: got %q", output.SweepMaterialJSON)
+	if output.SweepMaterial != `{"material_type":"bitcoin_hd","material_version":1,"chain":"bitcoin","network":"mainnet","address":"bc1qallocated","hd_derivation_path":"m/84'/0'/0'/0/5","account_xpub":"xpub-main","script_type":"nativeSegwit"}` {
+		t.Fatalf("unexpected sweep material: got %q", output.SweepMaterial)
 	}
 	if underlying.lastNetwork != networkMainnet {
 		t.Fatalf("unexpected network: got %q", underlying.lastNetwork)

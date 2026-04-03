@@ -7,18 +7,18 @@ import (
 )
 
 type AddressPolicy struct {
-	AddressPolicyID string `json:"addressPolicyId"`
-	Chain           string `json:"chain"`
-	Network         string `json:"network"`
-	Scheme          string `json:"scheme"`
-	MinorUnit       string `json:"minorUnit"`
-	Decimals        uint8  `json:"decimals"`
-	Enabled         bool   `json:"enabled"`
+	AddressPolicyID string
+	Chain           string
+	Network         string
+	Scheme          string
+	MinorUnit       string
+	Decimals        uint8
+	Enabled         bool
 }
 
 type ListAddressPoliciesResponse struct {
-	Chain           string          `json:"chain"`
-	AddressPolicies []AddressPolicy `json:"addressPolicies"`
+	Chain           string
+	AddressPolicies []AddressPolicy
 }
 
 type GenerateAddressInput struct {
@@ -28,14 +28,14 @@ type GenerateAddressInput struct {
 }
 
 type GenerateAddressResponse struct {
-	AddressPolicyID string `json:"addressPolicyId"`
-	Chain           string `json:"chain"`
-	Network         string `json:"network"`
-	Scheme          string `json:"scheme"`
-	MinorUnit       string `json:"minorUnit"`
-	Decimals        uint8  `json:"decimals"`
-	Index           uint32 `json:"index"`
-	Address         string `json:"address"`
+	AddressPolicyID string
+	Chain           string
+	Network         string
+	Scheme          string
+	MinorUnit       string
+	Decimals        uint8
+	Index           uint32
+	Address         string
 }
 
 type AllocatePaymentAddressInput struct {
@@ -47,17 +47,17 @@ type AllocatePaymentAddressInput struct {
 }
 
 type AllocatePaymentAddressResponse struct {
-	PaymentAddressID    string `json:"paymentAddressId"`
-	AddressPolicyID     string `json:"addressPolicyId"`
-	ExpectedAmountMinor int64  `json:"expectedAmountMinor"`
-	Chain               string `json:"chain"`
-	Network             string `json:"network"`
-	Scheme              string `json:"scheme"`
-	MinorUnit           string `json:"minorUnit"`
-	Decimals            uint8  `json:"decimals"`
-	Address             string `json:"address"`
-	CustomerReference   string `json:"customerReference,omitempty"`
-	IdempotencyReplayed bool   `json:"-"`
+	PaymentAddressID    string
+	AddressPolicyID     string
+	ExpectedAmountMinor int64
+	Chain               string
+	Network             string
+	Scheme              string
+	MinorUnit           string
+	Decimals            uint8
+	Address             string
+	CustomerReference   string
+	IdempotencyReplayed bool
 }
 
 type GetPaymentAddressStatusInput struct {
@@ -66,26 +66,26 @@ type GetPaymentAddressStatusInput struct {
 }
 
 type GetPaymentAddressStatusResponse struct {
-	PaymentAddressID        string     `json:"paymentAddressId"`
-	AddressPolicyID         string     `json:"addressPolicyId"`
-	ExpectedAmountMinor     int64      `json:"expectedAmountMinor"`
-	Chain                   string     `json:"chain"`
-	Network                 string     `json:"network"`
-	Scheme                  string     `json:"scheme"`
-	MinorUnit               string     `json:"minorUnit"`
-	Decimals                uint8      `json:"decimals"`
-	Address                 string     `json:"address"`
-	CustomerReference       string     `json:"customerReference,omitempty"`
-	PaymentStatus           string     `json:"paymentStatus"`
-	ObservedTotalMinor      int64      `json:"observedTotalMinor"`
-	ConfirmedTotalMinor     int64      `json:"confirmedTotalMinor"`
-	UnconfirmedTotalMinor   int64      `json:"unconfirmedTotalMinor"`
-	RequiredConfirmations   int32      `json:"requiredConfirmations"`
-	LastObservedBlockHeight int64      `json:"lastObservedBlockHeight"`
-	IssuedAt                time.Time  `json:"issuedAt"`
-	FirstObservedAt         *time.Time `json:"firstObservedAt,omitempty"`
-	PaidAt                  *time.Time `json:"paidAt,omitempty"`
-	ConfirmedAt             *time.Time `json:"confirmedAt,omitempty"`
-	ExpiresAt               *time.Time `json:"expiresAt,omitempty"`
-	LastError               string     `json:"lastError,omitempty"`
+	PaymentAddressID        string
+	AddressPolicyID         string
+	ExpectedAmountMinor     int64
+	Chain                   string
+	Network                 string
+	Scheme                  string
+	MinorUnit               string
+	Decimals                uint8
+	Address                 string
+	CustomerReference       string
+	PaymentStatus           string
+	ObservedTotalMinor      int64
+	ConfirmedTotalMinor     int64
+	UnconfirmedTotalMinor   int64
+	RequiredConfirmations   int32
+	LastObservedBlockHeight int64
+	IssuedAt                time.Time
+	FirstObservedAt         *time.Time
+	PaidAt                  *time.Time
+	ConfirmedAt             *time.Time
+	ExpiresAt               *time.Time
+	LastError               string
 }

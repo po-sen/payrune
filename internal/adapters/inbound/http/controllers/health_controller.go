@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	inport "payrune/internal/application/ports/inbound"
@@ -28,8 +27,5 @@ func (c *HealthController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-	}
+	writeJSON(w, http.StatusOK, newHealthResponse(response))
 }

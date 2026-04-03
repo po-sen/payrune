@@ -328,9 +328,9 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 		}
 
 		if err := allocationStore.Complete(ctx, outport.CompletePaymentAddressAllocationInput{
-			Allocation:        issuedAllocation,
-			SweepMaterialJSON: derived.SweepMaterialJSON,
-			IssuedAt:          issuedAt,
+			Allocation:    issuedAllocation,
+			SweepMaterial: derived.SweepMaterial,
+			IssuedAt:      issuedAt,
 		}); err != nil {
 			return inport.ErrDependencyFailure
 		}

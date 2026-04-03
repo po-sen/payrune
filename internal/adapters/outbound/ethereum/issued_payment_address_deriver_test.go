@@ -55,15 +55,15 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 	if !ok {
 		t.Fatal("expected init code hex")
 	}
-	wantSweepMaterialJSON := fmt.Sprintf(
+	wantSweepMaterial := fmt.Sprintf(
 		`{"material_type":"ethereum_create2","material_version":1,"chain":"ethereum","network":"mainnet","address":"%s","predicted_address":"%s","factory_address":"0x1111111111111111111111111111111111111111","collector_address":"0x2222222222222222222222222222222222222222","create2_salt":"%s","init_code_hex":"%s","init_code_hash":"0x3333333333333333333333333333333333333333333333333333333333333333"}`,
 		output.Address,
 		output.Address,
 		output.IssuanceRef,
 		initCodeHex,
 	)
-	if output.SweepMaterialJSON != wantSweepMaterialJSON {
-		t.Fatalf("unexpected sweep material json:\nwant: %s\n got: %s", wantSweepMaterialJSON, output.SweepMaterialJSON)
+	if output.SweepMaterial != wantSweepMaterial {
+		t.Fatalf("unexpected sweep material:\nwant: %s\n got: %s", wantSweepMaterial, output.SweepMaterial)
 	}
 }
 

@@ -29,19 +29,19 @@ func (c *GenerateAddressController) ServeHTTP(w http.ResponseWriter, r *http.Req
 	}
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
-		writeJSON(w, http.StatusMethodNotAllowed, dto.ErrorResponse{Error: "method not allowed"})
+		writeErrorJSON(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
 	addressPolicyID := strings.TrimSpace(r.URL.Query().Get("addressPolicyId"))
 	if addressPolicyID == "" {
-		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "addressPolicyId is required"})
+		writeErrorJSON(w, http.StatusBadRequest, "addressPolicyId is required")
 		return
 	}
 
 	index, err := parseIndexQuery(r.URL.Query().Get("index"))
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, dto.ErrorResponse{Error: "invalid index"})
+		writeErrorJSON(w, http.StatusBadRequest, "invalid index")
 		return
 	}
 
@@ -52,11 +52,11 @@ func (c *GenerateAddressController) ServeHTTP(w http.ResponseWriter, r *http.Req
 	})
 	if err != nil {
 		statusCode, message := mapGenerateAddressError(err)
-		writeJSON(w, statusCode, dto.ErrorResponse{Error: message})
+		writeErrorJSON(w, statusCode, message)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	writeJSON(w, http.StatusOK, newGenerateAddressResponse(response))
 }
 
 func parseIndexQuery(raw string) (uint32, error) {
