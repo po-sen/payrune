@@ -2,7 +2,6 @@ package bitcoin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -86,18 +85,11 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 	if output.IssuanceRef != "m/84'/0'/0'/0/5" {
 		t.Fatalf("unexpected address reference: got %q", output.IssuanceRef)
 	}
-	var sweepMaterial map[string]any
-	if err := json.Unmarshal([]byte(output.SweepMaterialJSON), &sweepMaterial); err != nil {
-		t.Fatalf("unexpected sweep material json error: %v", err)
+	if output.IssuanceRefKind != valueobjects.IssuanceRefKindHDPathAbsolute {
+		t.Fatalf("unexpected issuance ref kind: got %q", output.IssuanceRefKind)
 	}
-	if sweepMaterial["material_type"] != "bitcoin_hd" {
-		t.Fatalf("unexpected material type: got %v", sweepMaterial["material_type"])
-	}
-	if sweepMaterial["account_xpub"] != "xpub-main" {
-		t.Fatalf("unexpected xpub in sweep material: got %v", sweepMaterial["account_xpub"])
-	}
-	if sweepMaterial["hd_derivation_path"] != "m/84'/0'/0'/0/5" {
-		t.Fatalf("unexpected derivation path in sweep material: got %v", sweepMaterial["hd_derivation_path"])
+	if output.SweepMaterialJSON != `{"material_type":"bitcoin_hd","material_version":1,"chain":"bitcoin","network":"mainnet","address":"bc1qallocated","hd_derivation_path":"m/84'/0'/0'/0/5","account_xpub":"xpub-main","script_type":"nativeSegwit"}` {
+		t.Fatalf("unexpected sweep material json: got %q", output.SweepMaterialJSON)
 	}
 	if underlying.lastNetwork != networkMainnet {
 		t.Fatalf("unexpected network: got %q", underlying.lastNetwork)

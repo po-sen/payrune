@@ -17,7 +17,6 @@ var (
 	ErrObservedAtRequired                  = errors.New("observed time is required")
 	ErrPaymentReceiptFailureReasonRequired = errors.New("payment receipt failure reason is required")
 	ErrAddressPolicyMismatch               = errors.New("address policy mismatch")
-	ErrSweepMaterialRequired               = errors.New("sweep material is required")
 	ErrDerivationFailureReasonRequired     = errors.New("derivation failure reason is required")
 	ErrPaymentAddressAllocationNotIssued   = errors.New("payment address allocation is not issued")
 	ErrExpiresAtRequired                   = errors.New("expires at is required")

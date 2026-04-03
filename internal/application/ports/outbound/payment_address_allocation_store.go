@@ -30,6 +30,12 @@ type FindIssuedPaymentAddressAllocationByIDInput struct {
 	PaymentAddressID int64
 }
 
+type CompletePaymentAddressAllocationInput struct {
+	Allocation        entities.PaymentAddressAllocation
+	SweepMaterialJSON string
+	IssuedAt          time.Time
+}
+
 type PaymentAddressAllocationStore interface {
 	FindIssuedByID(
 		ctx context.Context,
@@ -43,6 +49,6 @@ type PaymentAddressAllocationStore interface {
 		ctx context.Context,
 		input ReservePaymentAddressAllocationInput,
 	) (entities.PaymentAddressAllocation, error)
-	Complete(ctx context.Context, allocation entities.PaymentAddressAllocation, issuedAt time.Time) error
+	Complete(ctx context.Context, input CompletePaymentAddressAllocationInput) error
 	MarkDerivationFailed(ctx context.Context, allocation entities.PaymentAddressAllocation) error
 }

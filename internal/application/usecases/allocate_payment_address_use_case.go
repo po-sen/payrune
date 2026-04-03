@@ -315,7 +315,6 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			issuancePlan.Reservation.IssuancePolicy.Network,
 			issuancePlan.Reservation.IssuancePolicy.Scheme,
 			derived.Address,
-			derived.SweepMaterialJSON,
 		)
 		if err != nil {
 			return handleDerivationFailure(
@@ -328,7 +327,11 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			)
 		}
 
-		if err := allocationStore.Complete(ctx, issuedAllocation, issuedAt); err != nil {
+		if err := allocationStore.Complete(ctx, outport.CompletePaymentAddressAllocationInput{
+			Allocation:        issuedAllocation,
+			SweepMaterialJSON: derived.SweepMaterialJSON,
+			IssuedAt:          issuedAt,
+		}); err != nil {
 			return inport.ErrDependencyFailure
 		}
 

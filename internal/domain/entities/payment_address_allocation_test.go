@@ -39,16 +39,12 @@ func TestPaymentAddressAllocationMarkIssued(t *testing.T) {
 		valueobjects.NetworkIDMainnet,
 		valueobjects.AddressSchemeNativeSegwit,
 		"bc1qexample",
-		`{"material_type":"bitcoin_hd"}`,
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if issued.Address != "bc1qexample" {
 		t.Fatalf("unexpected address: got %q", issued.Address)
-	}
-	if issued.SweepMaterialJSON != `{"material_type":"bitcoin_hd"}` {
-		t.Fatalf("unexpected sweep material: got %q", issued.SweepMaterialJSON)
 	}
 	if issued.Status != valueobjects.PaymentAddressAllocationStatusIssued {
 		t.Fatalf("unexpected status: got %q", issued.Status)
@@ -67,7 +63,6 @@ func TestPaymentAddressAllocationMarkIssuedRejectPolicyMismatch(t *testing.T) {
 		valueobjects.NetworkIDMainnet,
 		valueobjects.AddressSchemeNativeSegwit,
 		"bc1qexample",
-		`{"material_type":"bitcoin_hd"}`,
 	); err == nil {
 		t.Fatalf("expected policy mismatch error")
 	} else if !errors.Is(err, ErrAddressPolicyMismatch) {
@@ -93,10 +88,6 @@ func TestPaymentAddressAllocationMarkDerivationFailed(t *testing.T) {
 	if failed.DerivationFailureReason != valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed {
 		t.Fatalf("unexpected failure reason: got %q", failed.DerivationFailureReason)
 	}
-	if failed.SweepMaterialJSON != "" {
-		t.Fatalf("expected sweep material to be cleared, got %q", failed.SweepMaterialJSON)
-	}
-
 	if _, err := allocation.MarkDerivationFailed(""); !errors.Is(err, ErrDerivationFailureReasonRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
@@ -114,7 +105,6 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 		valueobjects.NetworkIDTestnet4,
 		valueobjects.AddressSchemeNativeSegwit,
 		"tb1qexample",
-		`{"material_type":"bitcoin_hd"}`,
 	)
 	if err != nil {
 		t.Fatalf("MarkIssued returned error: %v", err)
@@ -138,7 +128,7 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 	}
 }
 
-func TestPaymentAddressAllocationMarkIssuedRequiresSweepMaterial(t *testing.T) {
+func TestPaymentAddressAllocationMarkIssuedRequiresAddress(t *testing.T) {
 	allocation, err := NewPaymentAddressAllocation(11, "policy-a", 42, 5000, "order-42")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -149,10 +139,9 @@ func TestPaymentAddressAllocationMarkIssuedRequiresSweepMaterial(t *testing.T) {
 		valueobjects.SupportedChainBitcoin,
 		valueobjects.NetworkIDMainnet,
 		valueobjects.AddressSchemeNativeSegwit,
-		"bc1qexample",
 		"   ",
 	)
-	if !errors.Is(err, ErrSweepMaterialRequired) {
+	if !errors.Is(err, ErrAddressRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
 }

@@ -22,9 +22,9 @@ type DeriveIssuedPaymentAddressInput struct {
 
 type DeriveIssuedPaymentAddressOutput struct {
 	Address           string
-	SweepMaterialJSON string
 	IssuanceRefKind   valueobjects.IssuanceRefKind
 	IssuanceRef       string
+	SweepMaterialJSON string
 }
 
 type IssuedPaymentAddressDeriver interface {

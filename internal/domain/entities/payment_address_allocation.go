@@ -18,7 +18,6 @@ type PaymentAddressAllocation struct {
 	Network                 valueobjects.NetworkID
 	Scheme                  valueobjects.AddressScheme
 	Address                 string
-	SweepMaterialJSON       string
 	DerivationFailureReason valueobjects.PaymentAddressAllocationDerivationFailureReason
 }
 
@@ -56,7 +55,6 @@ func (a PaymentAddressAllocation) MarkIssued(
 	network valueobjects.NetworkID,
 	scheme valueobjects.AddressScheme,
 	address string,
-	sweepMaterialJSON string,
 ) (PaymentAddressAllocation, error) {
 	normalizedPolicyID := addressPolicyID.Normalize()
 	if normalizedPolicyID.IsZero() {
@@ -71,10 +69,6 @@ func (a PaymentAddressAllocation) MarkIssued(
 	if normalizedAddress == "" {
 		return PaymentAddressAllocation{}, ErrAddressRequired
 	}
-	normalizedSweepMaterialJSON := strings.TrimSpace(sweepMaterialJSON)
-	if normalizedSweepMaterialJSON == "" {
-		return PaymentAddressAllocation{}, ErrSweepMaterialRequired
-	}
 
 	issued := a
 	issued.Status = valueobjects.PaymentAddressAllocationStatusIssued
@@ -82,7 +76,6 @@ func (a PaymentAddressAllocation) MarkIssued(
 	issued.Network = network
 	issued.Scheme = normalizedScheme
 	issued.Address = normalizedAddress
-	issued.SweepMaterialJSON = normalizedSweepMaterialJSON
 	issued.DerivationFailureReason = ""
 
 	return issued, nil
@@ -102,7 +95,6 @@ func (a PaymentAddressAllocation) MarkDerivationFailed(
 	failed.Network = ""
 	failed.Scheme = ""
 	failed.Address = ""
-	failed.SweepMaterialJSON = ""
 	return failed, nil
 }
 

@@ -45,7 +45,7 @@ func newFindIssuedPaymentAddressAllocationByIDInput(paymentAddressID int64) outp
 func TestPaymentAddressAllocationStoreCompleteValidation(t *testing.T) {
 	store := NewPaymentAddressAllocationStore(&stubNotificationExecutor{})
 
-	err := store.Complete(context.Background(), entities.PaymentAddressAllocation{}, time.Time{})
+	err := store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{})
 	if !errors.Is(err, outport.ErrPaymentAddressAllocationIssuedAtRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
@@ -61,12 +61,12 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 	store := NewPaymentAddressAllocationStore(db)
 	issuedAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
 	allocation := entities.PaymentAddressAllocation{
-		PaymentAddressID:  44,
-		Chain:             valueobjects.SupportedChainBitcoin,
-		Network:           valueobjects.NetworkIDMainnet,
-		Scheme:            valueobjects.AddressSchemeNativeSegwit,
-		Address:           " bc1qallocated ",
-		SweepMaterialJSON: ` {"material_type":"bitcoin_hd"} `,
+		PaymentAddressID: 44,
+		AddressPolicyID:  "bitcoin-mainnet-native-segwit",
+		Chain:            valueobjects.SupportedChainBitcoin,
+		Network:          valueobjects.NetworkIDMainnet,
+		Scheme:           valueobjects.AddressSchemeNativeSegwit,
+		Address:          " bc1qallocated ",
 	}
 
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
@@ -81,7 +81,11 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	if err := store.Complete(context.Background(), allocation, issuedAt); err != nil {
+	if err := store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
+		Allocation:        allocation,
+		SweepMaterialJSON: `{"material_type":"bitcoin_hd"}`,
+		IssuedAt:          issuedAt,
+	}); err != nil {
 		t.Fatalf("Complete returned error: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -102,9 +106,49 @@ func TestPaymentAddressAllocationStoreCompleteNotReserved(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
-	err = store.Complete(context.Background(), entities.PaymentAddressAllocation{PaymentAddressID: 44}, issuedAt)
+	err = store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
+		Allocation: entities.PaymentAddressAllocation{
+			PaymentAddressID: 44,
+			AddressPolicyID:  "bitcoin-mainnet-native-segwit",
+			Chain:            valueobjects.SupportedChainBitcoin,
+			Network:          valueobjects.NetworkIDMainnet,
+			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			Address:          "bc1qallocated",
+		},
+		SweepMaterialJSON: `{"material_type":"bitcoin_hd"}`,
+		IssuedAt:          issuedAt,
+	})
 	if !errors.Is(err, outport.ErrPaymentAddressAllocationNotReserved) {
 		t.Fatalf("expected ErrPaymentAddressAllocationNotReserved, got %v", err)
+	}
+}
+
+func TestPaymentAddressAllocationStoreCompleteRejectsInvalidSweepMaterialInput(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock.New: %v", err)
+	}
+	defer db.Close()
+
+	store := NewPaymentAddressAllocationStore(db)
+
+	err = store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
+		Allocation: entities.PaymentAddressAllocation{
+			PaymentAddressID: 44,
+			AddressPolicyID:  "bitcoin-mainnet-native-segwit",
+			Chain:            valueobjects.SupportedChainBitcoin,
+			Network:          valueobjects.NetworkIDMainnet,
+			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			Address:          "bc1qallocated",
+		},
+		SweepMaterialJSON: " ",
+		IssuedAt:          time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC),
+	})
+	if !errors.Is(err, outport.ErrPaymentAddressAllocationStoreFailed) {
+		t.Fatalf("expected ErrPaymentAddressAllocationStoreFailed, got %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unexpected SQL call: %v", err)
 	}
 }
 
@@ -145,7 +189,6 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"network",
 		"scheme",
 		"address",
-		"sweep_material_json",
 		"failure_reason",
 	}).AddRow(
 		int64(199),
@@ -157,7 +200,6 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"mainnet",
 		"nativeSegwit",
 		"bc1qlookup",
-		`{"material_type":"bitcoin_hd"}`,
 		"",
 	)
 
@@ -181,9 +223,6 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 	if allocation.SlotIndex != 21 {
 		t.Fatalf("unexpected slot index: got %d", allocation.SlotIndex)
 	}
-	if allocation.SweepMaterialJSON != `{"material_type":"bitcoin_hd"}` {
-		t.Fatalf("unexpected sweep material: got %q", allocation.SweepMaterialJSON)
-	}
 }
 
 func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain(t *testing.T) {
@@ -205,7 +244,6 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain
 		"network",
 		"scheme",
 		"address",
-		"sweep_material_json",
 		"failure_reason",
 	}).AddRow(
 		int64(199),
@@ -217,7 +255,6 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain
 		"mainnet",
 		"nativeSegwit",
 		"bc1qlookup",
-		`{"material_type":"bitcoin_hd"}`,
 		"",
 	)
 
@@ -250,7 +287,6 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedAddre
 		"network",
 		"scheme",
 		"address",
-		"sweep_material_json",
 		"failure_reason",
 	}).AddRow(
 		int64(199),
@@ -262,7 +298,6 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedAddre
 		"mainnet",
 		"nativeSegwit",
 		"bc1qlookup",
-		`{"material_type":"bitcoin_hd"}`,
 		"",
 	)
 

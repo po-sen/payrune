@@ -2,13 +2,14 @@ package ethereum
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"testing"
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
+	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
 
 func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) {
@@ -43,18 +44,26 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 	if output.IssuanceRef == "" {
 		t.Fatal("expected address reference")
 	}
-	var sweepMaterial map[string]any
-	if err := json.Unmarshal([]byte(output.SweepMaterialJSON), &sweepMaterial); err != nil {
-		t.Fatalf("unexpected sweep material json error: %v", err)
+	if output.IssuanceRefKind != valueobjects.IssuanceRefKindCreate2Salt {
+		t.Fatalf("unexpected issuance ref kind: got %q", output.IssuanceRefKind)
 	}
-	if sweepMaterial["material_type"] != "ethereum_create2" {
-		t.Fatalf("unexpected material type: got %v", sweepMaterial["material_type"])
+	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata("mainnet")
+	if !ok {
+		t.Fatal("expected deployment metadata")
 	}
-	if sweepMaterial["predicted_address"] != output.Address {
-		t.Fatalf("unexpected predicted address: got %v", sweepMaterial["predicted_address"])
+	initCodeHex, ok := metadata.Receiver.InitCodeHex("0x2222222222222222222222222222222222222222")
+	if !ok {
+		t.Fatal("expected init code hex")
 	}
-	if sweepMaterial["create2_salt"] != output.IssuanceRef {
-		t.Fatalf("unexpected create2 salt: got %v", sweepMaterial["create2_salt"])
+	wantSweepMaterialJSON := fmt.Sprintf(
+		`{"material_type":"ethereum_create2","material_version":1,"chain":"ethereum","network":"mainnet","address":"%s","predicted_address":"%s","factory_address":"0x1111111111111111111111111111111111111111","collector_address":"0x2222222222222222222222222222222222222222","create2_salt":"%s","init_code_hex":"%s","init_code_hash":"0x3333333333333333333333333333333333333333333333333333333333333333"}`,
+		output.Address,
+		output.Address,
+		output.IssuanceRef,
+		initCodeHex,
+	)
+	if output.SweepMaterialJSON != wantSweepMaterialJSON {
+		t.Fatalf("unexpected sweep material json:\nwant: %s\n got: %s", wantSweepMaterialJSON, output.SweepMaterialJSON)
 	}
 }
 

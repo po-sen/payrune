@@ -148,9 +148,9 @@ func newFakeIssuedPaymentAddressDeriver() *fakeIssuedPaymentAddressDeriver {
 		},
 		output: outport.DeriveIssuedPaymentAddressOutput{
 			Address:           "bc1qdefault",
-			SweepMaterialJSON: `{"material_type":"bitcoin_hd"}`,
 			IssuanceRefKind:   valueobjects.IssuanceRefKindHDPathAbsolute,
 			IssuanceRef:       "0/0",
+			SweepMaterialJSON: `{"address":"bc1qdefault","issuance_ref":"0/0"}`,
 		},
 	}
 }
@@ -238,8 +238,7 @@ type fakePaymentAddressAllocationStore struct {
 	lastFindIssuedByID    outport.FindIssuedPaymentAddressAllocationByIDInput
 	lastReopenInput       outport.ReservePaymentAddressAllocationInput
 	lastReserveFreshInput outport.ReservePaymentAddressAllocationInput
-	lastCompleteInput     entities.PaymentAddressAllocation
-	lastCompleteIssuedAt  time.Time
+	lastCompleteInput     outport.CompletePaymentAddressAllocationInput
 	lastFailedInput       entities.PaymentAddressAllocation
 	findIssuedByIDCalls   int
 	reopenCalls           int
@@ -302,12 +301,10 @@ func (f *fakePaymentAddressAllocationStore) ReserveFresh(
 
 func (f *fakePaymentAddressAllocationStore) Complete(
 	_ context.Context,
-	input entities.PaymentAddressAllocation,
-	issuedAt time.Time,
+	input outport.CompletePaymentAddressAllocationInput,
 ) error {
 	f.completeCalls++
 	f.lastCompleteInput = input
-	f.lastCompleteIssuedAt = issuedAt
 	return f.completeErr
 }
 

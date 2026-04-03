@@ -80,7 +80,6 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 				"mainnet",
 				"nativeSegwit",
 				"bc1qlookup",
-				`{"material_type":"bitcoin_hd"}`,
 				"",
 			}},
 		},
@@ -113,14 +112,18 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 	store := NewPaymentAddressAllocationStore(executor)
 	issuedAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
 
-	err := store.Complete(context.Background(), entities.PaymentAddressAllocation{
-		PaymentAddressID:  44,
-		Chain:             valueobjects.SupportedChainBitcoin,
-		Network:           valueobjects.NetworkIDMainnet,
-		Scheme:            valueobjects.AddressSchemeNativeSegwit,
-		Address:           " bc1qallocated ",
-		SweepMaterialJSON: ` {"material_type":"bitcoin_hd"} `,
-	}, issuedAt)
+	err := store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
+		Allocation: entities.PaymentAddressAllocation{
+			PaymentAddressID: 44,
+			AddressPolicyID:  "bitcoin-mainnet-native-segwit",
+			Chain:            valueobjects.SupportedChainBitcoin,
+			Network:          valueobjects.NetworkIDMainnet,
+			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			Address:          " bc1qallocated ",
+		},
+		SweepMaterialJSON: `{"material_type":"bitcoin_hd"}`,
+		IssuedAt:          issuedAt,
+	})
 	if err != nil {
 		t.Fatalf("Complete returned error: %v", err)
 	}
@@ -129,6 +132,36 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 	}
 	if !strings.Contains(executor.execCalls[0].query, "UPDATE address_policy_allocations") {
 		t.Fatalf("unexpected exec query: %q", executor.execCalls[0].query)
+	}
+	if len(executor.execCalls[0].args) != 7 {
+		t.Fatalf("unexpected exec args: %+v", executor.execCalls[0].args)
+	}
+	if got := executor.execCalls[0].args[5]; got != `{"material_type":"bitcoin_hd"}` {
+		t.Fatalf("unexpected sweep material json: %v", got)
+	}
+}
+
+func TestPaymentAddressAllocationStoreCompleteRejectsInvalidSweepMaterialInput(t *testing.T) {
+	executor := &stubAllocationExecutor{}
+	store := NewPaymentAddressAllocationStore(executor)
+
+	err := store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
+		Allocation: entities.PaymentAddressAllocation{
+			PaymentAddressID: 44,
+			AddressPolicyID:  "bitcoin-mainnet-native-segwit",
+			Chain:            valueobjects.SupportedChainBitcoin,
+			Network:          valueobjects.NetworkIDMainnet,
+			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			Address:          "bc1qallocated",
+		},
+		SweepMaterialJSON: " ",
+		IssuedAt:          time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC),
+	})
+	if err != outport.ErrPaymentAddressAllocationStoreFailed {
+		t.Fatalf("expected ErrPaymentAddressAllocationStoreFailed, got %v", err)
+	}
+	if len(executor.execCalls) != 0 {
+		t.Fatalf("expected no exec calls, got %+v", executor.execCalls)
 	}
 }
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
@@ -41,7 +40,6 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		rawNetwork          string
 		scheme              string
 		address             string
-		sweepMaterialJSON   string
 		failureReason       string
 	)
 
@@ -56,7 +54,6 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		        COALESCE(a.network, ''),
 		        COALESCE(a.scheme, ''),
 		        COALESCE(a.address, ''),
-		        COALESCE(a.sweep_material_json::text, ''),
 		        COALESCE(a.failure_reason, '')
 		   FROM address_policy_allocations a
 		  WHERE a.id = $1
@@ -73,7 +70,6 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		&rawNetwork,
 		&scheme,
 		&address,
-		&sweepMaterialJSON,
 		&failureReason,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -124,18 +120,20 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		Network:                 network,
 		Scheme:                  valueobjects.AddressScheme(scheme).Normalize(),
 		Address:                 strings.TrimSpace(address),
-		SweepMaterialJSON:       strings.TrimSpace(sweepMaterialJSON),
 		DerivationFailureReason: derivationFailureReason,
 	}, true, nil
 }
 
 func (r *PaymentAddressAllocationStore) Complete(
 	ctx context.Context,
-	allocation entities.PaymentAddressAllocation,
-	issuedAt time.Time,
+	input outport.CompletePaymentAddressAllocationInput,
 ) error {
-	if issuedAt.IsZero() {
+	if input.IssuedAt.IsZero() {
 		return outport.ErrPaymentAddressAllocationIssuedAtRequired
+	}
+	sweepMaterialJSON := strings.TrimSpace(input.SweepMaterialJSON)
+	if sweepMaterialJSON == "" {
+		return outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	result, err := r.executor.ExecContext(
@@ -150,13 +148,13 @@ func (r *PaymentAddressAllocationStore) Complete(
 		     allocation_status = 'issued',
 		     issued_at = $7
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
-		allocation.PaymentAddressID,
-		string(allocation.Chain),
-		string(allocation.Network),
-		string(allocation.Scheme),
-		strings.TrimSpace(allocation.Address),
-		nullIfEmpty(allocation.SweepMaterialJSON),
-		issuedAt.UTC(),
+		input.Allocation.PaymentAddressID,
+		string(input.Allocation.Chain),
+		string(input.Allocation.Network),
+		string(input.Allocation.Scheme),
+		strings.TrimSpace(input.Allocation.Address),
+		sweepMaterialJSON,
+		input.IssuedAt.UTC(),
 	)
 	if err != nil {
 		return outport.ErrPaymentAddressAllocationStoreFailed

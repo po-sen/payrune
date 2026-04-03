@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -39,16 +40,14 @@ func (f *fakeAllocatePaymentAddressClock) NowUTC() time.Time {
 
 func newAllocateDeriveOutput(address string, path string) outport.DeriveIssuedPaymentAddressOutput {
 	kind := valueobjects.IssuanceRefKindHDPathAbsolute
-	sweepMaterialJSON := `{"material_type":"bitcoin_hd"}`
 	if strings.HasPrefix(path, "0x") || strings.Contains(path, "/0x") {
 		kind = valueobjects.IssuanceRefKindCreate2Salt
-		sweepMaterialJSON = `{"material_type":"ethereum_create2"}`
 	}
 	return outport.DeriveIssuedPaymentAddressOutput{
 		Address:           address,
-		SweepMaterialJSON: sweepMaterialJSON,
 		IssuanceRefKind:   kind,
 		IssuanceRef:       path,
+		SweepMaterialJSON: fmt.Sprintf(`{"address":%q,"issuance_ref":%q}`, address, path),
 	}
 }
 
@@ -209,11 +208,18 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if trackingStore.lastCreateTracking.ExpiresAt == nil || trackingStore.lastCreateTracking.ExpiresAt.IsZero() {
 		t.Fatal("expected non-zero expires at in created tracking")
 	}
-	if allocator.lastCompleteInput.PaymentAddressID != 44 {
-		t.Fatalf("unexpected payment address id in complete input: got %d", allocator.lastCompleteInput.PaymentAddressID)
+	if allocator.lastCompleteInput.Allocation.PaymentAddressID != 44 {
+		t.Fatalf(
+			"unexpected payment address id in complete input: got %d",
+			allocator.lastCompleteInput.Allocation.PaymentAddressID,
+		)
 	}
-	if !strings.Contains(allocator.lastCompleteInput.SweepMaterialJSON, `"bitcoin_hd"`) {
-		t.Fatalf("unexpected sweep material in complete input: got %q", allocator.lastCompleteInput.SweepMaterialJSON)
+	if allocator.lastCompleteInput.SweepMaterialJSON != deriver.output.SweepMaterialJSON {
+		t.Fatalf(
+			"unexpected sweep material json in complete input:\nwant: %s\n got: %s",
+			deriver.output.SweepMaterialJSON,
+			allocator.lastCompleteInput.SweepMaterialJSON,
+		)
 	}
 	if deriver.lastInput.Allocation.SlotIndex != 11 {
 		t.Fatalf("unexpected derivation index passed to issued deriver: got %d", deriver.lastInput.Allocation.SlotIndex)
@@ -299,14 +305,18 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
 	}
-	if allocator.lastCompleteInput.Chain != valueobjects.SupportedChainEthereum {
-		t.Fatalf("unexpected chain persisted on allocation: got %q", allocator.lastCompleteInput.Chain)
+	if allocator.lastCompleteInput.Allocation.Chain != valueobjects.SupportedChainEthereum {
+		t.Fatalf("unexpected chain persisted on allocation: got %q", allocator.lastCompleteInput.Allocation.Chain)
 	}
-	if allocator.lastCompleteInput.Scheme != "create2" {
-		t.Fatalf("unexpected scheme persisted on allocation: got %q", allocator.lastCompleteInput.Scheme)
+	if allocator.lastCompleteInput.Allocation.Scheme != "create2" {
+		t.Fatalf("unexpected scheme persisted on allocation: got %q", allocator.lastCompleteInput.Allocation.Scheme)
 	}
-	if !strings.Contains(allocator.lastCompleteInput.SweepMaterialJSON, `"ethereum_create2"`) {
-		t.Fatalf("unexpected ethereum sweep material persisted on allocation: got %q", allocator.lastCompleteInput.SweepMaterialJSON)
+	if allocator.lastCompleteInput.SweepMaterialJSON != deriver.output.SweepMaterialJSON {
+		t.Fatalf(
+			"unexpected ethereum sweep material json in complete input:\nwant: %s\n got: %s",
+			deriver.output.SweepMaterialJSON,
+			allocator.lastCompleteInput.SweepMaterialJSON,
+		)
 	}
 	if deriver.lastInput.Policy.Chain != valueobjects.SupportedChainEthereum {
 		t.Fatalf("unexpected chain passed to issued deriver: got %q", deriver.lastInput.Policy.Chain)
@@ -846,8 +856,11 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 	if trackingStore.lastCreateTracking.ExpiresAt == nil || trackingStore.lastCreateTracking.ExpiresAt.IsZero() {
 		t.Fatal("expected non-zero expires at in created tracking")
 	}
-	if allocator.lastCompleteInput.PaymentAddressID != 55 {
-		t.Fatalf("unexpected payment address id in complete input: got %d", allocator.lastCompleteInput.PaymentAddressID)
+	if allocator.lastCompleteInput.Allocation.PaymentAddressID != 55 {
+		t.Fatalf(
+			"unexpected payment address id in complete input: got %d",
+			allocator.lastCompleteInput.Allocation.PaymentAddressID,
+		)
 	}
 	if response.PaymentAddressID != "55" {
 		t.Fatalf("unexpected payment address id: got %q", response.PaymentAddressID)
