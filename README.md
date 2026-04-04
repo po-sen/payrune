@@ -140,16 +140,58 @@ ETH CREATE2 sweep helper:
 
 ```bash
 DATABASE_URL=postgres://...
-ETHEREUM_SWEEP_PAYMENT_ADDRESS_ID=145
+ETHEREUM_SWEEP_PAYMENT_ADDRESS_IDS=145
 ETHEREUM_SWEEP_RPC_URL=https://...
 ETHEREUM_SWEEP_FROM_ADDRESS=0xYourLedgerSender
 ETHEREUM_SWEEP_DERIVATION_PATH="m/44'/60'/0'/0/0" \
   bash scripts/ethereum_create2_sweep.sh
 ```
 
-The helper reads `sweep_material_json` from the DB, validates the connected Ledger sender, and
-prints the `cast send <receiver> "sweep()"` command in dry-run mode. Use
+The helper reads `sweep_material_json` from the DB, validates the connected Ledger sender, checks
+that each selected receiver still has a non-zero on-chain balance, and prints the batch recovery
+command in dry-run mode. It validates the recorded payload against the active metadata factory for
+that network, and the factory derives each receiver from CREATE2 recovery payload, deploys the
+receiver if code is still missing, and then sweeps it. Use
 `bash scripts/ethereum_create2_sweep.sh --broadcast` only after the dry-run output is correct.
+
+ETH CREATE2 batch sweep:
+
+1. Build the checked-in CREATE2 artifacts:
+
+```bash
+bash scripts/ethereum_create2_build_artifacts.sh
+```
+
+1. Deploy the CREATE2 factory once per network with Ledger:
+
+```bash
+ETHEREUM_SWEEP_RPC_URL=https://...
+ETHEREUM_SWEEP_FROM_ADDRESS=0xYourLedgerSender
+ETHEREUM_SWEEP_DERIVATION_PATH="m/44'/60'/0'/0/0" \
+  bash scripts/ethereum_create2_factory_deploy.sh
+```
+
+Use `bash scripts/ethereum_create2_factory_deploy.sh --broadcast` only after the dry-run output is
+correct. The script deploys the checked-in `Create2ReceiverFactoryV1` artifact, resolves the target
+network from chain ID, and updates checked-in metadata with the deployed factory address.
+
+1. Dry-run a sweep with explicit IDs or addresses:
+
+```bash
+DATABASE_URL=postgres://...
+ETHEREUM_SWEEP_PAYMENT_ADDRESS_IDS=145,146
+ETHEREUM_SWEEP_RPC_URL=https://...
+ETHEREUM_SWEEP_FROM_ADDRESS=0xYourLedgerSender
+ETHEREUM_SWEEP_DERIVATION_PATH="m/44'/60'/0'/0/0" \
+  bash scripts/ethereum_create2_sweep.sh
+```
+
+The sweep helper stays Ledger-only, rejects mixed or malformed selections, rejects stale rows whose
+recorded `factory_address` no longer matches the active metadata factory, rejects zero-balance
+receivers, and prints one batch recovery command in dry-run mode. The factory derives each receiver
+from CREATE2 recovery payload, deploys the receiver if code is still missing, and then sweeps it. Use
+`bash scripts/ethereum_create2_sweep.sh --broadcast` only after the dry-run output is correct. For
+one-off recovery, pass exactly one ID or address and the same helper will send a batch of size 1.
 
 ## Main Parameters
 

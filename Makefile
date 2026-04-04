@@ -6,7 +6,6 @@ COMPOSE := docker compose \
 .PHONY: \
 	up \
 	down \
-	eth-create2-verify \
 	cf-migrate \
 	cf-up \
 	cf-down
@@ -16,9 +15,6 @@ up:
 
 down:
 	$(COMPOSE) down
-
-eth-create2-verify:
-	./scripts/ethereum_create2_verify_chain.sh
 
 cf-migrate:
 	./scripts/cf-cloudflare-migrate.sh
