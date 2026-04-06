@@ -186,8 +186,8 @@ compiler_version="$(
 mkdir -p "$artifacts_dir"
 
 artifact_definitions=(
-  "Create2ReceiverFactory.sol|Create2ReceiverFactory|Create2ReceiverFactoryV1.json"
-  "FixedCollectorReceiver.sol|FixedCollectorReceiver|FixedCollectorReceiverV1.json"
+  "Create2ReceiverFactory.sol|Create2ReceiverFactory|Create2ReceiverFactory.json"
+  "FixedCollectorReceiver.sol|FixedCollectorReceiver|FixedCollectorReceiver.json"
 )
 built_contract_names=()
 

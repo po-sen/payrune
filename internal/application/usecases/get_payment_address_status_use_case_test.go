@@ -48,7 +48,6 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 				valueobjects.SupportedChainBitcoin,
 				valueobjects.NetworkIDMainnet,
 				string(valueobjects.AddressSchemeNativeSegwit),
-				"satoshi",
 				8,
 				"xpub",
 				"m/84'/0'/0'",
@@ -65,9 +64,6 @@ func TestGetPaymentAddressStatusUseCaseSuccess(t *testing.T) {
 	}
 	if response.PaymentAddressID != "101" {
 		t.Fatalf("unexpected payment address id: got %q", response.PaymentAddressID)
-	}
-	if response.MinorUnit != "satoshi" {
-		t.Fatalf("unexpected minor unit: got %q", response.MinorUnit)
 	}
 	if response.Decimals != 8 {
 		t.Fatalf("unexpected decimals: got %d", response.Decimals)

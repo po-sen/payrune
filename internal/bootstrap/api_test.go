@@ -391,6 +391,57 @@ func TestValidateConfiguredAddressIssuancePoliciesSkipsDisabledAndNonBitcoinPoli
 	}
 }
 
+func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidEthereumAssetReference(t *testing.T) {
+	policies := []policies.AddressIssuancePolicy{
+		{
+			AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2,
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkIDSepolia,
+			Scheme:          valueobjects.AddressSchemeCreate2,
+			AssetReference:  "0xnot-a-token",
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSpaceRef: "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0x1111111111111111111111111111111111111111111111111111111111111111",
+			},
+		},
+	}
+
+	err := validateConfiguredAddressIssuancePolicies(policies, newBootstrapBitcoinDeriver())
+	if err == nil {
+		t.Fatal("expected invalid ethereum asset reference validation error")
+	}
+	if !strings.Contains(err.Error(), string(valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2)) {
+		t.Fatalf("expected policy id in error, got %q", err)
+	}
+	if !strings.Contains(err.Error(), envEthereumSepoliaUSDTAssetReference) {
+		t.Fatalf("expected env key in error, got %q", err)
+	}
+}
+
+func TestValidateConfiguredAddressIssuancePoliciesRejectsMissingEthereumAssetReferenceForUSDTPolicy(t *testing.T) {
+	policies := []policies.AddressIssuancePolicy{
+		{
+			AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2,
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkIDSepolia,
+			Scheme:          valueobjects.AddressSchemeCreate2,
+			IssuanceConfig: valueobjects.AddressIssuanceConfig{
+				AddressSpaceRef: "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0x1111111111111111111111111111111111111111111111111111111111111111",
+			},
+		},
+	}
+
+	err := validateConfiguredAddressIssuancePolicies(policies, newBootstrapBitcoinDeriver())
+	if err == nil {
+		t.Fatal("expected missing ethereum asset reference validation error")
+	}
+	if !strings.Contains(err.Error(), string(valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2)) {
+		t.Fatalf("expected policy id in error, got %q", err)
+	}
+	if !strings.Contains(err.Error(), envEthereumSepoliaUSDTAssetReference) {
+		t.Fatalf("expected env key in error, got %q", err)
+	}
+}
+
 func findAddressIssuancePolicyByID(
 	issuancePolicies []policies.AddressIssuancePolicy,
 	addressPolicyID valueobjects.AddressPolicyID,

@@ -15,6 +15,7 @@ type PaymentReceiptTracking struct {
 	Chain                   valueobjects.ChainID
 	Network                 valueobjects.NetworkID
 	Address                 string
+	AssetReference          string
 	IssuedAt                time.Time
 	ExpectedAmountMinor     int64
 	RequiredConfirmations   int32
@@ -36,6 +37,7 @@ func NewPaymentReceiptTracking(
 	chain valueobjects.ChainID,
 	network valueobjects.NetworkID,
 	address string,
+	assetReference string,
 	issuedAt time.Time,
 	expectedAmountMinor int64,
 	requiredConfirmations int32,
@@ -44,6 +46,7 @@ func NewPaymentReceiptTracking(
 	normalizedAddress := strings.TrimSpace(address)
 	normalizedChain, chainOK := valueobjects.ParseChainID(string(chain))
 	normalizedNetwork, networkOK := valueobjects.ParseNetworkID(string(network))
+	normalizedAssetReference := strings.TrimSpace(assetReference)
 
 	if paymentAddressID <= 0 {
 		return PaymentReceiptTracking{}, ErrPaymentAddressIDInvalid
@@ -76,6 +79,7 @@ func NewPaymentReceiptTracking(
 		Chain:                 normalizedChain,
 		Network:               normalizedNetwork,
 		Address:               normalizedAddress,
+		AssetReference:        normalizedAssetReference,
 		IssuedAt:              issuedAt.UTC(),
 		ExpectedAmountMinor:   expectedAmountMinor,
 		RequiredConfirmations: requiredConfirmations,

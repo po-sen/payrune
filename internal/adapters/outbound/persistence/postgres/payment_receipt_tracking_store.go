@@ -39,6 +39,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 		     chain,
 		     network,
 		     address,
+		     asset_reference,
 		     issued_at,
 		     expires_at,
 		     expected_amount_minor,
@@ -56,7 +57,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 		   )
 		   VALUES (
 		     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-		     $11, $12, $13, $14, $15, $16, $17, $18, $19
+		     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
 		   )
 		   ON CONFLICT (payment_address_id) DO NOTHING`,
 		tracking.PaymentAddressID,
@@ -64,6 +65,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 		string(tracking.Chain),
 		string(tracking.Network),
 		tracking.Address,
+		nullIfEmpty(strings.TrimSpace(tracking.AssetReference)),
 		tracking.IssuedAt.UTC(),
 		nullableTimePointer(tracking.ExpiresAt),
 		tracking.ExpectedAmountMinor,
@@ -157,7 +159,8 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 		     pr.paid_at,
 		     pr.confirmed_at,
 		     pr.expires_at,
-		     COALESCE(pr.last_error, '')`,
+		     COALESCE(pr.last_error, ''),
+		     COALESCE(pr.asset_reference, '')`,
 		input.Now,
 		input.Limit,
 		input.ClaimUntil,
@@ -267,6 +270,7 @@ func scanPaymentReceiptTracking(scanner interface {
 	var confirmedAt sql.NullTime
 	var expiresAt sql.NullTime
 	var lastError string
+	var rawAssetReference string
 
 	if err := scanner.Scan(
 		&trackingID,
@@ -288,6 +292,7 @@ func scanPaymentReceiptTracking(scanner interface {
 		&confirmedAt,
 		&expiresAt,
 		&lastError,
+		&rawAssetReference,
 	); err != nil {
 		return entities.PaymentReceiptTracking{}, outport.ErrPaymentReceiptTrackingStoreFailed
 	}
@@ -308,6 +313,7 @@ func scanPaymentReceiptTracking(scanner interface {
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedNetworkInvalid, networkRaw)
 	}
+	assetReference := strings.TrimSpace(rawAssetReference)
 	status, ok := valueobjects.ParsePaymentReceiptStatus(receiptStatusRaw)
 	if !ok {
 		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedStatusInvalid, receiptStatusRaw)
@@ -321,6 +327,7 @@ func scanPaymentReceiptTracking(scanner interface {
 		Chain:                   chain,
 		Network:                 network,
 		Address:                 address,
+		AssetReference:          assetReference,
 		ExpectedAmountMinor:     expectedAmountMinor,
 		RequiredConfirmations:   requiredConfirmations,
 		Status:                  status,

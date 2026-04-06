@@ -1,6 +1,6 @@
 ## Payrune
 
-Payrune is a Bitcoin payment-address service.
+Payrune is a payment-address service for Bitcoin and Ethereum.
 
 It does 3 things:
 
@@ -11,8 +11,12 @@ It does 3 things:
 It supports:
 
 - `bitcoin` chain
+- `ethereum` chain
 - `mainnet` and `testnet4`
+- `sepolia`
 - address schemes: `legacy`, `segwit`, `nativeSegwit`, `taproot`
+- `create2` on Ethereum
+- assets: Bitcoin-native payments, Ethereum native ETH, and Ethereum ERC-20 USDT
 
 ## What You Can Call
 
@@ -20,9 +24,12 @@ Public API:
 
 - `GET /health`
 - `GET /v1/chains/bitcoin/address-policies`
+- `GET /v1/chains/ethereum/address-policies`
 - `GET /v1/chains/bitcoin/addresses?addressPolicyId=...&index=...`
 - `POST /v1/chains/bitcoin/payment-addresses`
+- `POST /v1/chains/ethereum/payment-addresses`
 - `GET /v1/chains/bitcoin/payment-addresses/{paymentAddressId}`
+- `GET /v1/chains/ethereum/payment-addresses/{paymentAddressId}`
 
 Webhook event:
 
@@ -58,9 +65,42 @@ Example success response:
   "chain": "bitcoin",
   "network": "mainnet",
   "scheme": "nativeSegwit",
-  "minorUnit": "satoshi",
   "decimals": 8,
   "address": "bc1qexamplepaymentaddress"
+}
+```
+
+For Sepolia smoke testing, use Tether's published USD₮ test-token contract
+`0xd077a400968890eacc75cdc901f0356c943e4fdb` and acquire test tokens from the Pimlico or Candide
+faucets linked in Tether WDK docs before enabling `ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE`.
+
+Create an Ethereum USDT payment address:
+
+```bash
+curl -X POST http://localhost:8080/v1/chains/ethereum/payment-addresses \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: order-20260405-usdt-001' \
+  -d '{
+    "addressPolicyId": "ethereum-sepolia-usdt-create2",
+    "expectedAmountMinor": 2500000,
+    "customerReference": "order-20260405-usdt-001"
+  }'
+```
+
+Example success response:
+
+```json
+{
+  "paymentAddressId": "145",
+  "addressPolicyId": "ethereum-sepolia-usdt-create2",
+  "expectedAmountMinor": 2500000,
+  "customerReference": "order-20260405-usdt-001",
+  "chain": "ethereum",
+  "network": "sepolia",
+  "scheme": "create2",
+  "assetReference": "0xd077a400968890eacc75cdc901f0356c943e4fdb",
+  "decimals": 6,
+  "address": "0x1234567890abcdef1234567890abcdef12345678"
 }
 ```
 
@@ -98,6 +138,7 @@ Payload:
   "notificationId": 1,
   "paymentAddressId": 101,
   "customerReference": "order-20260313-001",
+  "assetReference": "0xd077a400968890eacc75cdc901f0356c943e4fdb",
   "previousStatus": "watching",
   "currentStatus": "partially_paid",
   "observedTotalMinor": 80000,
@@ -148,10 +189,12 @@ ETHEREUM_SWEEP_DERIVATION_PATH="m/44'/60'/0'/0/0" \
 ```
 
 The helper reads `sweep_material_json` from the DB, validates the connected Ledger sender, checks
-that each selected receiver still has a non-zero on-chain balance, and prints the batch recovery
-command in dry-run mode. It validates the recorded payload against the active metadata factory for
-that network, and the factory derives each receiver from CREATE2 recovery payload, deploys the
-receiver if code is still missing, and then sweeps it. Use
+that each selected receiver still has a non-zero asset balance, and prints the recovery command in
+dry-run mode. For native ETH rows it prints one factory batch sweep. For ERC-20 rows it validates
+that every selected receiver shares the same asset reference, deploys any missing receiver
+contracts through the factory, and sweeps all compatible token receivers through one factory batch
+transaction. It compares the selected row factory against checked-in metadata for that network and
+uses the row-owned factory recorded in recovery material. Use
 `bash scripts/ethereum_create2_sweep.sh --broadcast` only after the dry-run output is correct.
 
 ETH CREATE2 batch sweep:
@@ -172,8 +215,13 @@ ETHEREUM_SWEEP_DERIVATION_PATH="m/44'/60'/0'/0/0" \
 ```
 
 Use `bash scripts/ethereum_create2_factory_deploy.sh --broadcast` only after the dry-run output is
-correct. The script deploys the checked-in `Create2ReceiverFactoryV1` artifact, resolves the target
+correct. The script deploys the checked-in `Create2ReceiverFactory` artifact, resolves the target
 network from chain ID, and updates checked-in metadata with the deployed factory address.
+
+After CREATE2 factory ABI changes, redeploy the factory on that network before using the current
+one-signature ERC-20 batch recovery path. The current checked-in metadata also points new issuance
+at the unified `FixedCollectorReceiver` artifact, so redeploy the factory before issuing fresh
+Ethereum CREATE2 rows that you expect to recover through the current path.
 
 1. Dry-run a sweep with explicit IDs or addresses:
 
@@ -186,12 +234,59 @@ ETHEREUM_SWEEP_DERIVATION_PATH="m/44'/60'/0'/0/0" \
   bash scripts/ethereum_create2_sweep.sh
 ```
 
-The sweep helper stays Ledger-only, rejects mixed or malformed selections, rejects stale rows whose
-recorded `factory_address` no longer matches the active metadata factory, rejects zero-balance
-receivers, and prints one batch recovery command in dry-run mode. The factory derives each receiver
-from CREATE2 recovery payload, deploys the receiver if code is still missing, and then sweeps it. Use
+The sweep helper stays Ledger-only, rejects mixed or malformed selections, rejects zero-balance
+receivers, and prints one batch recovery command in dry-run mode. The factory derives each
+receiver from CREATE2 recovery payload, deploys the receiver if code is still missing, and then
+sweeps it. For compatible ERC-20 rows, the helper now prints one batch factory command and
+estimates one Ledger signature, even when the selected rows belong to an older factory namespace.
+Use
 `bash scripts/ethereum_create2_sweep.sh --broadcast` only after the dry-run output is correct. For
 one-off recovery, pass exactly one ID or address and the same helper will send a batch of size 1.
+
+## Ledger USDT Payment Helper
+
+Use [`scripts/ethereum_usdt_pay_with_ledger.sh`](/Users/posen/Desktop/payrune/scripts/ethereum_usdt_pay_with_ledger.sh)
+to send one USDT payment with a Ledger signer.
+
+Dry-run:
+
+```bash
+ETHEREUM_PAYMENT_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+ETHEREUM_PAYMENT_FROM_ADDRESS=0xYourLedgerSender
+ETHEREUM_PAYMENT_TO_ADDRESS=0xRecipientAddress
+ETHEREUM_PAYMENT_AMOUNT_MINOR=2500000
+ETHEREUM_PAYMENT_DERIVATION_PATH="m/44'/60'/0'/0/0" \
+  bash scripts/ethereum_usdt_pay_with_ledger.sh
+```
+
+Broadcast:
+
+```bash
+ETHEREUM_PAYMENT_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+ETHEREUM_PAYMENT_FROM_ADDRESS=0xYourLedgerSender
+ETHEREUM_PAYMENT_TO_ADDRESS=0xRecipientAddress
+ETHEREUM_PAYMENT_AMOUNT_MINOR=2500000
+ETHEREUM_PAYMENT_DERIVATION_PATH="m/44'/60'/0'/0/0" \
+  bash scripts/ethereum_usdt_pay_with_ledger.sh --broadcast
+```
+
+The helper resolves `mainnet` or `sepolia` from `ETHEREUM_PAYMENT_RPC_URL`, defaults the USDT
+asset reference to the known network contract address when no override is set, and only validates
+the connected Ledger sender in `--broadcast` mode.
+
+## Sepolia Test USDt
+
+For Sepolia test flows, use Tether's published USD₮ test-token contract:
+
+- `0xd077a400968890eacc75cdc901f0356c943e4fdb`
+
+Get free test USD₮ from:
+
+- Pimlico faucet: `https://dashboard.pimlico.io/test-erc20-faucet`
+- Candide faucet: `https://dashboard.candide.dev/faucet`
+
+The checked-in [`deployments/compose/compose.test.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.test.env)
+already points `ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE` at that address.
 
 ## Main Parameters
 
@@ -204,6 +299,18 @@ API / core:
 - `BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS`: default `2`
 - `BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER`: default `24h`
 - `BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER`: default `24h`
+- `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS`
+- `ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY`
+- `ETHEREUM_MAINNET_USDT_ASSET_REFERENCE`
+- `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS`
+- `ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY`
+- `ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE`
+- `ETHEREUM_PAYMENT_RPC_URL`
+- `ETHEREUM_PAYMENT_FROM_ADDRESS`
+- `ETHEREUM_PAYMENT_TO_ADDRESS`
+- `ETHEREUM_PAYMENT_AMOUNT_MINOR`
+- `ETHEREUM_PAYMENT_DERIVATION_PATH`
+- `ETHEREUM_PAYMENT_ASSET_REFERENCE`
 
 Poller:
 

@@ -15,6 +15,7 @@ var (
 )
 
 type ObservePaymentAddressInput struct {
+	AssetReference        string
 	Network               valueobjects.NetworkID
 	Address               string
 	IssuedAt              time.Time
@@ -27,6 +28,7 @@ type ObservePaymentAddressInput struct {
 }
 
 type ObserveChainPaymentAddressInput struct {
+	AssetReference        string
 	Chain                 valueobjects.ChainID
 	Network               valueobjects.NetworkID
 	Address               string

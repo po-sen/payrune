@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"payrune/internal/application/dto"
@@ -129,7 +130,7 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 		Chain:               string(issuedAllocation.Chain),
 		Network:             string(issuedAllocation.Network),
 		Scheme:              string(issuedAllocation.Scheme),
-		MinorUnit:           policy.MinorUnit,
+		AssetReference:      strings.TrimSpace(policy.AssetReference),
 		Decimals:            policy.Decimals,
 		Address:             issuedAllocation.Address,
 		CustomerReference:   issuedAllocation.CustomerReference,
@@ -233,7 +234,7 @@ func (uc *allocatePaymentAddressUseCase) loadReplayedAllocationResponse(
 		Chain:               string(allocation.Chain),
 		Network:             string(allocation.Network),
 		Scheme:              string(allocation.Scheme),
-		MinorUnit:           policy.MinorUnit,
+		AssetReference:      strings.TrimSpace(policy.AssetReference),
 		Decimals:            policy.Decimals,
 		Address:             allocation.Address,
 		CustomerReference:   allocation.CustomerReference,
@@ -309,11 +310,14 @@ func (uc *allocatePaymentAddressUseCase) issueAllocation(
 			)
 		}
 
+		assetReference := strings.TrimSpace(issuancePlan.Reservation.IssuancePolicy.Normalize().AssetReference)
+
 		issuedAllocation, err = allocation.MarkIssued(
 			issuancePlan.Reservation.IssuancePolicy.AddressPolicyID,
 			issuancePlan.Reservation.IssuancePolicy.Chain,
 			issuancePlan.Reservation.IssuancePolicy.Network,
 			issuancePlan.Reservation.IssuancePolicy.Scheme,
+			assetReference,
 			derived.Address,
 		)
 		if err != nil {

@@ -11,6 +11,11 @@ import (
 //go:embed artifacts/*.json metadata/*.json
 var embeddedAssets embed.FS
 
+const (
+	ReceiverArtifactName = "FixedCollectorReceiver.json"
+	FactoryArtifactName  = "Create2ReceiverFactory.json"
+)
+
 type DeploymentMetadata struct {
 	Network          string           `json:"network"`
 	FactoryAddress   string           `json:"factoryAddress"`
@@ -29,6 +34,7 @@ type ReceiverArtifact struct {
 }
 
 var deploymentMetadataByNetwork = mustLoadDeploymentMetadataByNetwork()
+var receiverArtifactsByName = mustLoadReceiverArtifactsByName()
 
 func LookupDeploymentMetadata(network string) (DeploymentMetadata, bool) {
 	metadata, ok := deploymentMetadataByNetwork[normalizeNetworkKey(network)]
@@ -40,6 +46,30 @@ func BuildAddressSpaceRef(network string, collectorAddress string) string {
 	if !ok {
 		return ""
 	}
+	return BuildAddressSpaceRefFromMetadata(metadata, collectorAddress)
+}
+
+func BuildTokenCapableAddressSpaceRef(network string, collectorAddress string) string {
+	return BuildAddressSpaceRefWithReceiverArtifact(network, collectorAddress, ReceiverArtifactName)
+}
+
+func BuildAddressSpaceRefWithReceiverArtifact(
+	network string,
+	collectorAddress string,
+	receiverArtifactName string,
+) string {
+	metadata, ok := LookupDeploymentMetadata(network)
+	if !ok {
+		return ""
+	}
+
+	artifact, ok := LookupReceiverArtifact(receiverArtifactName)
+	if !ok {
+		return ""
+	}
+
+	metadata.ReceiverArtifact = receiverArtifactName
+	metadata.Receiver = artifact
 	return BuildAddressSpaceRefFromMetadata(metadata, collectorAddress)
 }
 
@@ -97,6 +127,36 @@ func mustLoadDeploymentMetadataByNetwork() map[string]DeploymentMetadata {
 	}
 
 	return loaded
+}
+
+func mustLoadReceiverArtifactsByName() map[string]ReceiverArtifact {
+	entries, err := embeddedAssets.ReadDir("artifacts")
+	if err != nil {
+		panic(fmt.Errorf("read embedded ethereum create2 artifacts: %w", err))
+	}
+
+	loaded := make(map[string]ReceiverArtifact, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+
+		artifact, err := loadReceiverArtifact(entry.Name())
+		if err != nil {
+			panic(err)
+		}
+		if _, exists := loaded[entry.Name()]; exists {
+			panic(fmt.Errorf("duplicate embedded ethereum create2 receiver artifact: %s", entry.Name()))
+		}
+		loaded[entry.Name()] = artifact
+	}
+
+	return loaded
+}
+
+func LookupReceiverArtifact(fileName string) (ReceiverArtifact, bool) {
+	artifact, ok := receiverArtifactsByName[strings.TrimSpace(fileName)]
+	return artifact, ok
 }
 
 func loadDeploymentMetadata(fileName string) (DeploymentMetadata, error) {

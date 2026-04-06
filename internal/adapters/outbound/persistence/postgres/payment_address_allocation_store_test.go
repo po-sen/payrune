@@ -66,6 +66,7 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 		Chain:            valueobjects.SupportedChainBitcoin,
 		Network:          valueobjects.NetworkIDMainnet,
 		Scheme:           valueobjects.AddressSchemeNativeSegwit,
+		AssetReference:   "",
 		Address:          " bc1qallocated ",
 	}
 
@@ -76,6 +77,7 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 			"mainnet",
 			"nativeSegwit",
 			"bc1qallocated",
+			nil,
 			`{"material_type":"bitcoin_hd"}`,
 			issuedAt.UTC(),
 		).
@@ -113,6 +115,7 @@ func TestPaymentAddressAllocationStoreCompleteNotReserved(t *testing.T) {
 			Chain:            valueobjects.SupportedChainBitcoin,
 			Network:          valueobjects.NetworkIDMainnet,
 			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			AssetReference:   "",
 			Address:          "bc1qallocated",
 		},
 		SweepMaterial: `{"material_type":"bitcoin_hd"}`,
@@ -139,6 +142,7 @@ func TestPaymentAddressAllocationStoreCompleteRejectsInvalidSweepMaterialInput(t
 			Chain:            valueobjects.SupportedChainBitcoin,
 			Network:          valueobjects.NetworkIDMainnet,
 			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			AssetReference:   "",
 			Address:          "bc1qallocated",
 		},
 		SweepMaterial: " ",
@@ -188,6 +192,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"chain",
 		"network",
 		"scheme",
+		"asset_reference",
 		"address",
 		"failure_reason",
 	}).AddRow(
@@ -199,6 +204,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDSuccess(t *testing.T) {
 		"bitcoin",
 		"mainnet",
 		"nativeSegwit",
+		"",
 		"bc1qlookup",
 		"",
 	)
@@ -243,6 +249,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain
 		"chain",
 		"network",
 		"scheme",
+		"asset_reference",
 		"address",
 		"failure_reason",
 	}).AddRow(
@@ -254,6 +261,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedChain
 		"bad/chain",
 		"mainnet",
 		"nativeSegwit",
+		"",
 		"bc1qlookup",
 		"",
 	)
@@ -286,6 +294,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedAddre
 		"chain",
 		"network",
 		"scheme",
+		"asset_reference",
 		"address",
 		"failure_reason",
 	}).AddRow(
@@ -297,6 +306,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDRejectsInvalidPersistedAddre
 		"bitcoin",
 		"mainnet",
 		"nativeSegwit",
+		"",
 		"bc1qlookup",
 		"",
 	)

@@ -3,6 +3,7 @@ package ethereum
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,23 +15,26 @@ import (
 )
 
 type testEthereumRPCServer struct {
-	t                 *testing.T
-	latestBlockHeight string
-	balancesByKey     map[string]string
-	statusCode        int
-	rpcError          map[string]any
-	lastAuthHeader    string
-	requestedBalances []string
-	requestedBlocks   []string
+	t                      *testing.T
+	latestBlockHeight      string
+	balancesByKey          map[string]string
+	tokenBalancesByKey     map[string]string
+	statusCode             int
+	rpcError               map[string]any
+	lastAuthHeader         string
+	requestedBalances      []string
+	requestedTokenBalances []string
+	requestedBlocks        []string
 }
 
 func newTestEthereumRPCServer(t *testing.T) (*testEthereumRPCServer, *httptest.Server) {
 	t.Helper()
 
 	handlerState := &testEthereumRPCServer{
-		t:                 t,
-		latestBlockHeight: "0x3",
-		balancesByKey:     make(map[string]string),
+		t:                  t,
+		latestBlockHeight:  "0x3",
+		balancesByKey:      make(map[string]string),
+		tokenBalancesByKey: make(map[string]string),
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -92,6 +96,41 @@ func newTestEthereumRPCServer(t *testing.T) (*testEthereumRPCServer, *httptest.S
 				"id":      1,
 				"result":  result,
 			})
+		case "eth_call":
+			if len(request.Params) != 2 {
+				t.Fatalf("unexpected params for eth_call: %d", len(request.Params))
+			}
+
+			var callObject struct {
+				To   string `json:"to"`
+				Data string `json:"data"`
+			}
+			if err := json.Unmarshal(request.Params[0], &callObject); err != nil {
+				t.Fatalf("decode call object: %v", err)
+			}
+			var blockNumber string
+			if err := json.Unmarshal(request.Params[1], &blockNumber); err != nil {
+				t.Fatalf("decode call block number: %v", err)
+			}
+
+			assetReference := strings.ToLower(strings.TrimSpace(callObject.To))
+			address, err := decodeERC20BalanceOfCallAddress(callObject.Data)
+			if err != nil {
+				t.Fatalf("decode erc20 balanceOf call: %v", err)
+			}
+			key := ethereumTokenBalanceKey(assetReference, address, blockNumber)
+			handlerState.requestedTokenBalances = append(handlerState.requestedTokenBalances, key)
+
+			result, ok := handlerState.tokenBalancesByKey[key]
+			if !ok {
+				result = "0x0"
+			}
+
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"jsonrpc": "2.0",
+				"id":      1,
+				"result":  result,
+			})
 		case "eth_getBlockByNumber":
 			if len(request.Params) > 0 {
 				var blockNumber string
@@ -114,6 +153,14 @@ func newTestEthereumRPCServer(t *testing.T) (*testEthereumRPCServer, *httptest.S
 
 func ethereumBalanceKey(address string, blockNumber string) string {
 	return strings.ToLower(strings.TrimSpace(address)) + "@" + strings.ToLower(strings.TrimSpace(blockNumber))
+}
+
+func ethereumTokenBalanceKey(assetReference string, address string, blockNumber string) string {
+	return strings.ToLower(strings.TrimSpace(assetReference)) +
+		":" +
+		strings.ToLower(strings.TrimSpace(address)) +
+		"@" +
+		strings.ToLower(strings.TrimSpace(blockNumber))
 }
 
 func TestEthereumRPCReceiptObserverObserveAddress(t *testing.T) {
@@ -213,6 +260,56 @@ func TestEthereumRPCReceiptObserverObserveAddressWithInsufficientConfirmations(t
 	}
 }
 
+func TestEthereumRPCReceiptObserverObserveAddressERC20(t *testing.T) {
+	state, server := newTestEthereumRPCServer(t)
+	defer server.Close()
+
+	assetReference := "0xdac17f958d2ee523a2206206994597c13d831ec7"
+	receiverAddress := "0x1111111111111111111111111111111111111111"
+	state.tokenBalancesByKey[ethereumTokenBalanceKey(assetReference, receiverAddress, "0x3")] = "0xf4240"
+	state.tokenBalancesByKey[ethereumTokenBalanceKey(assetReference, receiverAddress, "0x2")] = "0xc3500"
+
+	observer, err := NewEthereumRPCReceiptObserver(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
+		valueobjects.NetworkIDMainnet: {
+			Endpoint: server.URL,
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEthereumRPCReceiptObserver returned error: %v", err)
+	}
+
+	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
+		AssetReference:        strings.ToUpper(assetReference),
+		Network:               valueobjects.NetworkIDMainnet,
+		Address:               receiverAddress,
+		IssuedAt:              time.Unix(2500, 0).UTC(),
+		ObservedTotalMinor:    0,
+		ConfirmedTotalMinor:   0,
+		UnconfirmedTotalMinor: 0,
+		RequiredConfirmations: 2,
+		LatestBlockHeight:     3,
+	})
+	if err != nil {
+		t.Fatalf("ObserveAddress returned error: %v", err)
+	}
+
+	if output.ObservedTotalMinor != 1000000 {
+		t.Fatalf("unexpected observed total: got %d", output.ObservedTotalMinor)
+	}
+	if output.ConfirmedTotalMinor != 800000 {
+		t.Fatalf("unexpected confirmed total: got %d", output.ConfirmedTotalMinor)
+	}
+	if output.UnconfirmedTotalMinor != 200000 {
+		t.Fatalf("unexpected unconfirmed total: got %d", output.UnconfirmedTotalMinor)
+	}
+	if got := strings.Join(state.requestedTokenBalances, ","); got != ethereumTokenBalanceKey(assetReference, receiverAddress, "0x3")+","+ethereumTokenBalanceKey(assetReference, receiverAddress, "0x2") {
+		t.Fatalf("unexpected token balance requests: got %q", got)
+	}
+	if len(state.requestedBalances) != 0 {
+		t.Fatalf("expected no native balance requests, got %v", state.requestedBalances)
+	}
+}
+
 func TestEthereumRPCReceiptObserverObserveAddressRejectsInconsistentBalances(t *testing.T) {
 	state, server := newTestEthereumRPCServer(t)
 	defer server.Close()
@@ -301,6 +398,18 @@ func TestEthereumRPCReceiptObserverValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected missing network error")
 	}
+
+	_, err = observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
+		AssetReference:        " ",
+		Network:               valueobjects.NetworkIDMainnet,
+		Address:               "0x1111111111111111111111111111111111111111",
+		IssuedAt:              time.Unix(2500, 0).UTC(),
+		RequiredConfirmations: 1,
+		LatestBlockHeight:     3,
+	})
+	if err != nil {
+		t.Fatalf("expected blank asset reference to use native path, got %v", err)
+	}
 }
 
 func TestEthereumRPCReceiptObserverEndpointError(t *testing.T) {
@@ -333,4 +442,15 @@ func TestNewEthereumRPCReceiptObserverValidation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected invalid network error")
 	}
+}
+
+func decodeERC20BalanceOfCallAddress(callData string) (string, error) {
+	trimmed := strings.TrimSpace(callData)
+	if !strings.HasPrefix(trimmed, "0x") || len(trimmed) != 2+8+64 {
+		return "", errors.New("call data is invalid")
+	}
+	if strings.ToLower(trimmed[2:10]) != "70a08231" {
+		return "", errors.New("call selector is invalid")
+	}
+	return "0x" + strings.ToLower(trimmed[len(trimmed)-40:]), nil
 }

@@ -23,6 +23,13 @@ func (f *fakeReceiptPollingClock) NowUTC() time.Time {
 	return f.now
 }
 
+func nativeAssetReferenceFor(
+	chain valueobjects.ChainID,
+	network valueobjects.NetworkID,
+) string {
+	return ""
+}
+
 type fakePaymentReceiptTrackingStore struct {
 	claimRows   []entities.PaymentReceiptTracking
 	claimErr    error
@@ -181,6 +188,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteSuccess(t *testing.T) {
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qreceipt1",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		1000,
 		2,
@@ -289,6 +297,7 @@ func TestRunReceiptPollingCycleUseCaseExecutePassesExistingCumulativeTotalsToObs
 		valueobjects.ChainIDEthereum,
 		valueobjects.NetworkIDSepolia,
 		"0x1111111111111111111111111111111111111111",
+		nativeAssetReferenceFor(valueobjects.ChainIDEthereum, valueobjects.NetworkIDSepolia),
 		time.Date(2026, 3, 30, 5, 0, 0, 0, time.UTC),
 		1000,
 		2,
@@ -361,6 +370,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteObserverError(t *testing.T) {
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qreceipt2",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		500,
 		1,
@@ -435,6 +445,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteSharesLatestBlockHeightByNetwork(t 
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qbatch1",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		1000,
 		2,
@@ -448,6 +459,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteSharesLatestBlockHeightByNetwork(t 
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qbatch2",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 13, 5, 0, 0, time.UTC),
 		1500,
 		2,
@@ -519,6 +531,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteLatestBlockHeightError(t *testing.T
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qheightfail",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		500,
 		1,
@@ -583,6 +596,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteReturnsErrorWhenEnqueueFails(t *tes
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qreceipt-enqueue-fail",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		500,
 		1,
@@ -664,6 +678,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTracking(t *testing.T) {
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qexpired",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 10, 0, 0, 0, time.UTC),
 		500,
 		1,
@@ -746,6 +761,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExpireWhenFinalObservationFi
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qpaidunconfirmed",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 11, 0, 0, 0, time.UTC),
 		1000,
 		1,
@@ -827,6 +843,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteExpiredTrackingObserverErrorRemains
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qexpiredobservererr",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 10, 0, 0, 0, time.UTC),
 		500,
 		1,
@@ -899,6 +916,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteMovesPreviouslyPaidReceiptToReverte
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qpaidunconfirmedcustom",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 11, 30, 0, 0, time.UTC),
 		1000,
 		1,
@@ -977,6 +995,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteDoesNotExpirePreviouslyPaidReceipt(
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qpaidunconfirmedsteady",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
 		1000,
 		1,
@@ -1064,6 +1083,7 @@ func TestRunReceiptPollingCycleUseCaseExecuteMissingIssuedAt(t *testing.T) {
 		valueobjects.ChainIDBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		"tb1qreceipt3",
+		nativeAssetReferenceFor(valueobjects.ChainIDBitcoin, valueobjects.NetworkIDTestnet4),
 		time.Date(2026, 3, 5, 13, 0, 0, 0, time.UTC),
 		500,
 		1,

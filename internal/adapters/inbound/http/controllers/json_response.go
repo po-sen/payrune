@@ -28,7 +28,7 @@ type addressPolicyResponse struct {
 	Chain           string `json:"chain"`
 	Network         string `json:"network"`
 	Scheme          string `json:"scheme"`
-	MinorUnit       string `json:"minorUnit"`
+	AssetReference  string `json:"assetReference,omitempty"`
 	Decimals        uint8  `json:"decimals"`
 	Enabled         bool   `json:"enabled"`
 }
@@ -43,7 +43,7 @@ type generateAddressResponse struct {
 	Chain           string `json:"chain"`
 	Network         string `json:"network"`
 	Scheme          string `json:"scheme"`
-	MinorUnit       string `json:"minorUnit"`
+	AssetReference  string `json:"assetReference,omitempty"`
 	Decimals        uint8  `json:"decimals"`
 	Index           uint32 `json:"index"`
 	Address         string `json:"address"`
@@ -56,7 +56,7 @@ type allocatePaymentAddressResponse struct {
 	Chain               string `json:"chain"`
 	Network             string `json:"network"`
 	Scheme              string `json:"scheme"`
-	MinorUnit           string `json:"minorUnit"`
+	AssetReference      string `json:"assetReference,omitempty"`
 	Decimals            uint8  `json:"decimals"`
 	Address             string `json:"address"`
 	CustomerReference   string `json:"customerReference,omitempty"`
@@ -69,7 +69,7 @@ type paymentAddressStatusResponse struct {
 	Chain                   string     `json:"chain"`
 	Network                 string     `json:"network"`
 	Scheme                  string     `json:"scheme"`
-	MinorUnit               string     `json:"minorUnit"`
+	AssetReference          string     `json:"assetReference,omitempty"`
 	Decimals                uint8      `json:"decimals"`
 	Address                 string     `json:"address"`
 	CustomerReference       string     `json:"customerReference,omitempty"`
@@ -106,7 +106,7 @@ func newListAddressPoliciesResponse(response dto.ListAddressPoliciesResponse) li
 			Chain:           policy.Chain,
 			Network:         policy.Network,
 			Scheme:          policy.Scheme,
-			MinorUnit:       policy.MinorUnit,
+			AssetReference:  policy.AssetReference,
 			Decimals:        policy.Decimals,
 			Enabled:         policy.Enabled,
 		})
@@ -124,7 +124,7 @@ func newGenerateAddressResponse(response dto.GenerateAddressResponse) generateAd
 		Chain:           response.Chain,
 		Network:         response.Network,
 		Scheme:          response.Scheme,
-		MinorUnit:       response.MinorUnit,
+		AssetReference:  response.AssetReference,
 		Decimals:        response.Decimals,
 		Index:           response.Index,
 		Address:         response.Address,
@@ -139,7 +139,7 @@ func newAllocatePaymentAddressResponse(response dto.AllocatePaymentAddressRespon
 		Chain:               response.Chain,
 		Network:             response.Network,
 		Scheme:              response.Scheme,
-		MinorUnit:           response.MinorUnit,
+		AssetReference:      response.AssetReference,
 		Decimals:            response.Decimals,
 		Address:             response.Address,
 		CustomerReference:   response.CustomerReference,
@@ -154,7 +154,7 @@ func newPaymentAddressStatusResponse(response dto.GetPaymentAddressStatusRespons
 		Chain:                   response.Chain,
 		Network:                 response.Network,
 		Scheme:                  response.Scheme,
-		MinorUnit:               response.MinorUnit,
+		AssetReference:          response.AssetReference,
 		Decimals:                response.Decimals,
 		Address:                 response.Address,
 		CustomerReference:       response.CustomerReference,

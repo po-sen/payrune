@@ -11,6 +11,7 @@ import (
 
 	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
+	policyadapter "payrune/internal/adapters/outbound/policy"
 	"payrune/internal/adapters/outbound/system"
 	webhookadapter "payrune/internal/adapters/outbound/webhook"
 	"payrune/internal/application/usecases"
@@ -183,10 +184,13 @@ func newReceiptWebhookDispatcherContainer() (*receiptWebhookDispatcherContainer,
 		_ = db.Close()
 		return nil, err
 	}
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(
+		buildAddressIssuancePolicies(os.Getenv, nil),
+	)
 
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	clock := system.NewClock()
-	useCase := usecases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, notifier, clock)
+	useCase := usecases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, addressPolicyReader, notifier, clock)
 
 	return &receiptWebhookDispatcherContainer{
 		WebhookDispatcherHandler: scheduleradapter.NewWebhookDispatcherHandler(

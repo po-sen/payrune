@@ -18,7 +18,6 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 			valueobjects.SupportedChainBitcoin,
 			valueobjects.NetworkIDMainnet,
 			string(valueobjects.AddressSchemeLegacy),
-			"satoshi",
 			8,
 			"xpub-main",
 			"m/44'/0'/0'",
@@ -28,7 +27,6 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 			valueobjects.SupportedChainBitcoin,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeNativeSegwit),
-			"satoshi",
 			8,
 			"",
 			"",
@@ -54,7 +52,6 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 		Chain:           "bitcoin",
 		Network:         "mainnet",
 		Scheme:          "legacy",
-		MinorUnit:       "satoshi",
 		Decimals:        8,
 		Enabled:         true,
 	}) {

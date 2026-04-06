@@ -21,7 +21,6 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 			valueobjects.SupportedChainBitcoin,
 			valueobjects.NetworkIDMainnet,
 			string(valueobjects.AddressSchemeLegacy),
-			"satoshi",
 			8,
 			"xpub-main",
 			"m/44'/0'/0'",
@@ -43,9 +42,6 @@ func TestGenerateAddressUseCaseSuccess(t *testing.T) {
 	}
 	if response.Address != "1BitcoinAddressExample" {
 		t.Fatalf("unexpected address: got %q", response.Address)
-	}
-	if response.MinorUnit != "satoshi" {
-		t.Fatalf("unexpected minor unit: got %q", response.MinorUnit)
 	}
 	if response.Decimals != 8 {
 		t.Fatalf("unexpected decimals: got %d", response.Decimals)
@@ -154,7 +150,6 @@ func TestGenerateAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 			valueobjects.SupportedChainBitcoin,
 			valueobjects.NetworkIDMainnet,
 			string(valueobjects.AddressSchemeLegacy),
-			"satoshi",
 			8,
 			"",
 			"",
@@ -179,7 +174,6 @@ func TestGenerateAddressUseCaseDerivationError(t *testing.T) {
 			valueobjects.SupportedChainBitcoin,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeNativeSegwit),
-			"satoshi",
 			8,
 			"tpub-testnet4",
 			"m/84'/1'/0'",
@@ -227,10 +221,10 @@ func TestGenerateAddressUseCaseRoutesAllSchemes(t *testing.T) {
 	}
 
 	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
-		newAddressIssuancePolicy("bitcoin-mainnet-legacy", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeLegacy), "satoshi", 8, "xpub-main", "m/44'/0'/0'"),
-		newAddressIssuancePolicy("bitcoin-mainnet-segwit", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeSegwit), "satoshi", 8, "xpub-main", "m/49'/0'/0'"),
-		newAddressIssuancePolicy("bitcoin-mainnet-native-segwit", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeNativeSegwit), "satoshi", 8, "xpub-main", "m/84'/0'/0'"),
-		newAddressIssuancePolicy("bitcoin-mainnet-taproot", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeTaproot), "satoshi", 8, "xpub-main", "m/86'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-legacy", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeLegacy), 8, "xpub-main", "m/44'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-segwit", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeSegwit), 8, "xpub-main", "m/49'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-native-segwit", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeNativeSegwit), 8, "xpub-main", "m/84'/0'/0'"),
+		newAddressIssuancePolicy("bitcoin-mainnet-taproot", valueobjects.SupportedChainBitcoin, valueobjects.NetworkIDMainnet, string(valueobjects.AddressSchemeTaproot), 8, "xpub-main", "m/86'/0'/0'"),
 	})
 
 	for _, tc := range tests {

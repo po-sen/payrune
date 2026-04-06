@@ -11,7 +11,7 @@ type AddressIssuancePolicy struct {
 	Chain           valueobjects.SupportedChain
 	Network         valueobjects.NetworkID
 	Scheme          valueobjects.AddressScheme
-	MinorUnit       string
+	AssetReference  string
 	Decimals        uint8
 	Enabled         bool
 	IssuanceConfig  valueobjects.AddressIssuanceConfig
@@ -29,8 +29,11 @@ func (p AddressIssuancePolicy) Normalize() AddressIssuancePolicy {
 		p.Network = valueobjects.NetworkID(strings.ToLower(strings.TrimSpace(string(p.Network))))
 	}
 	p.Scheme = p.Scheme.Normalize()
-	p.MinorUnit = strings.TrimSpace(p.MinorUnit)
-	p.Enabled = p.IssuanceConfig.IsEnabled()
+	p.AssetReference = strings.TrimSpace(p.AssetReference)
+	if p.Chain == valueobjects.SupportedChainEthereum && p.AssetReference != "" {
+		p.AssetReference = strings.ToLower(p.AssetReference)
+	}
+	p.Enabled = p.IssuanceConfig.IsEnabled() && p.hasAssetConfiguration()
 	return p
 }
 
@@ -80,4 +83,16 @@ func (p AddressIssuancePolicy) ValidateForAddressPreview(
 		return AddressIssuancePolicy{}, ErrAddressPolicyPreviewNotSupported
 	}
 	return normalized, nil
+}
+
+func (p AddressIssuancePolicy) hasAssetConfiguration() bool {
+	if strings.TrimSpace(p.AssetReference) == "" {
+		switch p.Chain {
+		case valueobjects.SupportedChainBitcoin, valueobjects.SupportedChainEthereum:
+			return true
+		default:
+			return false
+		}
+	}
+	return p.Chain == valueobjects.SupportedChainEthereum
 }

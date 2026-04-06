@@ -17,7 +17,6 @@ func TestChainAddressControllerGenerateSuccess(t *testing.T) {
 			Chain:           "bitcoin",
 			Network:         "mainnet",
 			Scheme:          "legacy",
-			MinorUnit:       "satoshi",
 			Decimals:        8,
 			Index:           0,
 			Address:         "1BitcoinAddressExample",

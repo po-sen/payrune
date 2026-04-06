@@ -3,6 +3,7 @@ package ethereum
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/valueobjects"
 )
+
+var erc20BalanceOfSelector = []byte{0x70, 0xa0, 0x82, 0x31}
 
 type EthereumRPCObserverConfig struct {
 	Endpoint string
@@ -101,13 +104,27 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 	if input.SinceBlockHeight < 0 {
 		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
 	}
+	assetReference := strings.TrimSpace(input.AssetReference)
+	erc20AssetReference := ""
+	if assetReference != "" {
+		erc20AssetReference, err = NormalizeEthereumAddress(assetReference, "asset reference")
+		if err != nil {
+			return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverInputInvalid
+		}
+	}
 
 	client, err := o.selectClient(input.Network)
 	if err != nil {
 		return outport.ObservePaymentAddressOutput{}, err
 	}
 
-	observedTotalMinor, err := client.fetchBalanceAtBlock(ctx, address, input.LatestBlockHeight)
+	observedTotalMinor, err := client.fetchObservedBalanceAtBlock(
+		ctx,
+		assetReference,
+		erc20AssetReference,
+		address,
+		input.LatestBlockHeight,
+	)
 	if err != nil {
 		return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 	}
@@ -115,7 +132,13 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 	var confirmedTotalMinor int64
 	confirmedBlockHeight := input.LatestBlockHeight - int64(input.RequiredConfirmations) + 1
 	if confirmedBlockHeight > 0 {
-		confirmedTotalMinor, err = client.fetchBalanceAtBlock(ctx, address, confirmedBlockHeight)
+		confirmedTotalMinor, err = client.fetchObservedBalanceAtBlock(
+			ctx,
+			assetReference,
+			erc20AssetReference,
+			address,
+			confirmedBlockHeight,
+		)
 		if err != nil {
 			return outport.ObservePaymentAddressOutput{}, outport.ErrBlockchainReceiptObserverFailed
 		}
@@ -213,6 +236,52 @@ func (c *ethereumRPCClient) fetchBalanceAtBlock(
 	return parseEthereumHexQuantityToInt64(rawBalance, "balance")
 }
 
+func (c *ethereumRPCClient) fetchObservedBalanceAtBlock(
+	ctx context.Context,
+	assetReference string,
+	erc20AssetReference string,
+	address string,
+	blockHeight int64,
+) (int64, error) {
+	if strings.TrimSpace(assetReference) != "" {
+		return c.fetchERC20BalanceAtBlock(ctx, erc20AssetReference, address, blockHeight)
+	}
+	return c.fetchBalanceAtBlock(ctx, address, blockHeight)
+}
+
+func (c *ethereumRPCClient) fetchERC20BalanceAtBlock(
+	ctx context.Context,
+	erc20AssetReference string,
+	address string,
+	blockHeight int64,
+) (int64, error) {
+	if blockHeight < 0 {
+		return 0, errors.New("block height must be greater than or equal to zero")
+	}
+
+	callData, err := encodeERC20BalanceOfCall(address)
+	if err != nil {
+		return 0, err
+	}
+
+	var rawBalance string
+	if err := c.call(
+		ctx,
+		"eth_call",
+		[]any{
+			map[string]string{
+				"to":   erc20AssetReference,
+				"data": callData,
+			},
+			encodeEthereumBlockNumber(blockHeight),
+		},
+		&rawBalance,
+	); err != nil {
+		return 0, err
+	}
+	return parseEthereumHexQuantityToInt64(rawBalance, "token balance")
+}
+
 func (c *ethereumRPCClient) call(
 	ctx context.Context,
 	method string,
@@ -298,6 +367,18 @@ func safeSubtractInt64NonNegative(left int64, right int64) (int64, error) {
 		return 0, errors.New("receipt totals are inconsistent")
 	}
 	return left - right, nil
+}
+
+func encodeERC20BalanceOfCall(address string) (string, error) {
+	_, addressBytes, err := normalizeFixedHex(address, 20, "address")
+	if err != nil {
+		return "", err
+	}
+
+	callData := make([]byte, 4+32)
+	copy(callData[:4], erc20BalanceOfSelector)
+	copy(callData[4+12:], addressBytes)
+	return "0x" + hex.EncodeToString(callData), nil
 }
 
 var _ outport.ChainReceiptObserver = (*EthereumRPCReceiptObserver)(nil)

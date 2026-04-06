@@ -23,6 +23,7 @@ var (
 	ErrPaymentReceiptTrackingPersistedAddressPolicyIDInvalid = errors.New("persisted receipt tracking address policy id is invalid")
 	ErrPaymentReceiptTrackingPersistedChainInvalid           = errors.New("persisted receipt tracking chain is invalid")
 	ErrPaymentReceiptTrackingPersistedNetworkInvalid         = errors.New("persisted receipt tracking network is invalid")
+	ErrPaymentReceiptTrackingPersistedAssetReferenceInvalid  = errors.New("persisted receipt tracking asset reference is invalid")
 	ErrPaymentReceiptTrackingPersistedStatusInvalid          = errors.New("persisted receipt tracking status is invalid")
 )
 

@@ -15,6 +15,8 @@ const (
 	AddressPolicyIDBitcoinTestnet4Taproot      AddressPolicyID = "bitcoin-testnet4-taproot"
 	AddressPolicyIDEthereumMainnetCreate2      AddressPolicyID = "ethereum-mainnet-create2"
 	AddressPolicyIDEthereumSepoliaCreate2      AddressPolicyID = "ethereum-sepolia-create2"
+	AddressPolicyIDEthereumMainnetUSDTCreate2  AddressPolicyID = "ethereum-mainnet-usdt-create2"
+	AddressPolicyIDEthereumSepoliaUSDTCreate2  AddressPolicyID = "ethereum-sepolia-usdt-create2"
 )
 
 func NewAddressPolicyID(raw string) (AddressPolicyID, error) {
@@ -73,5 +75,21 @@ func EthereumCreate2AddressPolicyID(network NetworkID) AddressPolicyID {
 		return AddressPolicyIDEthereumSepoliaCreate2
 	default:
 		return AddressPolicyID("ethereum-" + string(normalized) + "-create2")
+	}
+}
+
+func EthereumUSDTCreate2AddressPolicyID(network NetworkID) AddressPolicyID {
+	normalized, ok := ParseNetworkID(string(network))
+	if !ok {
+		return ""
+	}
+
+	switch normalized {
+	case NetworkIDMainnet:
+		return AddressPolicyIDEthereumMainnetUSDTCreate2
+	case NetworkIDSepolia:
+		return AddressPolicyIDEthereumSepoliaUSDTCreate2
+	default:
+		return AddressPolicyID("ethereum-" + string(normalized) + "-usdt-create2")
 	}
 }

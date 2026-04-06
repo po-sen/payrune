@@ -20,7 +20,6 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 				Chain:           "bitcoin",
 				Network:         "mainnet",
 				Scheme:          "legacy",
-				MinorUnit:       "satoshi",
 				Decimals:        8,
 				Enabled:         true,
 			}},
@@ -48,9 +47,6 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 	if len(body.AddressPolicies) != 1 {
 		t.Fatalf("unexpected policy count: got %d", len(body.AddressPolicies))
 	}
-	if body.AddressPolicies[0].MinorUnit != "satoshi" {
-		t.Fatalf("unexpected minor unit: got %q", body.AddressPolicies[0].MinorUnit)
-	}
 	if body.AddressPolicies[0].Decimals != 8 {
 		t.Fatalf("unexpected decimals: got %d", body.AddressPolicies[0].Decimals)
 	}
@@ -65,7 +61,6 @@ func TestChainAddressControllerListEthereumSuccess(t *testing.T) {
 				Chain:           "ethereum",
 				Network:         "mainnet",
 				Scheme:          "create2",
-				MinorUnit:       "wei",
 				Decimals:        18,
 				Enabled:         true,
 			}},

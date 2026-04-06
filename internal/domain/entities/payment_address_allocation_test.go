@@ -38,6 +38,7 @@ func TestPaymentAddressAllocationMarkIssued(t *testing.T) {
 		valueobjects.SupportedChainBitcoin,
 		valueobjects.NetworkIDMainnet,
 		valueobjects.AddressSchemeNativeSegwit,
+		"",
 		"bc1qexample",
 	)
 	if err != nil {
@@ -62,6 +63,7 @@ func TestPaymentAddressAllocationMarkIssuedRejectPolicyMismatch(t *testing.T) {
 		valueobjects.SupportedChainBitcoin,
 		valueobjects.NetworkIDMainnet,
 		valueobjects.AddressSchemeNativeSegwit,
+		"",
 		"bc1qexample",
 	); err == nil {
 		t.Fatalf("expected policy mismatch error")
@@ -104,6 +106,7 @@ func TestPaymentAddressAllocationIssueReceiptTracking(t *testing.T) {
 		valueobjects.SupportedChainBitcoin,
 		valueobjects.NetworkIDTestnet4,
 		valueobjects.AddressSchemeNativeSegwit,
+		"",
 		"tb1qexample",
 	)
 	if err != nil {
@@ -139,6 +142,7 @@ func TestPaymentAddressAllocationMarkIssuedRequiresAddress(t *testing.T) {
 		valueobjects.SupportedChainBitcoin,
 		valueobjects.NetworkIDMainnet,
 		valueobjects.AddressSchemeNativeSegwit,
+		"",
 		"   ",
 	)
 	if !errors.Is(err, ErrAddressRequired) {

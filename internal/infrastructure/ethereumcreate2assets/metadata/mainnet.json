@@ -1,6 +1,6 @@
 {
   "network": "mainnet",
   "factoryAddress": "0x1111111111111111111111111111111111111111",
-  "receiverArtifact": "FixedCollectorReceiverV1.json",
+  "receiverArtifact": "FixedCollectorReceiver.json",
   "mode": "fixture"
 }

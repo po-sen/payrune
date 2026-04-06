@@ -57,28 +57,24 @@ paths:
                         chain: bitcoin
                         network: testnet4
                         scheme: legacy
-                        minorUnit: satoshi
                         decimals: 8
                         enabled: true
                       - addressPolicyId: bitcoin-testnet4-segwit
                         chain: bitcoin
                         network: testnet4
                         scheme: segwit
-                        minorUnit: satoshi
                         decimals: 8
                         enabled: true
                       - addressPolicyId: bitcoin-testnet4-native-segwit
                         chain: bitcoin
                         network: testnet4
                         scheme: nativeSegwit
-                        minorUnit: satoshi
                         decimals: 8
                         enabled: true
                       - addressPolicyId: bitcoin-testnet4-taproot
                         chain: bitcoin
                         network: testnet4
                         scheme: taproot
-                        minorUnit: satoshi
                         decimals: 8
                         enabled: false
                 ethereum:
@@ -89,8 +85,14 @@ paths:
                         chain: ethereum
                         network: sepolia
                         scheme: create2
-                        minorUnit: wei
                         decimals: 18
+                        enabled: true
+                      - addressPolicyId: ethereum-sepolia-usdt-create2
+                        chain: ethereum
+                        network: sepolia
+                        scheme: create2
+                        assetReference: 0xd077a400968890eacc75cdc901f0356c943e4fdb
+                        decimals: 6
                         enabled: true
         "404":
           description: Chain not supported.
@@ -170,7 +172,6 @@ paths:
                   - chain
                   - network
                   - scheme
-                  - minorUnit
                   - decimals
                   - index
                   - address
@@ -193,9 +194,9 @@ paths:
                       - taproot
                       - create2
                     example: nativeSegwit
-                  minorUnit:
+                  assetReference:
                     type: string
-                    example: satoshi
+                    example: 0xd077a400968890eacc75cdc901f0356c943e4fdb
                   decimals:
                     type: integer
                     minimum: 0
@@ -216,7 +217,6 @@ paths:
                     chain: bitcoin
                     network: testnet4
                     scheme: nativeSegwit
-                    minorUnit: satoshi
                     decimals: 8
                     index: 12
                     address: "tb1qexamplepaymentaddress"
@@ -350,6 +350,11 @@ paths:
                   addressPolicyId: ethereum-sepolia-create2
                   expectedAmountMinor: 100000000000000
                   customerReference: null
+              ethereumUSDT:
+                value:
+                  addressPolicyId: ethereum-sepolia-usdt-create2
+                  expectedAmountMinor: 1000000
+                  customerReference: null
       responses:
         "201":
           description: Payment address allocated successfully.
@@ -373,7 +378,6 @@ paths:
                     chain: bitcoin
                     network: testnet4
                     scheme: nativeSegwit
-                    minorUnit: satoshi
                     decimals: 8
                     address: "tb1qexamplepaymentaddress"
                 ethereum:
@@ -381,12 +385,24 @@ paths:
                     paymentAddressId: "501"
                     addressPolicyId: ethereum-sepolia-create2
                     expectedAmountMinor: 100000000000000
+                    customerReference: null
                     chain: ethereum
                     network: sepolia
                     scheme: create2
-                    minorUnit: wei
                     decimals: 18
                     address: "0x1234567890abcdef1234567890abcdef12345678"
+                ethereumUSDT:
+                  value:
+                    paymentAddressId: "502"
+                    addressPolicyId: ethereum-sepolia-usdt-create2
+                    expectedAmountMinor: 1000000
+                    customerReference: null
+                    chain: ethereum
+                    network: sepolia
+                    scheme: create2
+                    assetReference: 0xd077a400968890eacc75cdc901f0356c943e4fdb
+                    decimals: 6
+                    address: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
         "400":
           description: Invalid request.
           content:
@@ -512,7 +528,6 @@ paths:
                     chain: bitcoin
                     network: testnet4
                     scheme: nativeSegwit
-                    minorUnit: satoshi
                     decimals: 8
                     address: tb1qexamplepaymentaddress
                     paymentStatus: partially_paid
@@ -527,13 +542,14 @@ paths:
                 ethereumWatching:
                   value:
                     paymentAddressId: "501"
-                    addressPolicyId: ethereum-sepolia-create2
-                    expectedAmountMinor: 100000000000000
+                    addressPolicyId: ethereum-sepolia-usdt-create2
+                    expectedAmountMinor: 2500000
+                    customerReference: order-20260405-usdt-001
                     chain: ethereum
                     network: sepolia
                     scheme: create2
-                    minorUnit: wei
-                    decimals: 18
+                    assetReference: 0xd077a400968890eacc75cdc901f0356c943e4fdb
+                    decimals: 6
                     address: "0x1234567890abcdef1234567890abcdef12345678"
                     paymentStatus: watching
                     observedTotalMinor: 0
@@ -620,7 +636,6 @@ components:
         - chain
         - network
         - scheme
-        - minorUnit
         - decimals
         - enabled
       properties:
@@ -645,9 +660,9 @@ components:
             - taproot
             - create2
           example: nativeSegwit
-        minorUnit:
+        assetReference:
           type: string
-          example: satoshi
+          example: 0xd077a400968890eacc75cdc901f0356c943e4fdb
         decimals:
           type: integer
           minimum: 0
@@ -681,7 +696,6 @@ components:
         - chain
         - network
         - scheme
-        - minorUnit
         - decimals
         - address
       properties:
@@ -717,9 +731,9 @@ components:
             - taproot
             - create2
           example: nativeSegwit
-        minorUnit:
+        assetReference:
           type: string
-          example: satoshi
+          example: 0xd077a400968890eacc75cdc901f0356c943e4fdb
         decimals:
           type: integer
           minimum: 0
@@ -737,7 +751,6 @@ components:
         - chain
         - network
         - scheme
-        - minorUnit
         - decimals
         - address
         - paymentStatus
@@ -780,9 +793,9 @@ components:
             - taproot
             - create2
           example: nativeSegwit
-        minorUnit:
+        assetReference:
           type: string
-          example: satoshi
+          example: 0xd077a400968890eacc75cdc901f0356c943e4fdb
         decimals:
           type: integer
           minimum: 0

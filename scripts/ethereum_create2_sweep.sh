@@ -25,8 +25,9 @@ Notes:
   - The script loads only explicitly selected issued allocation rows.
   - It reads `sweep_material_json` as the operator-facing recovery payload.
   - It rejects rows that are not Ethereum CREATE2 sweep material.
-  - It routes recovery through the active factory recorded in checked-in metadata for the selected
-    network.
+  - It routes recovery through the factory recorded in the selected rows' `sweep_material_json`.
+  - It still loads checked-in metadata for the selected network so operators can compare the row
+    factory against the network's current issuance factory.
   - It can recover predicted CREATE2 addresses that still have ETH but no deployed receiver code.
   - It rejects selected receivers whose current on-chain balance is zero.
   - It checks the connected Ledger sender before deciding whether to broadcast.
@@ -50,6 +51,24 @@ normalize_hex() {
   local value
   value="$(trim "${1:-}")"
   printf '%s' "${value,,}"
+}
+
+display_asset_reference() {
+  local value
+  value="$(trim "${1:-}")"
+  if [[ -n "$value" ]]; then
+    printf '%s' "$value"
+  else
+    printf '%s' "<native>"
+  fi
+}
+
+parse_uint_output() {
+  local value
+  value="$(trim "${1:-}")"
+  value="${value%%[*}"
+  value="${value%% *}"
+  printf '%s' "$(trim "$value")"
 }
 
 require_command() {
@@ -260,7 +279,14 @@ selected_receiver_balances=()
 selected_receiver_code_states=()
 selected_create2_salts=()
 selected_init_codes=()
+selected_undeployed_ids=()
+selected_undeployed_receivers=()
+selected_undeployed_create2_salts=()
+selected_undeployed_init_codes=()
 selected_network=""
+selected_asset_reference=""
+selected_asset_reference_initialized=0
+selected_factory_address=""
 metadata_path=""
 metadata_network=""
 current_factory_address=""
@@ -302,6 +328,7 @@ for row in "${rows[@]}"; do
   material_version="$(printf '%s' "$sweep_material_json" | jq -r '.material_version // empty')"
   material_chain="$(printf '%s' "$sweep_material_json" | jq -r '.chain // empty')"
   material_network="$(printf '%s' "$sweep_material_json" | jq -r '.network // empty')"
+  material_asset_reference="$(printf '%s' "$sweep_material_json" | jq -r '.asset_reference // empty' | tr '[:upper:]' '[:lower:]')"
   material_address="$(printf '%s' "$sweep_material_json" | jq -r '.address // empty' | tr '[:upper:]' '[:lower:]')"
   predicted_address="$(printf '%s' "$sweep_material_json" | jq -r '.predicted_address // empty' | tr '[:upper:]' '[:lower:]')"
   factory_address="$(printf '%s' "$sweep_material_json" | jq -r '.factory_address // empty' | tr '[:upper:]' '[:lower:]')"
@@ -314,6 +341,11 @@ for row in "${rows[@]}"; do
   [[ "$material_version" == "1" ]] || die "selected row ${row_id} has unexpected material_version: ${material_version:-<empty>}"
   [[ "$material_chain" == "ethereum" ]] || die "selected row ${row_id} has unexpected material chain: ${material_chain:-<empty>}"
   [[ "$material_network" == "$row_network" ]] || die "selected row ${row_id} material network does not match row network"
+  normalized_material_asset_reference=""
+  if [[ -n "$material_asset_reference" ]]; then
+    [[ "$material_asset_reference" =~ ^0x[0-9a-f]{40}$ ]] || die "selected row ${row_id} has invalid asset_reference"
+    normalized_material_asset_reference="$material_asset_reference"
+  fi
   [[ "$material_address" == "$row_address" ]] || die "selected row ${row_id} material address does not match row address"
   [[ "$predicted_address" == "$row_address" ]] || die "selected row ${row_id} predicted address does not match row address"
   [[ "$factory_address" =~ ^0x[0-9a-f]{40}$ ]] || die "selected row ${row_id} has invalid factory_address"
@@ -340,14 +372,34 @@ for row in "${rows[@]}"; do
   elif [[ "$row_network" != "$selected_network" ]]; then
     die "selected rows span multiple networks: ${selected_network} and ${row_network}"
   fi
-  [[ "$factory_address" == "$current_factory_address" ]] || die "selected row ${row_id} factory_address ${factory_address} does not match active metadata factory ${current_factory_address}"
-
-  if ! balance_wei="$(cast balance --rpc-url "$ETHEREUM_SWEEP_RPC_URL" "$row_address" | tail -n 1 | tr -d '\r' | tr -d '[:space:]')"; then
-    die "failed to query on-chain balance for selected row ${row_id}"
+  if [[ "$selected_asset_reference_initialized" -eq 0 ]]; then
+    selected_asset_reference="$normalized_material_asset_reference"
+    selected_asset_reference_initialized=1
+  elif [[ "$normalized_material_asset_reference" != "$selected_asset_reference" ]]; then
+    die "selected rows mix asset references: $(display_asset_reference "$selected_asset_reference") and $(display_asset_reference "$normalized_material_asset_reference"); split native and token rows into separate sweeps"
   fi
-  [[ "$balance_wei" =~ ^[0-9]+$ ]] || die "selected row ${row_id} returned invalid on-chain balance: ${balance_wei:-<empty>}"
+  if [[ -z "$selected_factory_address" ]]; then
+    selected_factory_address="$factory_address"
+  elif [[ "$factory_address" != "$selected_factory_address" ]]; then
+    die "selected rows span multiple factory addresses: ${selected_factory_address} and ${factory_address}"
+  fi
 
-  if [[ "$balance_wei" == "0" ]]; then
+  balance_value=""
+  balance_label=""
+  if [[ -n "$normalized_material_asset_reference" ]]; then
+    if ! balance_value="$(cast call "$normalized_material_asset_reference" 'balanceOf(address)(uint256)' "$row_address" --rpc-url "$ETHEREUM_SWEEP_RPC_URL" | tail -n 1 | tr -d '\r')"; then
+      die "failed to query token balance for selected row ${row_id}"
+    fi
+    balance_value="$(parse_uint_output "$balance_value" | tr -d '[:space:]')"
+    balance_label="token_minor"
+  else
+    if ! balance_value="$(cast balance --rpc-url "$ETHEREUM_SWEEP_RPC_URL" "$row_address" | tail -n 1 | tr -d '\r' | tr -d '[:space:]')"; then
+      die "failed to query on-chain balance for selected row ${row_id}"
+    fi
+    balance_label="wei"
+  fi
+  [[ "$balance_value" =~ ^[0-9]+$ ]] || die "selected row ${row_id} returned invalid ${balance_label} balance: ${balance_value:-<empty>}"
+  if [[ "$balance_value" == "0" ]]; then
     zero_balance_ids+=("$row_id")
     zero_balance_receivers+=("$row_address")
   fi
@@ -358,6 +410,10 @@ for row in "${rows[@]}"; do
   [[ "$receiver_code_hex" =~ ^0x[0-9a-f]*$ ]] || die "selected row ${row_id} returned invalid receiver code"
   if [[ "$receiver_code_hex" == "0x" ]]; then
     selected_receiver_code_states+=("${row_id}:undeployed")
+    selected_undeployed_ids+=("$row_id")
+    selected_undeployed_receivers+=("$row_address")
+    selected_undeployed_create2_salts+=("$create2_salt")
+    selected_undeployed_init_codes+=("$init_code_hex")
   else
     if ! deployed_collector="$(cast call "$row_address" 'collector()(address)' --rpc-url "$ETHEREUM_SWEEP_RPC_URL" | tail -n 1 | tr -d '\r' | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"; then
       die "selected row ${row_id} receiver contract does not expose collector()"
@@ -369,7 +425,7 @@ for row in "${rows[@]}"; do
 
   selected_ids+=("$row_id")
   selected_receivers+=("$row_address")
-  selected_receiver_balances+=("${row_id}:${balance_wei}")
+  selected_receiver_balances+=("${row_id}:${balance_value}")
   selected_create2_salts+=("$create2_salt")
   selected_init_codes+=("$init_code_hex")
 done
@@ -378,11 +434,11 @@ if [[ "${#zero_balance_ids[@]}" -gt 0 ]]; then
   die "selected rows include zero-balance receivers; remove them before sweep. payment_address_ids=[$(join_by , "${zero_balance_ids[@]}")] receiver_addresses=[$(join_by , "${zero_balance_receivers[@]}")]"
 fi
 
-if ! factory_code_hex="$(cast code "$current_factory_address" --rpc-url "$ETHEREUM_SWEEP_RPC_URL" | tail -n 1 | tr -d '\r' | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"; then
-  die "failed to query factory code for active factory ${current_factory_address}"
+if ! factory_code_hex="$(cast code "$selected_factory_address" --rpc-url "$ETHEREUM_SWEEP_RPC_URL" | tail -n 1 | tr -d '\r' | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"; then
+  die "failed to query factory code for selected factory ${selected_factory_address}"
 fi
-[[ "$factory_code_hex" =~ ^0x[0-9a-f]*$ ]] || die "active factory ${current_factory_address} returned invalid code"
-[[ "$factory_code_hex" != "0x" ]] || die "active factory ${current_factory_address} is not deployed on-chain"
+[[ "$factory_code_hex" =~ ^0x[0-9a-f]*$ ]] || die "selected factory ${selected_factory_address} returned invalid code"
+[[ "$factory_code_hex" != "0x" ]] || die "selected factory ${selected_factory_address} is not deployed on-chain"
 
 ledger_cmd=(cast wallet address --ledger)
 if [[ -n "$derivation_path" ]]; then
@@ -398,12 +454,6 @@ if [[ -n "$derivation_path" ]]; then
   send_cmd+=(--mnemonic-derivation-path "$derivation_path")
 fi
 
-recovery_path="create2_batch_sweep"
-call_signature="sweep(bytes32[],bytes[])"
-salt_arg="[$(join_by , "${selected_create2_salts[@]}")]"
-init_code_arg="[$(join_by , "${selected_init_codes[@]}")]"
-send_cmd+=("$current_factory_address" "$call_signature" "$salt_arg" "$init_code_arg")
-
 mode="dry-run"
 if [[ "$broadcast" -eq 1 ]]; then
   mode="broadcast"
@@ -412,24 +462,74 @@ fi
 printf 'mode: %s\n' "$mode"
 printf 'selector: %s\n' "$selector_name"
 printf 'network: %s\n' "$selected_network"
+if [[ -n "$selected_asset_reference" ]]; then
+  printf 'asset_reference: %s\n' "$selected_asset_reference"
+else
+  printf 'asset_reference: %s\n' "<native>"
+fi
 printf 'metadata_path: %s\n' "$metadata_path"
+printf 'metadata_factory_address: %s\n' "$current_factory_address"
+printf 'selected_factory_address: %s\n' "$selected_factory_address"
+if [[ "$selected_factory_address" == "$current_factory_address" ]]; then
+  printf 'factory_selection_source: %s\n' "current_metadata"
+else
+  printf 'factory_selection_source: %s\n' "row_material"
+fi
 printf 'payment_address_ids: [%s]\n' "$(join_by , "${selected_ids[@]}")"
 printf 'receiver_count: %s\n' "${#selected_receivers[@]}"
 printf 'receiver_addresses: [%s]\n' "$(join_by , "${selected_receivers[@]}")"
-printf 'receiver_balances_wei: [%s]\n' "$(join_by , "${selected_receiver_balances[@]}")"
-printf 'receiver_code_states: [%s]\n' "$(join_by , "${selected_receiver_code_states[@]}")"
-printf 'factory_address: %s\n' "$current_factory_address"
-printf 'ledger_sender: %s\n' "$ledger_sender"
-printf 'recovery_path: %s\n' "$recovery_path"
-printf 'call_signature: %s\n' "$call_signature"
-printf 'command:'
-for arg in "${send_cmd[@]}"; do
-  printf ' %q' "$arg"
-done
-printf '\n'
-
-if [[ "$broadcast" -eq 1 ]]; then
-  "${send_cmd[@]}"
+if [[ -n "$selected_asset_reference" ]]; then
+  printf 'receiver_token_balances_minor: [%s]\n' "$(join_by , "${selected_receiver_balances[@]}")"
 else
+  printf 'receiver_balances_wei: [%s]\n' "$(join_by , "${selected_receiver_balances[@]}")"
+fi
+printf 'receiver_code_states: [%s]\n' "$(join_by , "${selected_receiver_code_states[@]}")"
+printf 'ledger_sender: %s\n' "$ledger_sender"
+
+if [[ -n "$selected_asset_reference" ]]; then
+  recovery_path="create2_batch_token_sweep"
+  call_signature="sweepERC20(bytes32[],bytes[],address)"
+  salt_arg="[$(join_by , "${selected_create2_salts[@]}")]"
+  init_code_arg="[$(join_by , "${selected_init_codes[@]}")]"
+  send_cmd+=("$selected_factory_address" "$call_signature" "$salt_arg" "$init_code_arg" "$selected_asset_reference")
+
+  printf 'recovery_path: %s\n' "$recovery_path"
+  printf 'call_signature: %s\n' "$call_signature"
+  if [[ "${#selected_undeployed_ids[@]}" -gt 0 ]]; then
+    printf 'deploy_payment_address_ids: [%s]\n' "$(join_by , "${selected_undeployed_ids[@]}")"
+    printf 'deploy_receiver_addresses: [%s]\n' "$(join_by , "${selected_undeployed_receivers[@]}")"
+  fi
+  printf 'signature_count_estimate: %s\n' "1"
+  printf 'command:'
+  for arg in "${send_cmd[@]}"; do
+    printf ' %q' "$arg"
+  done
+  printf '\n'
+
+  if [[ "$broadcast" -eq 1 ]]; then
+    "${send_cmd[@]}"
+  fi
+else
+  recovery_path="create2_batch_sweep"
+  call_signature="sweep(bytes32[],bytes[])"
+  salt_arg="[$(join_by , "${selected_create2_salts[@]}")]"
+  init_code_arg="[$(join_by , "${selected_init_codes[@]}")]"
+  send_cmd+=("$selected_factory_address" "$call_signature" "$salt_arg" "$init_code_arg")
+
+  printf 'recovery_path: %s\n' "$recovery_path"
+  printf 'call_signature: %s\n' "$call_signature"
+  printf 'signature_count_estimate: %s\n' "1"
+  printf 'command:'
+  for arg in "${send_cmd[@]}"; do
+    printf ' %q' "$arg"
+  done
+  printf '\n'
+
+  if [[ "$broadcast" -eq 1 ]]; then
+    "${send_cmd[@]}"
+  fi
+fi
+
+if [[ "$broadcast" -eq 0 ]]; then
   printf 'dry-run: not broadcasting\n'
 fi

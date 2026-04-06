@@ -17,6 +17,7 @@ type PaymentAddressAllocation struct {
 	Chain                   valueobjects.SupportedChain
 	Network                 valueobjects.NetworkID
 	Scheme                  valueobjects.AddressScheme
+	AssetReference          string
 	Address                 string
 	DerivationFailureReason valueobjects.PaymentAddressAllocationDerivationFailureReason
 }
@@ -54,6 +55,7 @@ func (a PaymentAddressAllocation) MarkIssued(
 	chain valueobjects.SupportedChain,
 	network valueobjects.NetworkID,
 	scheme valueobjects.AddressScheme,
+	assetReference string,
 	address string,
 ) (PaymentAddressAllocation, error) {
 	normalizedPolicyID := addressPolicyID.Normalize()
@@ -64,6 +66,7 @@ func (a PaymentAddressAllocation) MarkIssued(
 		return PaymentAddressAllocation{}, ErrAddressPolicyMismatch
 	}
 	normalizedScheme := scheme.Normalize()
+	normalizedAssetReference := strings.TrimSpace(assetReference)
 
 	normalizedAddress := strings.TrimSpace(address)
 	if normalizedAddress == "" {
@@ -75,6 +78,7 @@ func (a PaymentAddressAllocation) MarkIssued(
 	issued.Chain = chain
 	issued.Network = network
 	issued.Scheme = normalizedScheme
+	issued.AssetReference = normalizedAssetReference
 	issued.Address = normalizedAddress
 	issued.DerivationFailureReason = ""
 
@@ -94,6 +98,7 @@ func (a PaymentAddressAllocation) MarkDerivationFailed(
 	failed.Chain = ""
 	failed.Network = ""
 	failed.Scheme = ""
+	failed.AssetReference = ""
 	failed.Address = ""
 	return failed, nil
 }
@@ -125,6 +130,7 @@ func (a PaymentAddressAllocation) IssueReceiptTracking(
 		chainID,
 		networkID,
 		a.Address,
+		a.AssetReference,
 		issuedAt,
 		a.ExpectedAmountMinor,
 		requiredConfirmations,

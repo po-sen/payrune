@@ -170,6 +170,7 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 	}
 
 	observation, err := uc.observer.ObserveAddress(ctx, outport.ObserveChainPaymentAddressInput{
+		AssetReference:        tracking.AssetReference,
 		Chain:                 tracking.Chain,
 		Network:               tracking.Network,
 		Address:               tracking.Address,

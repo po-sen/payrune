@@ -17,6 +17,7 @@ var (
 	ErrPaymentAddressAllocationPersistedAddressPolicyIDInvalid = errors.New("persisted allocation address policy id is invalid")
 	ErrPaymentAddressAllocationPersistedChainInvalid           = errors.New("persisted allocation chain is invalid")
 	ErrPaymentAddressAllocationPersistedNetworkInvalid         = errors.New("persisted allocation network is invalid")
+	ErrPaymentAddressAllocationPersistedAssetReferenceInvalid  = errors.New("persisted allocation asset reference is invalid")
 	ErrPaymentAddressAllocationIssuedAtRequired                = errors.New("issued at is required")
 )
 

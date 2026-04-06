@@ -11,6 +11,7 @@ import (
 type PaymentReceiptStatusNotificationOutboxMessage struct {
 	NotificationID        int64
 	PaymentAddressID      int64
+	AddressPolicyID       valueobjects.AddressPolicyID
 	CustomerReference     string
 	PreviousStatus        valueobjects.PaymentReceiptStatus
 	CurrentStatus         valueobjects.PaymentReceiptStatus

@@ -14,6 +14,7 @@ func TestScanPaymentReceiptStatusNotificationOutboxMessageSupportsTimeColumns(t 
 		values: []any{
 			int64(1),
 			int64(2),
+			"ethereum-mainnet-create2",
 			"order-123",
 			"watching",
 			"paid_unconfirmed",
@@ -37,6 +38,9 @@ func TestScanPaymentReceiptStatusNotificationOutboxMessageSupportsTimeColumns(t 
 	}
 	if !message.NextAttemptAt.Equal(nextAttemptAt) {
 		t.Fatalf("unexpected nextAttemptAt: got %s want %s", message.NextAttemptAt, nextAttemptAt)
+	}
+	if message.AddressPolicyID != "ethereum-mainnet-create2" {
+		t.Fatalf("unexpected addressPolicyID: got %q", message.AddressPolicyID)
 	}
 	if message.DeliveredAt == nil || !message.DeliveredAt.Equal(deliveredAt) {
 		t.Fatalf("unexpected deliveredAt: got %v want %s", message.DeliveredAt, deliveredAt)

@@ -215,6 +215,7 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 		values: []any{
 			int64(1),
 			int64(11),
+			"ethereum-mainnet-create2",
 			"order-1",
 			"watching",
 			"paid_confirmed",
@@ -235,6 +236,9 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 	if notification.DeliveryStatus != applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected delivery status: got %q", notification.DeliveryStatus)
 	}
+	if notification.AddressPolicyID != valueobjects.AddressPolicyIDEthereumMainnetCreate2 {
+		t.Fatalf("unexpected address policy id: got %q", notification.AddressPolicyID)
+	}
 	if notification.DeliveredAt == nil || !notification.DeliveredAt.Equal(deliveredAt) {
 		t.Fatalf("unexpected delivered at: got %+v", notification.DeliveredAt)
 	}
@@ -247,6 +251,7 @@ func TestScanPaymentReceiptStatusNotificationSupportsRevertedStatus(t *testing.T
 		values: []any{
 			int64(2),
 			int64(12),
+			"ethereum-mainnet-create2",
 			"order-2",
 			"paid_unconfirmed",
 			"paid_unconfirmed_reverted",
@@ -314,6 +319,7 @@ func TestScanPaymentReceiptStatusNotificationOutboxMessageRejectsUnsupportedStat
 		values: []any{
 			int64(1),
 			int64(11),
+			"ethereum-mainnet-create2",
 			"order-1",
 			"invalid",
 			"paid_confirmed",

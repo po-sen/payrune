@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"payrune/internal/application/dto"
 	applicationoutbox "payrune/internal/application/outbox"
@@ -11,20 +12,23 @@ import (
 )
 
 type runReceiptWebhookDispatchCycleUseCase struct {
-	unitOfWork outport.UnitOfWork
-	notifier   outport.PaymentReceiptStatusNotifier
-	clock      outport.Clock
+	unitOfWork   outport.UnitOfWork
+	policyReader outport.AddressPolicyReader
+	notifier     outport.PaymentReceiptStatusNotifier
+	clock        outport.Clock
 }
 
 func NewRunReceiptWebhookDispatchCycleUseCase(
 	unitOfWork outport.UnitOfWork,
+	policyReader outport.AddressPolicyReader,
 	notifier outport.PaymentReceiptStatusNotifier,
 	clock outport.Clock,
 ) inport.RunReceiptWebhookDispatchCycleUseCase {
 	return &runReceiptWebhookDispatchCycleUseCase{
-		unitOfWork: unitOfWork,
-		notifier:   notifier,
-		clock:      clock,
+		unitOfWork:   unitOfWork,
+		policyReader: policyReader,
+		notifier:     notifier,
+		clock:        clock,
 	}
 }
 
@@ -37,6 +41,9 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 	}
 	if uc.notifier == nil {
 		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrPaymentReceiptStatusNotifierNotConfigured
+	}
+	if uc.policyReader == nil {
+		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrAddressPolicyReaderNotConfigured
 	}
 	if uc.clock == nil {
 		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrClockNotConfigured
@@ -108,10 +115,19 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 	notification applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage,
 	input dto.RunReceiptWebhookDispatchCycleInput,
 ) (applicationoutbox.PaymentReceiptNotificationDeliveryStatus, error) {
-	err := uc.notifier.NotifyStatusChanged(ctx, outport.NotifyPaymentReceiptStatusChangedInput{
+	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, notification.AddressPolicyID)
+	if err != nil {
+		return "", inport.ErrDependencyFailure
+	}
+	if !ok {
+		return "", inport.ErrPaymentAddressPolicyNotConfigured
+	}
+
+	err = uc.notifier.NotifyStatusChanged(ctx, outport.NotifyPaymentReceiptStatusChangedInput{
 		NotificationID:        notification.NotificationID,
 		PaymentAddressID:      notification.PaymentAddressID,
 		CustomerReference:     notification.CustomerReference,
+		AssetReference:        strings.TrimSpace(policy.AssetReference),
 		PreviousStatus:        string(notification.PreviousStatus),
 		CurrentStatus:         string(notification.CurrentStatus),
 		ObservedTotalMinor:    notification.ObservedTotalMinor,

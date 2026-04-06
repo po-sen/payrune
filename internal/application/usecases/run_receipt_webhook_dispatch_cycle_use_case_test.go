@@ -11,6 +11,7 @@ import (
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/events"
+	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -104,6 +105,19 @@ func (f *fakeReceiptWebhookDispatchUnitOfWork) WithinTransaction(
 	})
 }
 
+func newWebhookDispatchPolicyReader() outport.AddressPolicyReader {
+	return newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
+		policies.AddressIssuancePolicy{
+			AddressPolicyID: valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeCreate2,
+			AssetReference:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+			Decimals:        6,
+		}.Normalize(),
+	})
+}
+
 func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 	claimNow := time.Date(2026, 3, 6, 18, 0, 0, 0, time.UTC)
 	deliveredAt := claimNow.Add(3 * time.Second)
@@ -112,6 +126,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 			{
 				NotificationID:        1,
 				PaymentAddressID:      101,
+				AddressPolicyID:       valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
 				CustomerReference:     "order-1",
 				PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
 				CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
@@ -127,6 +142,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 	unitOfWork := &fakeReceiptWebhookDispatchUnitOfWork{notificationOutbox: outbox}
 	useCase := NewRunReceiptWebhookDispatchCycleUseCase(
 		unitOfWork,
+		newWebhookDispatchPolicyReader(),
 		notifier,
 		&fakeReceiptWebhookDispatchClock{
 			now:   deliveredAt,
@@ -164,6 +180,9 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 	if notifier.inputs[0].NotificationID != 1 {
 		t.Fatalf("unexpected notification id: got %d", notifier.inputs[0].NotificationID)
 	}
+	if notifier.inputs[0].AssetReference != "0xdac17f958d2ee523a2206206994597c13d831ec7" {
+		t.Fatalf("unexpected asset reference: got %q", notifier.inputs[0].AssetReference)
+	}
 }
 
 func TestRunReceiptWebhookDispatchCycleUseCaseExecuteRetry(t *testing.T) {
@@ -174,6 +193,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteRetry(t *testing.T) {
 			{
 				NotificationID:   2,
 				PaymentAddressID: 202,
+				AddressPolicyID:  valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
 				PreviousStatus:   valueobjects.PaymentReceiptStatusWatching,
 				CurrentStatus:    valueobjects.PaymentReceiptStatusPartiallyPaid,
 				StatusChangedAt:  claimNow.Add(-time.Minute),
@@ -187,6 +207,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteRetry(t *testing.T) {
 	unitOfWork := &fakeReceiptWebhookDispatchUnitOfWork{notificationOutbox: outbox}
 	useCase := NewRunReceiptWebhookDispatchCycleUseCase(
 		unitOfWork,
+		newWebhookDispatchPolicyReader(),
 		notifier,
 		&fakeReceiptWebhookDispatchClock{
 			now:   failedAt,
@@ -232,6 +253,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteTerminalFailure(t *testing.
 			{
 				NotificationID:   3,
 				PaymentAddressID: 303,
+				AddressPolicyID:  valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
 				PreviousStatus:   valueobjects.PaymentReceiptStatusWatching,
 				CurrentStatus:    valueobjects.PaymentReceiptStatusFailedExpired,
 				StatusChangedAt:  claimNow.Add(-time.Minute),
@@ -245,6 +267,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteTerminalFailure(t *testing.
 	unitOfWork := &fakeReceiptWebhookDispatchUnitOfWork{notificationOutbox: outbox}
 	useCase := NewRunReceiptWebhookDispatchCycleUseCase(
 		unitOfWork,
+		newWebhookDispatchPolicyReader(),
 		notifier,
 		&fakeReceiptWebhookDispatchClock{
 			now:   failedAt,
@@ -283,6 +306,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteValidation(t *testing.T) {
 		&fakeReceiptWebhookDispatchUnitOfWork{
 			notificationOutbox: &fakeWebhookDispatchNotificationOutbox{},
 		},
+		newWebhookDispatchPolicyReader(),
 		&fakeReceiptStatusNotifier{errorsByNotificationID: map[int64]error{}},
 		&fakeReceiptWebhookDispatchClock{now: time.Now().UTC()},
 	)
@@ -304,6 +328,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseMapsOutboxFailure(t *testing.T) {
 			{
 				NotificationID:        7,
 				PaymentAddressID:      707,
+				AddressPolicyID:       valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
 				PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
 				CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
 				ObservedTotalMinor:    500,
@@ -317,6 +342,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseMapsOutboxFailure(t *testing.T) {
 	}
 	useCase := NewRunReceiptWebhookDispatchCycleUseCase(
 		&fakeReceiptWebhookDispatchUnitOfWork{notificationOutbox: outbox},
+		newWebhookDispatchPolicyReader(),
 		&fakeReceiptStatusNotifier{errorsByNotificationID: map[int64]error{}},
 		&fakeReceiptWebhookDispatchClock{
 			now:   claimNow.Add(2 * time.Second),

@@ -75,6 +75,9 @@ func TestEmbeddedMetadataLoadsMainnetAndSepolia(t *testing.T) {
 	if mainnet.FactoryAddress == "" {
 		t.Fatal("expected embedded mainnet factory address")
 	}
+	if mainnet.ReceiverArtifact != ReceiverArtifactName {
+		t.Fatalf("unexpected mainnet receiver artifact: got %q want %q", mainnet.ReceiverArtifact, ReceiverArtifactName)
+	}
 	if strings.TrimSpace(mainnet.Receiver.CreationCodeHex) == "" {
 		t.Fatal("expected embedded receiver artifact creation code")
 	}
@@ -86,13 +89,38 @@ func TestEmbeddedMetadataLoadsMainnetAndSepolia(t *testing.T) {
 	if sepolia.FactoryAddress == "" {
 		t.Fatal("expected embedded sepolia factory address")
 	}
+	if sepolia.ReceiverArtifact != ReceiverArtifactName {
+		t.Fatalf("unexpected sepolia receiver artifact: got %q want %q", sepolia.ReceiverArtifact, ReceiverArtifactName)
+	}
 	if strings.TrimSpace(sepolia.Receiver.CreationCodeHex) == "" {
 		t.Fatal("expected embedded receiver artifact creation code")
 	}
 }
 
+func TestBuildTokenCapableAddressSpaceRef(t *testing.T) {
+	got := BuildTokenCapableAddressSpaceRef(
+		"mainnet",
+		"0x2222222222222222222222222222222222222222",
+	)
+	if got == "" {
+		t.Fatal("expected token-capable address space ref")
+	}
+	if got != BuildAddressSpaceRef(
+		"mainnet",
+		"0x2222222222222222222222222222222222222222",
+	) {
+		t.Fatal("expected token-capable address space ref to use unified receiver ref")
+	}
+}
+
+func TestLookupReceiverArtifact(t *testing.T) {
+	if _, ok := LookupReceiverArtifact(ReceiverArtifactName); !ok {
+		t.Fatal("expected receiver artifact")
+	}
+}
+
 func TestEmbeddedFactoryArtifactLoads(t *testing.T) {
-	artifact, err := loadReceiverArtifact("Create2ReceiverFactoryV1.json")
+	artifact, err := loadReceiverArtifact(FactoryArtifactName)
 	if err != nil {
 		t.Fatalf("loadReceiverArtifact returned error: %v", err)
 	}
@@ -112,6 +140,7 @@ func TestEmbeddedFactoryArtifactLoads(t *testing.T) {
 	}
 
 	foundSweep := false
+	foundSweepERC20 := false
 	foundDeployAndCall := false
 	for _, item := range abiItems {
 		typ, _ := item["type"].(string)
@@ -122,12 +151,18 @@ func TestEmbeddedFactoryArtifactLoads(t *testing.T) {
 		if name == "sweep" {
 			foundSweep = true
 		}
+		if name == "sweepERC20" {
+			foundSweepERC20 = true
+		}
 		if name == "deployAndCall" {
 			foundDeployAndCall = true
 		}
 	}
 	if !foundSweep {
 		t.Fatal("expected factory ABI to expose sweep")
+	}
+	if !foundSweepERC20 {
+		t.Fatal("expected factory ABI to expose sweepERC20")
 	}
 	if foundDeployAndCall {
 		t.Fatal("did not expect factory ABI to expose deployAndCall")

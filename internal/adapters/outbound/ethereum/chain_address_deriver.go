@@ -173,34 +173,6 @@ func predictCreate2Address(factoryAddress []byte, salt [32]byte, initCodeHash []
 	return "0x" + hex.EncodeToString(digest[12:])
 }
 
-func normalizeFixedHex(raw string, sizeBytes int, label string) (string, []byte, error) {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return "", nil, fmt.Errorf("%s is required", label)
-	}
-	if !strings.HasPrefix(trimmed, "0x") && !strings.HasPrefix(trimmed, "0X") {
-		return "", nil, fmt.Errorf("%s must start with 0x", label)
-	}
-
-	decoded, err := hex.DecodeString(trimmed[2:])
-	if err != nil {
-		return "", nil, fmt.Errorf("%s is invalid hex: %w", label, err)
-	}
-	if len(decoded) != sizeBytes {
-		return "", nil, fmt.Errorf("%s must be %d bytes", label, sizeBytes)
-	}
-
-	return "0x" + strings.ToLower(trimmed[2:]), decoded, nil
-}
-
-func mustDecodeFixedHex(raw string, sizeBytes int) ([]byte, error) {
-	_, decoded, err := normalizeFixedHex(raw, sizeBytes, "hex value")
-	if err != nil {
-		return nil, err
-	}
-	return decoded, nil
-}
-
 func keccak256Hash(data []byte) [32]byte {
 	hasher := sha3.NewLegacyKeccak256()
 	_, _ = hasher.Write(data)

@@ -16,6 +16,7 @@ type sweepMaterial struct {
 	MaterialVersion  int    `json:"material_version"`
 	Chain            string `json:"chain"`
 	Network          string `json:"network"`
+	AssetReference   string `json:"asset_reference,omitempty"`
 	Address          string `json:"address"`
 	PredictedAddress string `json:"predicted_address"`
 	FactoryAddress   string `json:"factory_address"`
@@ -46,12 +47,24 @@ func buildSweepMaterialJSON(
 	if !ok {
 		return "", fmt.Errorf("ethereum create2 init code is unavailable for collector: %s", sourceRef.collector)
 	}
+	initCodeHash, ok := metadata.Receiver.InitCodeHashHex(sourceRef.collector)
+	if !ok {
+		return "", fmt.Errorf("ethereum create2 init code hash is unavailable for collector: %s", sourceRef.collector)
+	}
+	if initCodeHash != sourceRef.initCodeHash {
+		return "", fmt.Errorf("ethereum create2 init code hash mismatch for collector: %s", sourceRef.collector)
+	}
+	if !policy.IsEnabled() {
+		return "", fmt.Errorf("ethereum payment asset reference is unavailable for policy: %s", policy.AddressPolicyID)
+	}
+	assetReference := strings.TrimSpace(policy.AssetReference)
 
 	raw, err := json.Marshal(sweepMaterial{
 		MaterialType:     "ethereum_create2",
 		MaterialVersion:  create2SweepMaterialVersion,
 		Chain:            string(policy.Chain),
 		Network:          string(policy.Network),
+		AssetReference:   assetReference,
 		Address:          strings.TrimSpace(address),
 		PredictedAddress: strings.TrimSpace(address),
 		FactoryAddress:   sourceRef.factoryAddress,

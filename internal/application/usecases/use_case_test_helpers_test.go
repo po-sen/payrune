@@ -27,7 +27,6 @@ func newAddressIssuancePolicy(
 	chain valueobjects.SupportedChain,
 	network valueobjects.NetworkID,
 	scheme string,
-	minorUnit string,
 	decimals uint8,
 	accountPublicKey string,
 	derivationPathPrefix string,
@@ -37,7 +36,6 @@ func newAddressIssuancePolicy(
 		Chain:           chain,
 		Network:         network,
 		Scheme:          valueobjects.AddressScheme(scheme),
-		MinorUnit:       minorUnit,
 		Decimals:        decimals,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   accountPublicKey,
@@ -57,7 +55,6 @@ func newEthereumCreate2IssuancePolicy(
 		valueobjects.SupportedChainEthereum,
 		network,
 		"create2",
-		"wei",
 		18,
 		addressSourceRef,
 		addressReferencePrefix,
@@ -81,7 +78,6 @@ func newInMemoryAddressPolicyReader(issuancePolicies []policies.AddressIssuanceP
 			Chain:           normalized.Chain,
 			Network:         normalized.Network,
 			Scheme:          normalized.Scheme,
-			MinorUnit:       normalized.MinorUnit,
 			Decimals:        normalized.Decimals,
 			Enabled:         normalized.Enabled,
 		})

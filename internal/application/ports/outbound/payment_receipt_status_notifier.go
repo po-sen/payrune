@@ -17,6 +17,7 @@ type NotifyPaymentReceiptStatusChangedInput struct {
 	NotificationID        int64
 	PaymentAddressID      int64
 	CustomerReference     string
+	AssetReference        string
 	PreviousStatus        string
 	CurrentStatus         string
 	ObservedTotalMinor    int64

@@ -13,7 +13,6 @@ func newTestAddressIssuancePolicy() AddressIssuancePolicy {
 		Chain:           valueobjects.SupportedChainBitcoin,
 		Network:         valueobjects.NetworkID(" MAINNET "),
 		Scheme:          " native-segwit ",
-		MinorUnit:       " satoshi ",
 		Decimals:        8,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   " xpub-main ",
@@ -35,9 +34,6 @@ func TestAddressIssuancePolicyNormalize(t *testing.T) {
 	}
 	if normalized.Scheme != "native-segwit" {
 		t.Fatalf("unexpected scheme: got %q", normalized.Scheme)
-	}
-	if normalized.MinorUnit != "satoshi" {
-		t.Fatalf("unexpected minor unit: got %q", normalized.MinorUnit)
 	}
 	if normalized.IssuanceConfig.AddressSpaceRef != "xpub-main" {
 		t.Fatalf("unexpected account public key: got %q", normalized.IssuanceConfig.AddressSpaceRef)
@@ -123,7 +119,6 @@ func TestAddressIssuancePolicyValidateForAddressPreviewRejectsUnsupportedPolicy(
 		Chain:           valueobjects.SupportedChainEthereum,
 		Network:         valueobjects.NetworkIDMainnet,
 		Scheme:          "create2",
-		MinorUnit:       "wei",
 		Decimals:        18,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   "configured",

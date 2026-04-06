@@ -2,6 +2,7 @@ package policy
 
 import (
 	"context"
+	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/policies"
@@ -33,7 +34,7 @@ func NewAddressPolicyReader(issuancePolicies []policies.AddressIssuancePolicy) o
 			Chain:           issuancePolicy.Chain,
 			Network:         issuancePolicy.Network,
 			Scheme:          issuancePolicy.Scheme,
-			MinorUnit:       issuancePolicy.MinorUnit,
+			AssetReference:  strings.TrimSpace(issuancePolicy.AssetReference),
 			Decimals:        issuancePolicy.Decimals,
 			Enabled:         issuancePolicy.Enabled,
 		})

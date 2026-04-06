@@ -11,7 +11,7 @@ type AddressPolicy struct {
 	Chain           string
 	Network         string
 	Scheme          string
-	MinorUnit       string
+	AssetReference  string
 	Decimals        uint8
 	Enabled         bool
 }
@@ -32,7 +32,7 @@ type GenerateAddressResponse struct {
 	Chain           string
 	Network         string
 	Scheme          string
-	MinorUnit       string
+	AssetReference  string
 	Decimals        uint8
 	Index           uint32
 	Address         string
@@ -53,7 +53,7 @@ type AllocatePaymentAddressResponse struct {
 	Chain               string
 	Network             string
 	Scheme              string
-	MinorUnit           string
+	AssetReference      string
 	Decimals            uint8
 	Address             string
 	CustomerReference   string
@@ -72,7 +72,7 @@ type GetPaymentAddressStatusResponse struct {
 	Chain                   string
 	Network                 string
 	Scheme                  string
-	MinorUnit               string
+	AssetReference          string
 	Decimals                uint8
 	Address                 string
 	CustomerReference       string

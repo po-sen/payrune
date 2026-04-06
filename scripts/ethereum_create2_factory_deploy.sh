@@ -14,7 +14,7 @@ Optional env:
   ETHEREUM_SWEEP_DERIVATION_PATH
 
 Notes:
-  - The script deploys the checked-in `Create2ReceiverFactoryV1` artifact.
+  - The script deploys the checked-in `Create2ReceiverFactory` artifact.
   - It resolves the target network from chain ID and updates checked-in metadata on successful
     broadcast.
   - It validates the connected Ledger sender before deciding whether to broadcast.
@@ -69,7 +69,7 @@ resolve_network_from_chain_id() {
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
-artifact_path="${repo_root}/internal/infrastructure/ethereumcreate2assets/artifacts/Create2ReceiverFactoryV1.json"
+artifact_path="${repo_root}/internal/infrastructure/ethereumcreate2assets/artifacts/Create2ReceiverFactory.json"
 metadata_dir="${repo_root}/internal/infrastructure/ethereumcreate2assets/metadata"
 
 broadcast=0

@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"strings"
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
@@ -37,7 +38,7 @@ func (uc *listAddressPoliciesUseCase) Execute(
 			Chain:           string(policy.Chain),
 			Network:         string(policy.Network),
 			Scheme:          string(policy.Scheme),
-			MinorUnit:       policy.MinorUnit,
+			AssetReference:  strings.TrimSpace(policy.AssetReference),
 			Decimals:        policy.Decimals,
 			Enabled:         policy.Enabled,
 		})

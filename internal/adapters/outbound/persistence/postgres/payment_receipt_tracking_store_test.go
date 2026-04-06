@@ -80,6 +80,7 @@ func TestScanPaymentReceiptTrackingSupportsGenericChainNetwork(t *testing.T) {
 			sql.NullTime{}, // confirmed_at
 			sql.NullTime{Valid: true, Time: now.Add(24 * time.Hour)},
 			"", // last_error
+			"",
 		},
 	})
 	if err != nil {
@@ -125,6 +126,7 @@ func TestScanPaymentReceiptTrackingRejectsInvalidNetwork(t *testing.T) {
 			sql.NullTime{},
 			sql.NullTime{},
 			"",
+			"",
 		},
 	})
 	if err == nil {
@@ -153,6 +155,7 @@ func TestScanPaymentReceiptTrackingRejectsInvalidChain(t *testing.T) {
 			sql.NullTime{},
 			sql.NullTime{},
 			sql.NullTime{},
+			"",
 			"",
 		},
 	})
@@ -183,6 +186,7 @@ func TestScanPaymentReceiptTrackingRejectsInvalidAddressPolicyID(t *testing.T) {
 			sql.NullTime{},
 			sql.NullTime{},
 			"",
+			"",
 		},
 	})
 	if err == nil {
@@ -210,11 +214,11 @@ func TestScanPaymentReceiptTrackingRejectsInvalidStatus(t *testing.T) {
 			int64(0),
 			int64(0),
 			int64(0),
-			int64(0),
 			sql.NullTime{},
 			sql.NullTime{},
 			sql.NullTime{},
 			sql.NullTime{},
+			"",
 			"",
 		},
 	})
@@ -233,6 +237,7 @@ func newTrackingStoreTestEntity() entities.PaymentReceiptTracking {
 		Chain:                   valueobjects.ChainIDBitcoin,
 		Network:                 valueobjects.NetworkIDMainnet,
 		Address:                 "bc1qtracking",
+		AssetReference:          "",
 		IssuedAt:                issuedAt,
 		ExpiresAt:               &expiresAt,
 		ExpectedAmountMinor:     100000,
@@ -274,6 +279,7 @@ func TestPaymentReceiptTrackingStoreCreateSuccess(t *testing.T) {
 			"bitcoin",
 			"mainnet",
 			"bc1qtracking",
+			nil,
 			tracking.IssuedAt.UTC(),
 			tracking.ExpiresAt.UTC(),
 			int64(100000),
@@ -401,6 +407,7 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 		"confirmed_at",
 		"expires_at",
 		"last_error",
+		"asset_reference",
 	}).AddRow(
 		int64(1),
 		int64(501),
@@ -420,6 +427,7 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 		paidAt,
 		confirmedAt,
 		expiresAt,
+		"",
 		"",
 	)
 
@@ -490,6 +498,7 @@ func TestPaymentReceiptTrackingStoreClaimDueSkipsExpiredUntilNextPollAt(t *testi
 		"confirmed_at",
 		"expires_at",
 		"last_error",
+		"asset_reference",
 	})
 
 	mock.ExpectQuery(regexp.QuoteMeta("WITH due AS")).

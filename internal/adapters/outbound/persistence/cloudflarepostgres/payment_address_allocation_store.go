@@ -39,6 +39,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		rawChain            string
 		rawNetwork          string
 		scheme              string
+		rawAssetReference   string
 		address             string
 		failureReason       string
 	)
@@ -53,6 +54,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		        COALESCE(a.chain, ''),
 		        COALESCE(a.network, ''),
 		        COALESCE(a.scheme, ''),
+		        COALESCE(a.asset_reference, ''),
 		        COALESCE(a.address, ''),
 		        COALESCE(a.failure_reason, '')
 		   FROM address_policy_allocations a
@@ -69,6 +71,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		&rawChain,
 		&rawNetwork,
 		&scheme,
+		&rawAssetReference,
 		&address,
 		&failureReason,
 	)
@@ -106,6 +109,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 			rawNetwork,
 		)
 	}
+	assetReference := strings.TrimSpace(rawAssetReference)
 
 	derivationFailureReason := normalizePaymentAddressAllocationDerivationFailureReason(failureReason)
 
@@ -119,6 +123,7 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		Chain:                   chain,
 		Network:                 network,
 		Scheme:                  valueobjects.AddressScheme(scheme).Normalize(),
+		AssetReference:          assetReference,
 		Address:                 strings.TrimSpace(address),
 		DerivationFailureReason: derivationFailureReason,
 	}, true, nil
@@ -135,6 +140,7 @@ func (r *PaymentAddressAllocationStore) Complete(
 	if sweepMaterialJSON == "" {
 		return outport.ErrPaymentAddressAllocationStoreFailed
 	}
+	assetReference := strings.TrimSpace(input.Allocation.AssetReference)
 
 	result, err := r.executor.ExecContext(
 		ctx,
@@ -143,16 +149,18 @@ func (r *PaymentAddressAllocationStore) Complete(
 		     network = $3,
 		     scheme = $4,
 		     address = $5,
-		     sweep_material_json = $6,
+		     asset_reference = $6,
+		     sweep_material_json = $7,
 		     failure_reason = NULL,
 		     allocation_status = 'issued',
-		     issued_at = $7
+		     issued_at = $8
 		 WHERE id = $1 AND allocation_status = 'reserved'`,
 		input.Allocation.PaymentAddressID,
 		string(input.Allocation.Chain),
 		string(input.Allocation.Network),
 		string(input.Allocation.Scheme),
 		strings.TrimSpace(input.Allocation.Address),
+		nullIfEmpty(assetReference),
 		sweepMaterialJSON,
 		input.IssuedAt.UTC(),
 	)
@@ -239,6 +247,7 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		     chain = NULL,
 		     network = NULL,
 		     scheme = NULL,
+		     asset_reference = NULL,
 		     address = NULL,
 		     sweep_material_json = NULL,
 		     failure_reason = NULL,

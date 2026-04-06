@@ -63,7 +63,6 @@ func newAllocationPolicy(
 		valueobjects.SupportedChainBitcoin,
 		network,
 		scheme,
-		"satoshi",
 		8,
 		publicKey,
 		derivationPathPrefix,
@@ -345,9 +344,6 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	}
 	if response.Chain != "ethereum" {
 		t.Fatalf("unexpected response chain: got %q", response.Chain)
-	}
-	if response.MinorUnit != "wei" {
-		t.Fatalf("unexpected response minor unit: got %q", response.MinorUnit)
 	}
 	if response.Decimals != 18 {
 		t.Fatalf("unexpected response decimals: got %d", response.Decimals)
@@ -1033,7 +1029,6 @@ func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 			valueobjects.SupportedChainBitcoin,
 			valueobjects.NetworkIDMainnet,
 			string(valueobjects.AddressSchemeLegacy),
-			"satoshi",
 			8,
 			"",
 			"",

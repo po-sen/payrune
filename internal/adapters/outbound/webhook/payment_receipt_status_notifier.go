@@ -93,6 +93,7 @@ func (n *paymentReceiptStatusWebhookNotifier) NotifyStatusChanged(
 		NotificationID:        input.NotificationID,
 		PaymentAddressID:      input.PaymentAddressID,
 		CustomerReference:     input.CustomerReference,
+		AssetReference:        input.AssetReference,
 		PreviousStatus:        input.PreviousStatus,
 		CurrentStatus:         input.CurrentStatus,
 		ObservedTotalMinor:    input.ObservedTotalMinor,
@@ -133,6 +134,7 @@ type paymentReceiptStatusChangedPayload struct {
 	NotificationID        int64     `json:"notificationId"`
 	PaymentAddressID      int64     `json:"paymentAddressId"`
 	CustomerReference     string    `json:"customerReference,omitempty"`
+	AssetReference        string    `json:"assetReference,omitempty"`
 	PreviousStatus        string    `json:"previousStatus"`
 	CurrentStatus         string    `json:"currentStatus"`
 	ObservedTotalMinor    int64     `json:"observedTotalMinor"`

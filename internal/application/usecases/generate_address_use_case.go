@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
@@ -83,7 +84,7 @@ func (uc *generateAddressUseCase) Execute(
 		Chain:           string(policy.Chain),
 		Network:         string(policy.Network),
 		Scheme:          string(policy.Scheme),
-		MinorUnit:       policy.MinorUnit,
+		AssetReference:  strings.TrimSpace(policy.AssetReference),
 		Decimals:        policy.Decimals,
 		Index:           input.Index,
 		Address:         output.Address,

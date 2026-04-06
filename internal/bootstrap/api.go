@@ -48,6 +48,8 @@ const (
 	envEthereumSepoliaCreate2Collector      = "ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS"
 	envEthereumMainnetCreate2DerivationKey  = "ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY"
 	envEthereumSepoliaCreate2DerivationKey  = "ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY"
+	envEthereumMainnetUSDTAssetReference    = "ETHEREUM_MAINNET_USDT_ASSET_REFERENCE"
+	envEthereumSepoliaUSDTAssetReference    = "ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE"
 	defaultBitcoinRequiredConfirmations     = int32(1)
 	defaultBitcoinReceiptExpiresAfter       = 7 * 24 * time.Hour
 )
@@ -425,9 +427,21 @@ func buildAddressIssuancePolicies(
 			envValue(envEthereumMainnetCreate2Collector),
 			ethereumCreate2SaltDeriver,
 		),
+		newEthereumUSDTCreate2AddressIssuancePolicy(
+			valueobjects.NetworkIDMainnet,
+			envValue(envEthereumMainnetCreate2Collector),
+			envValue(envEthereumMainnetUSDTAssetReference),
+			ethereumCreate2SaltDeriver,
+		),
 		newEthereumCreate2AddressIssuancePolicy(
 			valueobjects.NetworkIDSepolia,
 			envValue(envEthereumSepoliaCreate2Collector),
+			ethereumCreate2SaltDeriver,
+		),
+		newEthereumUSDTCreate2AddressIssuancePolicy(
+			valueobjects.NetworkIDSepolia,
+			envValue(envEthereumSepoliaCreate2Collector),
+			envValue(envEthereumSepoliaUSDTAssetReference),
 			ethereumCreate2SaltDeriver,
 		),
 	}
@@ -439,33 +453,83 @@ func validateConfiguredAddressIssuancePolicies(
 ) error {
 	for _, policy := range policies {
 		normalized := policy.Normalize()
-		if !normalized.IsEnabled() || normalized.Chain != valueobjects.SupportedChainBitcoin {
+		if !normalized.IsEnabled() {
 			continue
 		}
-		if bitcoinDeriver == nil {
-			return fmt.Errorf(
-				"bitcoin policy %q cannot be validated: bitcoin address deriver is not configured",
-				normalized.AddressPolicyID,
-			)
-		}
-		if err := bitcoinDeriver.ValidateXPub(normalized.IssuanceConfig.AddressSpaceRef); err != nil {
-			envKey := bitcoinXPubEnvKey(normalized.AddressPolicyID)
-			if envKey == "" {
-				return fmt.Errorf(
-					"bitcoin policy %q has invalid xpub: %w",
-					normalized.AddressPolicyID,
-					err,
-				)
+		switch normalized.Chain {
+		case valueobjects.SupportedChainBitcoin:
+			if err := validateConfiguredEnabledBitcoinAddressIssuancePolicy(normalized, bitcoinDeriver); err != nil {
+				return err
 			}
-			return fmt.Errorf(
-				"bitcoin policy %q has invalid xpub in %s: %w",
-				normalized.AddressPolicyID,
-				envKey,
-				err,
-			)
+		case valueobjects.SupportedChainEthereum:
+			if err := validateConfiguredEnabledEthereumAddressIssuancePolicy(normalized); err != nil {
+				return err
+			}
 		}
 	}
 
+	return nil
+}
+
+func validateConfiguredEnabledBitcoinAddressIssuancePolicy(
+	policy policies.AddressIssuancePolicy,
+	bitcoinDeriver *bitcoin.HDXPubAddressDeriver,
+) error {
+	if bitcoinDeriver == nil {
+		return fmt.Errorf(
+			"bitcoin policy %q cannot be validated: bitcoin address deriver is not configured",
+			policy.AddressPolicyID,
+		)
+	}
+	if err := bitcoinDeriver.ValidateXPub(policy.IssuanceConfig.AddressSpaceRef); err != nil {
+		envKey := bitcoinXPubEnvKey(policy.AddressPolicyID)
+		if envKey == "" {
+			return fmt.Errorf(
+				"bitcoin policy %q has invalid xpub: %w",
+				policy.AddressPolicyID,
+				err,
+			)
+		}
+		return fmt.Errorf(
+			"bitcoin policy %q has invalid xpub in %s: %w",
+			policy.AddressPolicyID,
+			envKey,
+			err,
+		)
+	}
+	return nil
+}
+
+func validateConfiguredEnabledEthereumAddressIssuancePolicy(
+	policy policies.AddressIssuancePolicy,
+) error {
+	assetReference := strings.TrimSpace(policy.AssetReference)
+	envKey := ethereumAssetReferenceEnvKey(policy.AddressPolicyID)
+	if envKey != "" && assetReference == "" {
+		return fmt.Errorf(
+			"ethereum policy %q has invalid asset configuration in %s",
+			policy.AddressPolicyID,
+			envKey,
+		)
+	}
+	if assetReference == "" {
+		return nil
+	}
+	if _, err := ethereum.NormalizeEthereumAddress(assetReference, "asset reference"); err != nil {
+		if envKey == "" {
+			return fmt.Errorf(
+				"ethereum policy %q has invalid asset reference: %w",
+				policy.AddressPolicyID,
+				err,
+			)
+		}
+		return fmt.Errorf(
+			"ethereum policy %q has invalid asset reference in %s: %w",
+			policy.AddressPolicyID,
+			envKey,
+			err,
+		)
+	}
 	return nil
 }
 
@@ -481,7 +545,6 @@ func newBitcoinAddressIssuancePolicy(
 		Chain:           valueobjects.SupportedChainBitcoin,
 		Network:         network,
 		Scheme:          valueobjects.AddressScheme(scheme),
-		MinorUnit:       "satoshi",
 		Decimals:        8,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   addressSpaceRef,
@@ -505,8 +568,31 @@ func newEthereumCreate2AddressIssuancePolicy(
 		Chain:           valueobjects.SupportedChainEthereum,
 		Network:         network,
 		Scheme:          valueobjects.AddressSchemeCreate2,
-		MinorUnit:       "wei",
 		Decimals:        18,
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressSpaceRef: addressSpaceRef,
+		},
+	}.Normalize()
+}
+
+func newEthereumUSDTCreate2AddressIssuancePolicy(
+	network valueobjects.NetworkID,
+	collectorAddress string,
+	assetReference string,
+	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
+) policies.AddressIssuancePolicy {
+	addressSpaceRef := ""
+	if ethereumCreate2SaltDeriver != nil && ethereumCreate2SaltDeriver.HasNetwork(network) {
+		addressSpaceRef = ethereumcreate2assets.BuildAddressSpaceRef(string(network), collectorAddress)
+	}
+
+	return policies.AddressIssuancePolicy{
+		AddressPolicyID: valueobjects.EthereumUSDTCreate2AddressPolicyID(network),
+		Chain:           valueobjects.SupportedChainEthereum,
+		Network:         network,
+		Scheme:          valueobjects.AddressSchemeCreate2,
+		AssetReference:  strings.TrimSpace(assetReference),
+		Decimals:        6,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef: addressSpaceRef,
 		},
@@ -541,6 +627,17 @@ func bitcoinXPubEnvKey(addressPolicyID valueobjects.AddressPolicyID) string {
 		return envBitcoinTestnet4NativeSegwitXPub
 	case valueobjects.AddressPolicyIDBitcoinTestnet4Taproot:
 		return envBitcoinTestnet4TaprootXPub
+	default:
+		return ""
+	}
+}
+
+func ethereumAssetReferenceEnvKey(addressPolicyID valueobjects.AddressPolicyID) string {
+	switch addressPolicyID.Normalize() {
+	case valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2:
+		return envEthereumMainnetUSDTAssetReference
+	case valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2:
+		return envEthereumSepoliaUSDTAssetReference
 	default:
 		return ""
 	}

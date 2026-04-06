@@ -23,7 +23,6 @@ func TestChainAddressControllerGetPaymentStatusSuccess(t *testing.T) {
 			Chain:                   "bitcoin",
 			Network:                 "mainnet",
 			Scheme:                  "nativeSegwit",
-			MinorUnit:               "satoshi",
 			Decimals:                8,
 			Address:                 "bc1qstatus",
 			CustomerReference:       "order-20260308-001",

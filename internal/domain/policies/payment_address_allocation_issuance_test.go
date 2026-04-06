@@ -125,7 +125,6 @@ func TestPaymentAddressAllocationIssuancePolicyPlanScopesOverridesByChainAndNetw
 			Chain:           valueobjects.SupportedChainEthereum,
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          "create2",
-			MinorUnit:       "wei",
 			Decimals:        18,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",

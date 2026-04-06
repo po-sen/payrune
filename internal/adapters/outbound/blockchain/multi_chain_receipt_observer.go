@@ -45,6 +45,7 @@ func (o *MultiChainReceiptObserver) ObserveAddress(
 	}
 
 	output, err := observer.ObserveAddress(ctx, outport.ObservePaymentAddressInput{
+		AssetReference:        input.AssetReference,
 		Network:               normalizedNetwork,
 		Address:               input.Address,
 		IssuedAt:              input.IssuedAt,

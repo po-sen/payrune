@@ -12,7 +12,7 @@ type AddressPolicyRecord struct {
 	Chain           valueobjects.SupportedChain
 	Network         valueobjects.NetworkID
 	Scheme          valueobjects.AddressScheme
-	MinorUnit       string
+	AssetReference  string
 	Decimals        uint8
 	Enabled         bool
 }

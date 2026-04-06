@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 
 	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
@@ -73,7 +74,7 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 		Chain:                   string(record.Chain),
 		Network:                 string(record.Network),
 		Scheme:                  string(record.Scheme),
-		MinorUnit:               policy.MinorUnit,
+		AssetReference:          strings.TrimSpace(policy.AssetReference),
 		Decimals:                policy.Decimals,
 		Address:                 record.Address,
 		CustomerReference:       record.CustomerReference,

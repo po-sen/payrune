@@ -92,11 +92,13 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 		   UPDATE payment_receipt_status_notifications n
 		   SET lease_until = $3,
 		       updated_at = NOW()
-		   FROM due
+		   FROM due, address_policy_allocations a
 		   WHERE n.id = due.id
+		     AND a.id = n.payment_address_id
 		   RETURNING
 		     n.id,
 		     n.payment_address_id,
+		     a.address_policy_id,
 		     COALESCE(n.customer_reference, ''),
 		     n.previous_status,
 		     n.current_status,
@@ -210,6 +212,7 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 	var (
 		notificationID        int64
 		paymentAddressID      int64
+		addressPolicyID       string
 		customerReference     string
 		previousStatusRaw     string
 		currentStatusRaw      string
@@ -227,6 +230,7 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 	if err := scanner.Scan(
 		&notificationID,
 		&paymentAddressID,
+		&addressPolicyID,
 		&customerReference,
 		&previousStatusRaw,
 		&currentStatusRaw,
@@ -241,6 +245,15 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		&deliveredAt,
 	); err != nil {
 		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, outport.ErrPaymentReceiptStatusNotificationOutboxFailed
+	}
+
+	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
+	if err != nil {
+		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf(
+			"%w: %s",
+			outport.ErrPaymentReceiptStatusNotificationPersistedAddressPolicyIDInvalid,
+			addressPolicyID,
+		)
 	}
 
 	previousStatus, ok := valueobjects.ParsePaymentReceiptStatus(previousStatusRaw)
@@ -261,6 +274,7 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 	notification := applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
 		NotificationID:        notificationID,
 		PaymentAddressID:      paymentAddressID,
+		AddressPolicyID:       parsedAddressPolicyID,
 		CustomerReference:     customerReference,
 		PreviousStatus:        previousStatus,
 		CurrentStatus:         currentStatus,

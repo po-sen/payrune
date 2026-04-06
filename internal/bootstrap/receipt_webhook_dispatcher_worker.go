@@ -7,6 +7,7 @@ import (
 
 	scheduleradapter "payrune/internal/adapters/inbound/scheduler"
 	cloudflarepostgresadapter "payrune/internal/adapters/outbound/persistence/cloudflarepostgres"
+	policyadapter "payrune/internal/adapters/outbound/policy"
 	"payrune/internal/adapters/outbound/system"
 	webhookadapter "payrune/internal/adapters/outbound/webhook"
 	"payrune/internal/application/usecases"
@@ -88,10 +89,15 @@ func buildCloudflareReceiptWebhookDispatcherRuntime(
 	if err != nil {
 		return nil, scheduleradapter.WebhookDispatcherRequest{}, err
 	}
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(
+		buildAddressIssuancePolicies(func(key string) string {
+			return cloudflareAPIEnvValue(env, key)
+		}, nil),
+	)
 
 	unitOfWork := cloudflarepostgresadapter.NewUnitOfWork(postgresBridgeID, cloudflarepostgresinfra.NewJSBridge())
 	clock := system.NewClock()
-	useCase := usecases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, notifier, clock)
+	useCase := usecases.NewRunReceiptWebhookDispatchCycleUseCase(unitOfWork, addressPolicyReader, notifier, clock)
 
 	return scheduleradapter.NewWebhookDispatcherHandler(scheduleradapter.WebhookDispatcherDependencies{
 		RunReceiptWebhookDispatchCycleUseCase: useCase,

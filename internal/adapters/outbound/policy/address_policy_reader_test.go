@@ -117,7 +117,6 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 			Chain:           valueobjects.SupportedChainEthereum,
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          "create2",
-			MinorUnit:       "wei",
 			Decimals:        18,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
@@ -129,7 +128,6 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 			Chain:           valueobjects.SupportedChainEthereum,
 			Network:         valueobjects.NetworkIDSepolia,
 			Scheme:          "create2",
-			MinorUnit:       "wei",
 			Decimals:        18,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
@@ -147,9 +145,6 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 	}
 	if policy.Chain != valueobjects.SupportedChainEthereum {
 		t.Fatalf("unexpected chain: got %q", policy.Chain)
-	}
-	if policy.MinorUnit != "wei" {
-		t.Fatalf("unexpected minor unit: got %q", policy.MinorUnit)
 	}
 	if policy.Decimals != 18 {
 		t.Fatalf("unexpected decimals: got %d", policy.Decimals)
