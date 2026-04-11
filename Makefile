@@ -17,12 +17,12 @@ COMPOSE_DEV_ENV := deployments/compose/compose.dev.env
 
 help:
 	@printf "%s\n" \
-		"up             start local development stack" \
-		"down           stop local development stack" \
-		"config         render local development compose config" \
-		"up-mainnet     start formal/mainnet-style local stack" \
-		"down-mainnet   stop formal/mainnet-style local stack" \
-		"config-mainnet render formal/mainnet-style compose config" \
+		"up             start base stack plus development-profile services" \
+		"down           stop base stack plus development-profile services" \
+		"config         render base stack plus development-profile services" \
+		"up-mainnet     start base stack only" \
+		"down-mainnet   stop base stack only" \
+		"config-mainnet render base-stack-only compose config" \
 		"cf-up          migrate and deploy Cloudflare workers" \
 		"cf-down        delete Cloudflare workers"
 

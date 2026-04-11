@@ -341,11 +341,11 @@ Local Docker Compose:
 
 Default behavior:
 
-- `make up`, `make down`, and `make config` use [`compose.dev.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.dev.env) with the `development` profile
-- `make up-mainnet`, `make down-mainnet`, and `make config-mainnet` use [`compose.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.env) with the base stack and no extra profile
+- `make up`, `make down`, and `make config` use [`compose.dev.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.dev.env) and add the `development` profile on top of the base stack
+- `make up-mainnet`, `make down-mainnet`, and `make config-mainnet` use [`compose.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.env) with the base stack only and no extra profile
 - `make help` prints the supported local and Cloudflare entrypoints
 
-Formal/mainnet-style local compose:
+Base-stack-only local compose:
 
 ```bash
 cp deployments/compose/compose.env.example deployments/compose/compose.env
@@ -357,7 +357,7 @@ make config-mainnet
 Unified example env:
 
 - [`deployments/compose/compose.env.example`](/Users/posen/Desktop/payrune/deployments/compose/compose.env.example) includes both base mainnet blocks and local development-chain blocks (`bitcoin testnet4`, `ethereum sepolia`)
-- the formal/mainnet-style path keeps the local development policy flags disabled by default in that example
+- the base-stack-only path keeps the local development policy flags disabled by default in that example
 - checked-in [`deployments/compose/compose.dev.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.dev.env) remains the ready-to-run local development env file and now keeps only the required development overrides
 
 Local development path:
@@ -368,6 +368,11 @@ make up
 make down
 make config
 ```
+
+Notes:
+
+- the base stack still includes the mainnet pollers and other unprofiled services
+- the `development` profile adds the extra local development services on top of that base stack, including the testnet4/sepolia pollers, webhook mock, and Swagger UI
 
 Cloudflare Workers:
 
