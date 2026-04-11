@@ -26,6 +26,24 @@ paths:
                     timestamp: "2026-03-03T03:53:25Z"
         "500":
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: internal server error
+        "405":
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: method not allowed
   /v1/chains/{chain}/address-policies:
     get:
       summary: List address policies for a chain
@@ -99,37 +117,31 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: chain is not supported
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: chain is not supported
         "405":
           description: Method not allowed.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: method not allowed
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: method not allowed
         "500":
           description: Internal server error.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: internal server error
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: internal server error
   /v1/chains/{chain}/addresses:
     get:
       summary: Generate deterministic address from address policy
@@ -225,33 +237,27 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: invalid index
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
-                invalidPolicy:
+                invalidAddressPolicyId:
                   value:
-                    error: address policy is not supported
+                    error: addressPolicyId is invalid
+                invalidIndex:
+                  value:
+                    error: invalid index
         "404":
-          description: Chain not supported or preview is unavailable for the selected address policy.
+          description: Chain not supported, address policy not supported, or preview is unavailable for the selected address policy.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: address preview is not supported for this address policy
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 unsupportedChain:
                   value:
                     error: chain is not supported
+                unsupportedPolicy:
+                  value:
+                    error: address policy is not supported
                 ethereumPreviewDisabled:
                   value:
                     error: address preview is not supported for this address policy
@@ -260,25 +266,17 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: method not allowed
-        "501":
-          description: Address policy is currently disabled.
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: method not allowed
+        "409":
+          description: Address policy state conflicts with preview generation.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: address policy is not enabled
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
                 disabled:
                   value:
@@ -288,13 +286,11 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: internal server error
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: internal server error
   /v1/chains/{chain}/payment-addresses:
     post:
       summary: Allocate unique payment address from address policy
@@ -408,87 +404,66 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: addressPolicyId is required
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
-                invalidPolicy:
+                invalidAddressPolicyId:
                   value:
-                    error: address policy is not supported
+                    error: addressPolicyId is invalid
                 invalidBody:
                   value:
                     error: invalid request body
+                invalidExpectedAmount:
+                  value:
+                    error: expected amount is invalid
         "404":
-          description: Chain not supported.
+          description: Chain not supported or address policy not supported.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: chain is not supported
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                unsupportedChain:
+                  value:
+                    error: chain is not supported
+                unsupportedPolicy:
+                  value:
+                    error: address policy is not supported
         "405":
           description: Method not allowed.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: method not allowed
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: method not allowed
         "409":
           description: Allocation conflict.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: idempotency key conflicts with existing payment address
+                $ref: "#/components/schemas/ErrorResponse"
               examples:
+                disabled:
+                  value:
+                    error: address policy is not enabled
                 poolExhausted:
                   value:
                     error: address pool is exhausted
                 idempotencyKeyConflict:
                   value:
                     error: idempotency key conflicts with existing payment address
-        "501":
-          description: Address policy is currently disabled.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: address policy is not enabled
         "500":
           description: Internal server error.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: internal server error
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: internal server error
   /v1/chains/{chain}/payment-addresses/{paymentAddressId}:
     get:
       summary: Get current payment status for one payment address
@@ -555,7 +530,7 @@ paths:
                     observedTotalMinor: 0
                     confirmedTotalMinor: 0
                     unconfirmedTotalMinor: 0
-                    requiredConfirmations: 1
+                    requiredConfirmations: 12
                     lastObservedBlockHeight: 7250000
                     issuedAt: "2026-03-20T09:00:00Z"
                     expiresAt: "2026-03-21T09:00:00Z"
@@ -564,13 +539,11 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: invalid paymentAddressId
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: invalid paymentAddressId
         "404":
           description: Chain or payment address not found.
           content:
@@ -595,27 +568,31 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: method not allowed
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: method not allowed
         "500":
           description: Internal server error.
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - error
-                properties:
-                  error:
-                    type: string
-                    example: internal server error
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                default:
+                  value:
+                    error: internal server error
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: internal server error
     HealthResponse:
       type: object
       required:

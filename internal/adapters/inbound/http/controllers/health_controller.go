@@ -17,13 +17,14 @@ func NewHealthController(checkHealth inport.CheckHealthUseCase) *HealthControlle
 func (c *HealthController) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", http.MethodGet)
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		writeErrorJSON(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
 	response, err := c.checkHealth.Execute(r.Context())
 	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		logMappedControllerError(r, http.StatusInternalServerError, "internal server error", err)
+		writeErrorJSON(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 

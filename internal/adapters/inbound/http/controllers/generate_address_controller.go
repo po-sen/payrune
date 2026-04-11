@@ -83,9 +83,9 @@ func mapGenerateAddressError(err error) (int, string) {
 	case errors.Is(err, inport.ErrInvalidAddressPolicyID):
 		return http.StatusBadRequest, "addressPolicyId is invalid"
 	case errors.Is(err, inport.ErrAddressPolicyNotFound):
-		return http.StatusBadRequest, "address policy is not supported"
+		return http.StatusNotFound, "address policy is not supported"
 	case errors.Is(err, inport.ErrAddressPolicyNotEnabled):
-		return http.StatusNotImplemented, "address policy is not enabled"
+		return http.StatusConflict, "address policy is not enabled"
 	case errors.Is(err, inport.ErrAddressPreviewNotSupported):
 		return http.StatusNotFound, "address preview is not supported for this address policy"
 	default:

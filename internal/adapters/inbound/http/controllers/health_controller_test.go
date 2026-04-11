@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -70,4 +71,19 @@ func TestHealthControllerRejectMethod(t *testing.T) {
 	if allow := rr.Header().Get("Allow"); allow != http.MethodGet {
 		t.Fatalf("unexpected Allow header: got %q", allow)
 	}
+
+	assertErrorResponse(t, rr, http.StatusMethodNotAllowed, "method not allowed")
+}
+
+func TestHealthControllerInternalErrorUsesJSONError(t *testing.T) {
+	controller := NewHealthController(&fakeCheckHealthUseCase{err: errors.New("boom")})
+	mux := http.NewServeMux()
+	mux.Handle("/health", controller)
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rr := httptest.NewRecorder()
+
+	mux.ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusInternalServerError, "internal server error")
 }

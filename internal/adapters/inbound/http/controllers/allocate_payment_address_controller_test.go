@@ -291,8 +291,8 @@ func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) 
 		message    string
 	}{
 		{name: "invalid address policy id", err: inport.ErrInvalidAddressPolicyID, statusCode: http.StatusBadRequest, message: "addressPolicyId is invalid"},
-		{name: "policy not found", err: inport.ErrAddressPolicyNotFound, statusCode: http.StatusBadRequest, message: "address policy is not supported"},
-		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusNotImplemented, message: "address policy is not enabled"},
+		{name: "policy not found", err: inport.ErrAddressPolicyNotFound, statusCode: http.StatusNotFound, message: "address policy is not supported"},
+		{name: "policy not enabled", err: inport.ErrAddressPolicyNotEnabled, statusCode: http.StatusConflict, message: "address policy is not enabled"},
 		{name: "chain not supported", err: inport.ErrChainNotSupported, statusCode: http.StatusNotFound, message: publicUnsupportedChainMessage},
 		{name: "pool exhausted", err: inport.ErrAddressPoolExhausted, statusCode: http.StatusConflict, message: "address pool is exhausted"},
 		{name: "idempotency key conflict", err: inport.ErrIdempotencyKeyConflict, statusCode: http.StatusConflict, message: "idempotency key conflicts with existing payment address"},
