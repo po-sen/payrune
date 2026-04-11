@@ -5,6 +5,20 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKER_DIR="$ROOT_DIR/deployments/cloudflare/payrune"
 CLOUDFLARE_ENV_FILE="$ROOT_DIR/deployments/cloudflare/cloudflare.env"
 DEPLOY_ARGS=("$@")
+DEPLOY_VAR_NAMES=(
+	"BITCOIN_MAINNET_LEGACY_ENABLED"
+	"BITCOIN_MAINNET_SEGWIT_ENABLED"
+	"BITCOIN_MAINNET_NATIVE_SEGWIT_ENABLED"
+	"BITCOIN_MAINNET_TAPROOT_ENABLED"
+	"BITCOIN_TESTNET4_LEGACY_ENABLED"
+	"BITCOIN_TESTNET4_SEGWIT_ENABLED"
+	"BITCOIN_TESTNET4_NATIVE_SEGWIT_ENABLED"
+	"BITCOIN_TESTNET4_TAPROOT_ENABLED"
+	"ETHEREUM_MAINNET_CREATE2_ENABLED"
+	"ETHEREUM_MAINNET_USDT_CREATE2_ENABLED"
+	"ETHEREUM_SEPOLIA_CREATE2_ENABLED"
+	"ETHEREUM_SEPOLIA_USDT_CREATE2_ENABLED"
+)
 SYNC_SECRET_VARS=(
 	"POSTGRES_CONNECTION_STRING"
 	"PAYMENT_RECEIPT_WEBHOOK_SECRET"
@@ -31,6 +45,7 @@ SYNC_SECRET_VARS=(
 	"ETHEREUM_SEPOLIA_RPC_USER"
 	"ETHEREUM_SEPOLIA_RPC_PASSWORD"
 )
+DEPLOY_VAR_ARGS=()
 
 load_cloudflare_env() {
 	local env_file="$1"
@@ -125,6 +140,18 @@ sync_secret_from_env() {
 	success "Wrangler secret synced: $name"
 }
 
+append_deploy_var_from_env() {
+	local name="$1"
+	local value="${!name:-}"
+
+	if [[ -z "$value" ]]; then
+		return
+	fi
+
+	info "Adding Wrangler deploy var: $name"
+	DEPLOY_VAR_ARGS+=(--var "${name}:${value}")
+}
+
 step "Preparing payrune worker deploy inputs"
 info "Auto-loading $CLOUDFLARE_ENV_FILE when present."
 info "Run scripts/cf-cloudflare-migrate.sh separately when you need database migrations."
@@ -150,6 +177,12 @@ for name in "${SYNC_SECRET_VARS[@]}"; do
 	sync_secret_from_env "$name"
 done
 
+step "Collecting non-secret Worker deploy vars"
+for name in "${DEPLOY_VAR_NAMES[@]}"; do
+	append_deploy_var_from_env "$name"
+done
+success "Non-secret Worker deploy vars collected."
+
 step "Deploying payrune Worker"
-npm exec -- wrangler deploy "${DEPLOY_ARGS[@]}"
+npm exec -- wrangler deploy "${DEPLOY_VAR_ARGS[@]}" "${DEPLOY_ARGS[@]}"
 success "Payrune worker deploy finished."

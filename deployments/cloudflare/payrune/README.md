@@ -42,8 +42,24 @@ All other `fetch()` paths return `404`.
 
 ## Optional env-backed Worker values
 
-These are the optional values currently supported by `make cf-up`. When non-empty, the deploy
-script syncs them as Wrangler secrets.
+These are the optional values currently supported by `make cf-up`.
+
+Policy enablement flags are passed as non-secret Wrangler deploy vars when non-empty:
+
+- `BITCOIN_MAINNET_LEGACY_ENABLED`
+- `BITCOIN_MAINNET_SEGWIT_ENABLED`
+- `BITCOIN_MAINNET_NATIVE_SEGWIT_ENABLED`
+- `BITCOIN_MAINNET_TAPROOT_ENABLED`
+- `BITCOIN_TESTNET4_LEGACY_ENABLED`
+- `BITCOIN_TESTNET4_SEGWIT_ENABLED`
+- `BITCOIN_TESTNET4_NATIVE_SEGWIT_ENABLED`
+- `BITCOIN_TESTNET4_TAPROOT_ENABLED`
+- `ETHEREUM_MAINNET_CREATE2_ENABLED`
+- `ETHEREUM_MAINNET_USDT_CREATE2_ENABLED`
+- `ETHEREUM_SEPOLIA_CREATE2_ENABLED`
+- `ETHEREUM_SEPOLIA_USDT_CREATE2_ENABLED`
+
+The remaining optional values are still synced as Wrangler secrets when non-empty:
 
 - `BITCOIN_MAINNET_LEGACY_XPUB`
 - `BITCOIN_MAINNET_SEGWIT_XPUB`
