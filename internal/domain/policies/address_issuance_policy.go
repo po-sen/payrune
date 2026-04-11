@@ -33,7 +33,6 @@ func (p AddressIssuancePolicy) Normalize() AddressIssuancePolicy {
 	if p.Chain == valueobjects.SupportedChainEthereum && p.AssetReference != "" {
 		p.AssetReference = strings.ToLower(p.AssetReference)
 	}
-	p.Enabled = p.IssuanceConfig.IsEnabled() && p.hasAssetConfiguration()
 	return p
 }
 
@@ -83,16 +82,4 @@ func (p AddressIssuancePolicy) ValidateForAddressPreview(
 		return AddressIssuancePolicy{}, ErrAddressPolicyPreviewNotSupported
 	}
 	return normalized, nil
-}
-
-func (p AddressIssuancePolicy) hasAssetConfiguration() bool {
-	if strings.TrimSpace(p.AssetReference) == "" {
-		switch p.Chain {
-		case valueobjects.SupportedChainBitcoin, valueobjects.SupportedChainEthereum:
-			return true
-		default:
-			return false
-		}
-	}
-	return p.Chain == valueobjects.SupportedChainEthereum
 }

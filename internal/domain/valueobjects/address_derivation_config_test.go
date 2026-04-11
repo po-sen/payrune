@@ -42,12 +42,3 @@ func TestAddressIssuanceConfigNormalize(t *testing.T) {
 		})
 	}
 }
-
-func TestAddressIssuanceConfigIsEnabled(t *testing.T) {
-	if !(AddressIssuanceConfig{AddressSpaceRef: " xpub-main "}).IsEnabled() {
-		t.Fatal("expected config with address source ref to be enabled")
-	}
-	if (AddressIssuanceConfig{}).IsEnabled() {
-		t.Fatal("expected empty config to be disabled")
-	}
-}

@@ -100,7 +100,6 @@ func (uc *allocatePaymentAddressUseCase) Execute(
 			return dto.AllocatePaymentAddressResponse{}, inport.ErrInternalFailure
 		}
 	}
-
 	issuedAllocation, err := uc.issueAllocation(ctx, input, issuancePlan, issuedAt)
 	if err != nil {
 		if errors.Is(err, outport.ErrPaymentAddressIdempotencyKeyExists) {

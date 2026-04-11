@@ -31,6 +31,7 @@ func (c *ListAddressPoliciesController) ServeHTTP(w http.ResponseWriter, r *http
 	response, err := c.listAddressPolicies.Execute(r.Context(), chain)
 	if err != nil {
 		statusCode, message := mapListAddressPoliciesError(err)
+		logMappedControllerError(r, statusCode, message, err)
 		writeErrorJSON(w, statusCode, message)
 		return
 	}

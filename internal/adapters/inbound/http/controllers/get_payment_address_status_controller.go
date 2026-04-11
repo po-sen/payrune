@@ -43,6 +43,7 @@ func (c *GetPaymentAddressStatusController) ServeHTTP(w http.ResponseWriter, r *
 	})
 	if err != nil {
 		statusCode, message := mapGetPaymentAddressStatusError(err)
+		logMappedControllerError(r, statusCode, message, err)
 		writeErrorJSON(w, statusCode, message)
 		return
 	}

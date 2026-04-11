@@ -52,6 +52,7 @@ func (c *GenerateAddressController) ServeHTTP(w http.ResponseWriter, r *http.Req
 	})
 	if err != nil {
 		statusCode, message := mapGenerateAddressError(err)
+		logMappedControllerError(r, statusCode, message, err)
 		writeErrorJSON(w, statusCode, message)
 		return
 	}

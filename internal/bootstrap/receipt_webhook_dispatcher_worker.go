@@ -89,11 +89,13 @@ func buildCloudflareReceiptWebhookDispatcherRuntime(
 	if err != nil {
 		return nil, scheduleradapter.WebhookDispatcherRequest{}, err
 	}
-	addressPolicyReader := policyadapter.NewAddressPolicyReader(
-		buildAddressIssuancePolicies(func(key string) string {
-			return cloudflareAPIEnvValue(env, key)
-		}, nil),
-	)
+	addressIssuancePolicies, err := buildAddressIssuancePolicies(func(key string) string {
+		return cloudflareAPIEnvValue(env, key)
+	}, nil)
+	if err != nil {
+		return nil, scheduleradapter.WebhookDispatcherRequest{}, err
+	}
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
 
 	unitOfWork := cloudflarepostgresadapter.NewUnitOfWork(postgresBridgeID, cloudflarepostgresinfra.NewJSBridge())
 	clock := system.NewClock()

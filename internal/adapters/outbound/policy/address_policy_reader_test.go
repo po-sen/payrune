@@ -15,6 +15,7 @@ func TestAddressPolicyReaderPreservesAddressSpaceRef(t *testing.T) {
 			Chain:           valueobjects.SupportedChainBitcoin,
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          valueobjects.AddressSchemeLegacy,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: "xpub-a",
 			},
@@ -24,6 +25,7 @@ func TestAddressPolicyReaderPreservesAddressSpaceRef(t *testing.T) {
 			Chain:           valueobjects.SupportedChainBitcoin,
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          valueobjects.AddressSchemeLegacy,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: "xpub-b",
 			},
@@ -64,6 +66,7 @@ func TestAddressPolicyReaderUsesConfiguredIssuanceRefPrefix(t *testing.T) {
 			Chain:           valueobjects.SupportedChainBitcoin,
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          valueobjects.AddressSchemeNativeSegwit,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-a",
 				IssuanceRefPrefix: "m/84'/0'/0'",
@@ -74,6 +77,7 @@ func TestAddressPolicyReaderUsesConfiguredIssuanceRefPrefix(t *testing.T) {
 			Chain:           valueobjects.SupportedChainBitcoin,
 			Network:         valueobjects.NetworkIDTestnet4,
 			Scheme:          valueobjects.AddressSchemeTaproot,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-b",
 				IssuanceRefPrefix: "m/86'/1'/0'",
@@ -118,6 +122,7 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          "create2",
 			Decimals:        18,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 				IssuanceRefPrefix: "ethereum-mainnet-create2/",
@@ -129,6 +134,7 @@ func TestAddressPolicyReaderPreservesEthereumCreate2Config(t *testing.T) {
 			Network:         valueobjects.NetworkIDSepolia,
 			Scheme:          "create2",
 			Decimals:        18,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 				IssuanceRefPrefix: "ethereum-sepolia-create2/",

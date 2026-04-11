@@ -66,7 +66,6 @@ func (uc *generateAddressUseCase) Execute(
 			return dto.GenerateAddressResponse{}, inport.ErrInternalFailure
 		}
 	}
-
 	output, err := uc.deriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
 		Chain:             input.Chain,
 		Network:           policy.Network,

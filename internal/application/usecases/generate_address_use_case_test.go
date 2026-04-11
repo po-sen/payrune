@@ -145,15 +145,14 @@ func TestGenerateAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 
 func TestGenerateAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
-		newAddressIssuancePolicy(
-			"bitcoin-mainnet-legacy",
-			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkIDMainnet,
-			string(valueobjects.AddressSchemeLegacy),
-			8,
-			"",
-			"",
-		),
+		{
+			AddressPolicyID: "bitcoin-mainnet-legacy",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeLegacy,
+			Decimals:        8,
+			Enabled:         false,
+		},
 	})
 	useCase := NewGenerateAddressUseCase(newFakeChainAddressDeriver(), catalog)
 
@@ -261,13 +260,17 @@ func TestGenerateAddressUseCaseValidationMissingDependencies(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name:    "missing deriver",
-			useCase: &generateAddressUseCase{policyReader: newInMemoryAddressPolicyReader(nil)},
+			name: "missing deriver",
+			useCase: &generateAddressUseCase{
+				policyReader: newInMemoryAddressPolicyReader(nil),
+			},
 			wantErr: inport.ErrChainAddressDeriverNotConfigured,
 		},
 		{
-			name:    "missing policy reader",
-			useCase: &generateAddressUseCase{deriver: newFakeChainAddressDeriver()},
+			name: "missing policy reader",
+			useCase: &generateAddressUseCase{
+				deriver: newFakeChainAddressDeriver(),
+			},
 			wantErr: inport.ErrAddressPolicyReaderNotConfigured,
 		},
 	}

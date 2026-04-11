@@ -17,6 +17,7 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesDefaults(t *testing.T) {
 			AddressPolicyID: "bitcoin-mainnet-native-segwit",
 			Chain:           valueobjects.SupportedChainBitcoin,
 			Network:         valueobjects.NetworkIDMainnet,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",
@@ -72,6 +73,7 @@ func TestPaymentAddressAllocationIssuancePolicyPlanUsesNetworkOverrides(t *testi
 			AddressPolicyID: "bitcoin-mainnet-native-segwit",
 			Chain:           valueobjects.SupportedChainBitcoin,
 			Network:         valueobjects.NetworkIDMainnet,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",
@@ -126,6 +128,7 @@ func TestPaymentAddressAllocationIssuancePolicyPlanScopesOverridesByChainAndNetw
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          "create2",
 			Decimals:        18,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 				IssuanceRefPrefix: "ethereum-mainnet-create2",
@@ -176,6 +179,7 @@ func TestPaymentAddressAllocationIssuancePolicyPlanRejectsMissingIssuedAt(t *tes
 			AddressPolicyID: "bitcoin-mainnet-native-segwit",
 			Chain:           valueobjects.SupportedChainBitcoin,
 			Network:         valueobjects.NetworkIDMainnet,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "xpub-main",
 				IssuanceRefPrefix: "m/84'/0'/0'",

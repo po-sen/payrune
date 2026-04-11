@@ -22,15 +22,14 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 			"xpub-main",
 			"m/44'/0'/0'",
 		),
-		newAddressIssuancePolicy(
-			"bitcoin-testnet4-native-segwit",
-			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkIDTestnet4,
-			string(valueobjects.AddressSchemeNativeSegwit),
-			8,
-			"",
-			"",
-		),
+		{
+			AddressPolicyID: "bitcoin-testnet4-native-segwit",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDTestnet4,
+			Scheme:          valueobjects.AddressSchemeNativeSegwit,
+			Decimals:        8,
+			Enabled:         false,
+		},
 	})
 	useCase := NewListAddressPoliciesUseCase(catalog)
 

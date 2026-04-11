@@ -27,31 +27,44 @@ import (
 )
 
 const (
-	envDatabaseURL                          = "DATABASE_URL"
-	envBitcoinMainnetRequiredConfirmations  = "BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS"
-	envBitcoinTestnet4RequiredConfirmations = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
-	envBitcoinMainnetReceiptExpiresAfter    = "BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER"
-	envBitcoinTestnet4ReceiptExpiresAfter   = "BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER"
-	envBitcoinMainnetLegacyXPub             = "BITCOIN_MAINNET_LEGACY_XPUB"
-	envBitcoinMainnetSegwitXPub             = "BITCOIN_MAINNET_SEGWIT_XPUB"
-	envBitcoinMainnetNativeSegwitXPub       = "BITCOIN_MAINNET_NATIVE_SEGWIT_XPUB"
-	envBitcoinMainnetTaprootXPub            = "BITCOIN_MAINNET_TAPROOT_XPUB"
-	envBitcoinTestnet4LegacyXPub            = "BITCOIN_TESTNET4_LEGACY_XPUB"
-	envBitcoinTestnet4SegwitXPub            = "BITCOIN_TESTNET4_SEGWIT_XPUB"
-	envBitcoinTestnet4NativeSegwitXPub      = "BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB"
-	envBitcoinTestnet4TaprootXPub           = "BITCOIN_TESTNET4_TAPROOT_XPUB"
-	envEthereumMainnetRequiredConfirmations = "ETHEREUM_MAINNET_REQUIRED_CONFIRMATIONS"
-	envEthereumSepoliaRequiredConfirmations = "ETHEREUM_SEPOLIA_REQUIRED_CONFIRMATIONS"
-	envEthereumMainnetReceiptExpiresAfter   = "ETHEREUM_MAINNET_RECEIPT_EXPIRES_AFTER"
-	envEthereumSepoliaReceiptExpiresAfter   = "ETHEREUM_SEPOLIA_RECEIPT_EXPIRES_AFTER"
-	envEthereumMainnetCreate2Collector      = "ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS"
-	envEthereumSepoliaCreate2Collector      = "ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS"
-	envEthereumMainnetCreate2DerivationKey  = "ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY"
-	envEthereumSepoliaCreate2DerivationKey  = "ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY"
-	envEthereumMainnetUSDTAssetReference    = "ETHEREUM_MAINNET_USDT_ASSET_REFERENCE"
-	envEthereumSepoliaUSDTAssetReference    = "ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE"
-	defaultBitcoinRequiredConfirmations     = int32(1)
-	defaultBitcoinReceiptExpiresAfter       = 7 * 24 * time.Hour
+	envDatabaseURL                              = "DATABASE_URL"
+	envBitcoinMainnetRequiredConfirmations      = "BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS"
+	envBitcoinTestnet4RequiredConfirmations     = "BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS"
+	envBitcoinMainnetReceiptExpiresAfter        = "BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER"
+	envBitcoinTestnet4ReceiptExpiresAfter       = "BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER"
+	envBitcoinMainnetLegacyXPub                 = "BITCOIN_MAINNET_LEGACY_XPUB"
+	envBitcoinMainnetSegwitXPub                 = "BITCOIN_MAINNET_SEGWIT_XPUB"
+	envBitcoinMainnetNativeSegwitXPub           = "BITCOIN_MAINNET_NATIVE_SEGWIT_XPUB"
+	envBitcoinMainnetTaprootXPub                = "BITCOIN_MAINNET_TAPROOT_XPUB"
+	envBitcoinTestnet4LegacyXPub                = "BITCOIN_TESTNET4_LEGACY_XPUB"
+	envBitcoinTestnet4SegwitXPub                = "BITCOIN_TESTNET4_SEGWIT_XPUB"
+	envBitcoinTestnet4NativeSegwitXPub          = "BITCOIN_TESTNET4_NATIVE_SEGWIT_XPUB"
+	envBitcoinTestnet4TaprootXPub               = "BITCOIN_TESTNET4_TAPROOT_XPUB"
+	envBitcoinMainnetLegacyEnabled              = "BITCOIN_MAINNET_LEGACY_ENABLED"
+	envBitcoinMainnetSegwitEnabled              = "BITCOIN_MAINNET_SEGWIT_ENABLED"
+	envBitcoinMainnetNativeSegwitEnabled        = "BITCOIN_MAINNET_NATIVE_SEGWIT_ENABLED"
+	envBitcoinMainnetTaprootEnabled             = "BITCOIN_MAINNET_TAPROOT_ENABLED"
+	envBitcoinTestnet4LegacyEnabled             = "BITCOIN_TESTNET4_LEGACY_ENABLED"
+	envBitcoinTestnet4SegwitEnabled             = "BITCOIN_TESTNET4_SEGWIT_ENABLED"
+	envBitcoinTestnet4NativeSegwitEnabled       = "BITCOIN_TESTNET4_NATIVE_SEGWIT_ENABLED"
+	envBitcoinTestnet4TaprootEnabled            = "BITCOIN_TESTNET4_TAPROOT_ENABLED"
+	envEthereumMainnetRequiredConfirmations     = "ETHEREUM_MAINNET_REQUIRED_CONFIRMATIONS"
+	envEthereumSepoliaRequiredConfirmations     = "ETHEREUM_SEPOLIA_REQUIRED_CONFIRMATIONS"
+	envEthereumMainnetReceiptExpiresAfter       = "ETHEREUM_MAINNET_RECEIPT_EXPIRES_AFTER"
+	envEthereumSepoliaReceiptExpiresAfter       = "ETHEREUM_SEPOLIA_RECEIPT_EXPIRES_AFTER"
+	envEthereumMainnetCreate2Collector          = "ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS"
+	envEthereumSepoliaCreate2Collector          = "ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS"
+	envEthereumMainnetCreate2DerivationKey      = "ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY"
+	envEthereumSepoliaCreate2DerivationKey      = "ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY"
+	envEthereumMainnetUSDTAssetReference        = "ETHEREUM_MAINNET_USDT_ASSET_REFERENCE"
+	envEthereumSepoliaUSDTAssetReference        = "ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE"
+	envEthereumMainnetCreate2Enabled            = "ETHEREUM_MAINNET_CREATE2_ENABLED"
+	envEthereumMainnetUSDTCreate2Enabled        = "ETHEREUM_MAINNET_USDT_CREATE2_ENABLED"
+	envEthereumSepoliaCreate2Enabled            = "ETHEREUM_SEPOLIA_CREATE2_ENABLED"
+	envEthereumSepoliaUSDTCreate2Enabled        = "ETHEREUM_SEPOLIA_USDT_CREATE2_ENABLED"
+	defaultBitcoinRequiredConfirmations         = int32(1)
+	defaultEthereumSepoliaRequiredConfirmations = int32(1)
+	defaultBitcoinReceiptExpiresAfter           = 7 * 24 * time.Hour
 )
 
 type apiContainer struct {
@@ -131,14 +144,30 @@ func newAPIContainer() (*apiContainer, error) {
 			os.Getenv(envEthereumSepoliaCreate2DerivationKey),
 		),
 	)
-	addressIssuancePolicies := buildAddressIssuancePoliciesFromEnv(ethereumCreate2SaltDeriver)
+	addressIssuancePolicies, err := buildAddressIssuancePoliciesFromEnv(ethereumCreate2SaltDeriver)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	if err := validateConfiguredAddressIssuancePolicies(addressIssuancePolicies, bitcoinDeriver); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	readinessChecker, err := ethereum.NewAddressIssuanceReadinessChecker(loadEthereumRPCConfigsFromEnv())
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if err := validateEnabledEthereumIssuanceReadiness(context.Background(), addressIssuancePolicies, readinessChecker); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
 	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
-	generateAddressUseCase := usecases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
+	generateAddressUseCase := usecases.NewGenerateAddressUseCase(
+		chainAddressDeriver,
+		addressPolicyReader,
+	)
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
 		requiredConfirmationsByScope,
@@ -357,19 +386,69 @@ func parsePositiveDurationLookupWithDefault(
 
 func buildAddressIssuancePoliciesFromEnv(
 	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
-) []policies.AddressIssuancePolicy {
+) ([]policies.AddressIssuancePolicy, error) {
 	return buildAddressIssuancePolicies(os.Getenv, ethereumCreate2SaltDeriver)
 }
 
 func buildAddressIssuancePolicies(
 	envValue func(string) string,
 	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
-) []policies.AddressIssuancePolicy {
+) ([]policies.AddressIssuancePolicy, error) {
+	bitcoinMainnetLegacyEnabled, err := parseEnabledPolicyEnv(envValue, envBitcoinMainnetLegacyEnabled)
+	if err != nil {
+		return nil, err
+	}
+	bitcoinMainnetSegwitEnabled, err := parseEnabledPolicyEnv(envValue, envBitcoinMainnetSegwitEnabled)
+	if err != nil {
+		return nil, err
+	}
+	bitcoinMainnetNativeSegwitEnabled, err := parseEnabledPolicyEnv(envValue, envBitcoinMainnetNativeSegwitEnabled)
+	if err != nil {
+		return nil, err
+	}
+	bitcoinMainnetTaprootEnabled, err := parseEnabledPolicyEnv(envValue, envBitcoinMainnetTaprootEnabled)
+	if err != nil {
+		return nil, err
+	}
+	bitcoinTestnet4LegacyEnabled, err := parseEnabledPolicyEnv(envValue, envBitcoinTestnet4LegacyEnabled)
+	if err != nil {
+		return nil, err
+	}
+	bitcoinTestnet4SegwitEnabled, err := parseEnabledPolicyEnv(envValue, envBitcoinTestnet4SegwitEnabled)
+	if err != nil {
+		return nil, err
+	}
+	bitcoinTestnet4NativeSegwitEnabled, err := parseEnabledPolicyEnv(envValue, envBitcoinTestnet4NativeSegwitEnabled)
+	if err != nil {
+		return nil, err
+	}
+	bitcoinTestnet4TaprootEnabled, err := parseEnabledPolicyEnv(envValue, envBitcoinTestnet4TaprootEnabled)
+	if err != nil {
+		return nil, err
+	}
+	ethereumMainnetCreate2Enabled, err := parseEnabledPolicyEnv(envValue, envEthereumMainnetCreate2Enabled)
+	if err != nil {
+		return nil, err
+	}
+	ethereumMainnetUSDTCreate2Enabled, err := parseEnabledPolicyEnv(envValue, envEthereumMainnetUSDTCreate2Enabled)
+	if err != nil {
+		return nil, err
+	}
+	ethereumSepoliaCreate2Enabled, err := parseEnabledPolicyEnv(envValue, envEthereumSepoliaCreate2Enabled)
+	if err != nil {
+		return nil, err
+	}
+	ethereumSepoliaUSDTCreate2Enabled, err := parseEnabledPolicyEnv(envValue, envEthereumSepoliaUSDTCreate2Enabled)
+	if err != nil {
+		return nil, err
+	}
+
 	return []policies.AddressIssuancePolicy{
 		newBitcoinAddressIssuancePolicy(
 			valueobjects.AddressPolicyIDBitcoinMainnetLegacy,
 			valueobjects.NetworkIDMainnet,
 			string(valueobjects.AddressSchemeLegacy),
+			bitcoinMainnetLegacyEnabled,
 			envValue(envBitcoinMainnetLegacyXPub),
 			"m/44'/0'/0'",
 		),
@@ -377,6 +456,7 @@ func buildAddressIssuancePolicies(
 			valueobjects.AddressPolicyIDBitcoinMainnetSegwit,
 			valueobjects.NetworkIDMainnet,
 			string(valueobjects.AddressSchemeSegwit),
+			bitcoinMainnetSegwitEnabled,
 			envValue(envBitcoinMainnetSegwitXPub),
 			"m/49'/0'/0'",
 		),
@@ -384,6 +464,7 @@ func buildAddressIssuancePolicies(
 			valueobjects.AddressPolicyIDBitcoinMainnetNativeSegwit,
 			valueobjects.NetworkIDMainnet,
 			string(valueobjects.AddressSchemeNativeSegwit),
+			bitcoinMainnetNativeSegwitEnabled,
 			envValue(envBitcoinMainnetNativeSegwitXPub),
 			"m/84'/0'/0'",
 		),
@@ -391,6 +472,7 @@ func buildAddressIssuancePolicies(
 			valueobjects.AddressPolicyIDBitcoinMainnetTaproot,
 			valueobjects.NetworkIDMainnet,
 			string(valueobjects.AddressSchemeTaproot),
+			bitcoinMainnetTaprootEnabled,
 			envValue(envBitcoinMainnetTaprootXPub),
 			"m/86'/0'/0'",
 		),
@@ -398,6 +480,7 @@ func buildAddressIssuancePolicies(
 			valueobjects.AddressPolicyIDBitcoinTestnet4Legacy,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeLegacy),
+			bitcoinTestnet4LegacyEnabled,
 			envValue(envBitcoinTestnet4LegacyXPub),
 			"m/44'/1'/0'",
 		),
@@ -405,6 +488,7 @@ func buildAddressIssuancePolicies(
 			valueobjects.AddressPolicyIDBitcoinTestnet4Segwit,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeSegwit),
+			bitcoinTestnet4SegwitEnabled,
 			envValue(envBitcoinTestnet4SegwitXPub),
 			"m/49'/1'/0'",
 		),
@@ -412,6 +496,7 @@ func buildAddressIssuancePolicies(
 			valueobjects.AddressPolicyIDBitcoinTestnet4NativeSegwit,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeNativeSegwit),
+			bitcoinTestnet4NativeSegwitEnabled,
 			envValue(envBitcoinTestnet4NativeSegwitXPub),
 			"m/84'/1'/0'",
 		),
@@ -419,32 +504,37 @@ func buildAddressIssuancePolicies(
 			valueobjects.AddressPolicyIDBitcoinTestnet4Taproot,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeTaproot),
+			bitcoinTestnet4TaprootEnabled,
 			envValue(envBitcoinTestnet4TaprootXPub),
 			"m/86'/1'/0'",
 		),
 		newEthereumCreate2AddressIssuancePolicy(
 			valueobjects.NetworkIDMainnet,
+			ethereumMainnetCreate2Enabled,
 			envValue(envEthereumMainnetCreate2Collector),
 			ethereumCreate2SaltDeriver,
 		),
 		newEthereumUSDTCreate2AddressIssuancePolicy(
 			valueobjects.NetworkIDMainnet,
+			ethereumMainnetUSDTCreate2Enabled,
 			envValue(envEthereumMainnetCreate2Collector),
 			envValue(envEthereumMainnetUSDTAssetReference),
 			ethereumCreate2SaltDeriver,
 		),
 		newEthereumCreate2AddressIssuancePolicy(
 			valueobjects.NetworkIDSepolia,
+			ethereumSepoliaCreate2Enabled,
 			envValue(envEthereumSepoliaCreate2Collector),
 			ethereumCreate2SaltDeriver,
 		),
 		newEthereumUSDTCreate2AddressIssuancePolicy(
 			valueobjects.NetworkIDSepolia,
+			ethereumSepoliaUSDTCreate2Enabled,
 			envValue(envEthereumSepoliaCreate2Collector),
 			envValue(envEthereumSepoliaUSDTAssetReference),
 			ethereumCreate2SaltDeriver,
 		),
-	}
+	}, nil
 }
 
 func validateConfiguredAddressIssuancePolicies(
@@ -453,7 +543,7 @@ func validateConfiguredAddressIssuancePolicies(
 ) error {
 	for _, policy := range policies {
 		normalized := policy.Normalize()
-		if !normalized.IsEnabled() {
+		if !normalized.Enabled {
 			continue
 		}
 		switch normalized.Chain {
@@ -471,6 +561,28 @@ func validateConfiguredAddressIssuancePolicies(
 	return nil
 }
 
+func validateEnabledEthereumIssuanceReadiness(
+	ctx context.Context,
+	policies []policies.AddressIssuancePolicy,
+	checker *ethereum.EthereumAddressIssuanceReadinessChecker,
+) error {
+	if checker == nil {
+		return errors.New("ethereum issuance readiness checker is not configured")
+	}
+
+	for _, policy := range policies {
+		normalized := policy.Normalize()
+		if normalized.Chain != valueobjects.SupportedChainEthereum || !normalized.Enabled {
+			continue
+		}
+		if err := checker.CheckIssuanceReadiness(ctx, normalized); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func validateConfiguredEnabledBitcoinAddressIssuancePolicy(
 	policy policies.AddressIssuancePolicy,
 	bitcoinDeriver *bitcoin.HDXPubAddressDeriver,
@@ -479,6 +591,20 @@ func validateConfiguredEnabledBitcoinAddressIssuancePolicy(
 		return fmt.Errorf(
 			"bitcoin policy %q cannot be validated: bitcoin address deriver is not configured",
 			policy.AddressPolicyID,
+		)
+	}
+	if strings.TrimSpace(policy.IssuanceConfig.AddressSpaceRef) == "" {
+		envKey := bitcoinXPubEnvKey(policy.AddressPolicyID)
+		if envKey == "" {
+			return fmt.Errorf(
+				"bitcoin policy %q is enabled but xpub is missing",
+				policy.AddressPolicyID,
+			)
+		}
+		return fmt.Errorf(
+			"bitcoin policy %q is enabled but %s is missing",
+			policy.AddressPolicyID,
+			envKey,
 		)
 	}
 	if err := bitcoinDeriver.ValidateXPub(policy.IssuanceConfig.AddressSpaceRef); err != nil {
@@ -503,11 +629,27 @@ func validateConfiguredEnabledBitcoinAddressIssuancePolicy(
 func validateConfiguredEnabledEthereumAddressIssuancePolicy(
 	policy policies.AddressIssuancePolicy,
 ) error {
+	if strings.TrimSpace(policy.IssuanceConfig.AddressSpaceRef) == "" {
+		collectorEnvKey := ethereumCreate2CollectorEnvKey(policy.AddressPolicyID)
+		derivationEnvKey := ethereumCreate2DerivationKeyEnvKey(policy.AddressPolicyID)
+		if collectorEnvKey == "" || derivationEnvKey == "" {
+			return fmt.Errorf(
+				"ethereum policy %q is enabled but create2 static configuration is incomplete",
+				policy.AddressPolicyID,
+			)
+		}
+		return fmt.Errorf(
+			"ethereum policy %q is enabled but create2 static configuration is incomplete: %s and %s are required",
+			policy.AddressPolicyID,
+			collectorEnvKey,
+			derivationEnvKey,
+		)
+	}
 	assetReference := strings.TrimSpace(policy.AssetReference)
 	envKey := ethereumAssetReferenceEnvKey(policy.AddressPolicyID)
-	if envKey != "" && assetReference == "" {
+	if ethereumPolicyRequiresAssetReference(policy.AddressPolicyID) && assetReference == "" {
 		return fmt.Errorf(
-			"ethereum policy %q has invalid asset configuration in %s",
+			"ethereum policy %q is enabled but %s is missing",
 			policy.AddressPolicyID,
 			envKey,
 		)
@@ -537,6 +679,7 @@ func newBitcoinAddressIssuancePolicy(
 	addressPolicyID valueobjects.AddressPolicyID,
 	network valueobjects.NetworkID,
 	scheme string,
+	enabled bool,
 	addressSpaceRef string,
 	issuanceRefPrefix string,
 ) policies.AddressIssuancePolicy {
@@ -546,6 +689,7 @@ func newBitcoinAddressIssuancePolicy(
 		Network:         network,
 		Scheme:          valueobjects.AddressScheme(scheme),
 		Decimals:        8,
+		Enabled:         enabled,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   addressSpaceRef,
 			IssuanceRefPrefix: issuanceRefPrefix,
@@ -555,6 +699,7 @@ func newBitcoinAddressIssuancePolicy(
 
 func newEthereumCreate2AddressIssuancePolicy(
 	network valueobjects.NetworkID,
+	enabled bool,
 	collectorAddress string,
 	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
 ) policies.AddressIssuancePolicy {
@@ -569,6 +714,7 @@ func newEthereumCreate2AddressIssuancePolicy(
 		Network:         network,
 		Scheme:          valueobjects.AddressSchemeCreate2,
 		Decimals:        18,
+		Enabled:         enabled,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef: addressSpaceRef,
 		},
@@ -577,6 +723,7 @@ func newEthereumCreate2AddressIssuancePolicy(
 
 func newEthereumUSDTCreate2AddressIssuancePolicy(
 	network valueobjects.NetworkID,
+	enabled bool,
 	collectorAddress string,
 	assetReference string,
 	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
@@ -593,6 +740,7 @@ func newEthereumUSDTCreate2AddressIssuancePolicy(
 		Scheme:          valueobjects.AddressSchemeCreate2,
 		AssetReference:  strings.TrimSpace(assetReference),
 		Decimals:        6,
+		Enabled:         enabled,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef: addressSpaceRef,
 		},
@@ -627,6 +775,54 @@ func bitcoinXPubEnvKey(addressPolicyID valueobjects.AddressPolicyID) string {
 		return envBitcoinTestnet4NativeSegwitXPub
 	case valueobjects.AddressPolicyIDBitcoinTestnet4Taproot:
 		return envBitcoinTestnet4TaprootXPub
+	default:
+		return ""
+	}
+}
+
+func parseEnabledPolicyEnv(lookup func(string) string, key string) (bool, error) {
+	raw := strings.TrimSpace(lookup(key))
+	if raw == "" {
+		return false, nil
+	}
+	enabled, err := strconv.ParseBool(raw)
+	if err != nil {
+		return false, fmt.Errorf("%s must be a boolean: %w", key, err)
+	}
+	return enabled, nil
+}
+
+func ethereumPolicyRequiresAssetReference(addressPolicyID valueobjects.AddressPolicyID) bool {
+	switch addressPolicyID.Normalize() {
+	case valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
+		valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2:
+		return true
+	default:
+		return false
+	}
+}
+
+func ethereumCreate2CollectorEnvKey(addressPolicyID valueobjects.AddressPolicyID) string {
+	switch addressPolicyID.Normalize() {
+	case valueobjects.AddressPolicyIDEthereumMainnetCreate2,
+		valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2:
+		return envEthereumMainnetCreate2Collector
+	case valueobjects.AddressPolicyIDEthereumSepoliaCreate2,
+		valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2:
+		return envEthereumSepoliaCreate2Collector
+	default:
+		return ""
+	}
+}
+
+func ethereumCreate2DerivationKeyEnvKey(addressPolicyID valueobjects.AddressPolicyID) string {
+	switch addressPolicyID.Normalize() {
+	case valueobjects.AddressPolicyIDEthereumMainnetCreate2,
+		valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2:
+		return envEthereumMainnetCreate2DerivationKey
+	case valueobjects.AddressPolicyIDEthereumSepoliaCreate2,
+		valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2:
+		return envEthereumSepoliaCreate2DerivationKey
 	default:
 		return ""
 	}

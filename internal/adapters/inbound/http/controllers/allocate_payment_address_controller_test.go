@@ -255,6 +255,34 @@ func TestChainAddressControllerAllocatePaymentAddressRejectMissingExpectedAmount
 	assertErrorResponse(t, rr, http.StatusBadRequest, "expectedAmountMinor is required")
 }
 
+func TestChainAddressControllerAllocatePaymentAddressLogsMappedError(t *testing.T) {
+	logBuffer := captureControllerLogs(t)
+
+	mux := http.NewServeMux()
+	mux.Handle(
+		"/v1/chains/{chain}/payment-addresses",
+		NewAllocatePaymentAddressController(&fakeAllocatePaymentAddressUseCase{err: inport.ErrDependencyFailure}),
+	)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/chains/ethereum/payment-addresses",
+		strings.NewReader(`{"addressPolicyId":"ethereum-sepolia-create2","expectedAmountMinor":1}`),
+	)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	assertErrorResponse(t, rr, http.StatusInternalServerError, "internal server error")
+
+	logged := logBuffer.String()
+	if !strings.Contains(logged, "api request failed method=POST path=/v1/chains/ethereum/payment-addresses status=500") {
+		t.Fatalf("expected mapped error log, got %q", logged)
+	}
+	if !strings.Contains(logged, "err=dependency failure") {
+		t.Fatalf("expected internal error in log, got %q", logged)
+	}
+}
+
 func TestChainAddressControllerAllocatePaymentAddressErrorMapping(t *testing.T) {
 	tests := []struct {
 		name       string

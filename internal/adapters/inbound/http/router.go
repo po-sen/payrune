@@ -37,5 +37,5 @@ func newRouter(routeControllers RouterControllers) http.Handler {
 }
 
 func NewPublicRouter(routeControllers RouterControllers) http.Handler {
-	return middleware.CORS(newRouter(routeControllers))
+	return middleware.RequestLog(middleware.CORS(newRouter(routeControllers)))
 }

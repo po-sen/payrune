@@ -120,17 +120,34 @@ func buildCloudflareAPIHTTPHandler(
 			cloudflareAPIEnvValue(env, envEthereumSepoliaCreate2DerivationKey),
 		),
 	)
-	addressIssuancePolicies := buildAddressIssuancePolicies(func(key string) string {
+	addressIssuancePolicies, err := buildAddressIssuancePolicies(func(key string) string {
 		return cloudflareAPIEnvValue(env, key)
 	}, ethereumCreate2SaltDeriver)
+	if err != nil {
+		return nil, err
+	}
 	bridge := cloudflarepostgresinfra.NewJSBridge()
 	if err := validateConfiguredAddressIssuancePolicies(addressIssuancePolicies, bitcoinDeriver); err != nil {
+		return nil, err
+	}
+	readinessChecker, err := ethereum.NewAddressIssuanceReadinessChecker(
+		loadEthereumRPCConfigsFromLookup(func(key string) string {
+			return cloudflareAPIEnvValue(env, key)
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateEnabledEthereumIssuanceReadiness(context.Background(), addressIssuancePolicies, readinessChecker); err != nil {
 		return nil, err
 	}
 	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
 
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
-	generateAddressUseCase := usecases.NewGenerateAddressUseCase(chainAddressDeriver, addressPolicyReader)
+	generateAddressUseCase := usecases.NewGenerateAddressUseCase(
+		chainAddressDeriver,
+		addressPolicyReader,
+	)
 	dbExecutor := cloudflarepostgresadapter.NewExecutor(bridgeID, bridge)
 	unitOfWork := cloudflarepostgresadapter.NewUnitOfWork(bridgeID, bridge)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(

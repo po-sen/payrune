@@ -14,6 +14,7 @@ func newTestAddressIssuancePolicy() AddressIssuancePolicy {
 		Network:         valueobjects.NetworkID(" MAINNET "),
 		Scheme:          " native-segwit ",
 		Decimals:        8,
+		Enabled:         true,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   " xpub-main ",
 			IssuanceRefPrefix: "m/84'/0'/0'",
@@ -120,6 +121,7 @@ func TestAddressIssuancePolicyValidateForAddressPreviewRejectsUnsupportedPolicy(
 		Network:         valueobjects.NetworkIDMainnet,
 		Scheme:          "create2",
 		Decimals:        18,
+		Enabled:         true,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   "configured",
 			IssuanceRefPrefix: "ethereum-mainnet-create2",
@@ -132,5 +134,43 @@ func TestAddressIssuancePolicyValidateForAddressPreviewRejectsUnsupportedPolicy(
 	}
 	if policy.SupportsAddressPreview() {
 		t.Fatal("expected create2 policy preview to be unsupported")
+	}
+}
+
+func TestAddressIssuancePolicyNormalizePreservesExplicitEnabledFlagForUSDTPolicyWithoutAssetReference(t *testing.T) {
+	policy := AddressIssuancePolicy{
+		AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2,
+		Chain:           valueobjects.SupportedChainEthereum,
+		Network:         valueobjects.NetworkIDSepolia,
+		Scheme:          valueobjects.AddressSchemeCreate2,
+		Decimals:        6,
+		Enabled:         true,
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressSpaceRef: "create2.v1:factory=0x1;collector=0x2;init_code_hash=0x3",
+		},
+	}
+
+	normalized := policy.Normalize()
+	if !normalized.Enabled {
+		t.Fatal("expected explicit enabled flag to be preserved")
+	}
+}
+
+func TestAddressIssuancePolicyNormalizeKeepsNativeEthereumEnabledWithoutAssetReference(t *testing.T) {
+	policy := AddressIssuancePolicy{
+		AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaCreate2,
+		Chain:           valueobjects.SupportedChainEthereum,
+		Network:         valueobjects.NetworkIDSepolia,
+		Scheme:          valueobjects.AddressSchemeCreate2,
+		Decimals:        18,
+		Enabled:         true,
+		IssuanceConfig: valueobjects.AddressIssuanceConfig{
+			AddressSpaceRef: "create2.v1:factory=0x1;collector=0x2;init_code_hash=0x3",
+		},
+	}
+
+	normalized := policy.Normalize()
+	if !normalized.Enabled {
+		t.Fatal("expected native ethereum policy with address-space ref to be enabled")
 	}
 }

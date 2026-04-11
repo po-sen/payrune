@@ -37,6 +37,7 @@ func newAddressIssuancePolicy(
 		Network:         network,
 		Scheme:          valueobjects.AddressScheme(scheme),
 		Decimals:        decimals,
+		Enabled:         true,
 		IssuanceConfig: valueobjects.AddressIssuanceConfig{
 			AddressSpaceRef:   accountPublicKey,
 			IssuanceRefPrefix: derivationPathPrefix,

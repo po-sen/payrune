@@ -13,10 +13,6 @@ func (c AddressIssuanceConfig) Normalize() AddressIssuanceConfig {
 	return c
 }
 
-func (c AddressIssuanceConfig) IsEnabled() bool {
-	return strings.TrimSpace(c.AddressSpaceRef) != ""
-}
-
 func normalizeIssuanceRefPrefix(raw string) string {
 	trimmed := strings.TrimSpace(raw)
 	trimmed = strings.TrimSuffix(trimmed, "/")

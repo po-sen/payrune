@@ -30,6 +30,7 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 			Chain:           valueobjects.SupportedChainEthereum,
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          "create2",
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   addressSpaceRef,
 				IssuanceRefPrefix: "ethereum-mainnet-create2",
@@ -98,6 +99,7 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumUSDTCreate2Address(t *testing
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          valueobjects.AddressSchemeCreate2,
 			AssetReference:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: addressSpaceRef,
 			},
@@ -163,6 +165,7 @@ func TestIssuedPaymentAddressDeriverKeepsETHAndUSDTAddressesDistinctWithSharedRe
 			Chain:           valueobjects.SupportedChainEthereum,
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          valueobjects.AddressSchemeCreate2,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: addressSpaceRef,
 			},
@@ -183,6 +186,7 @@ func TestIssuedPaymentAddressDeriverKeepsETHAndUSDTAddressesDistinctWithSharedRe
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          valueobjects.AddressSchemeCreate2,
 			AssetReference:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: addressSpaceRef,
 			},
@@ -210,6 +214,7 @@ func TestIssuedPaymentAddressDeriverRequiresCreate2SaltDeriver(t *testing.T) {
 			Chain:           valueobjects.SupportedChainEthereum,
 			Network:         valueobjects.NetworkIDMainnet,
 			Scheme:          "create2",
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef:   "configured",
 				IssuanceRefPrefix: "ethereum-mainnet-create2",

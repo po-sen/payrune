@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -244,7 +245,7 @@ func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetada
 		t.Fatalf("BuildCreate2AddressSpaceRef returned error: %v", err)
 	}
 
-	policy := newEthereumCreate2AddressIssuancePolicy(network, collectorAddress, saltDeriver)
+	policy := newEthereumCreate2AddressIssuancePolicy(network, true, collectorAddress, saltDeriver)
 
 	if policy.AddressPolicyID != valueobjects.AddressPolicyIDEthereumSepoliaCreate2 {
 		t.Fatalf("unexpected address policy id: got %q", policy.AddressPolicyID)
@@ -261,20 +262,27 @@ func TestNewEthereumCreate2AddressIssuancePolicyRequiresCollectorAddress(t *test
 	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
 		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
-	policy := newEthereumCreate2AddressIssuancePolicy(valueobjects.NetworkIDMainnet, "", saltDeriver)
+	policy := newEthereumCreate2AddressIssuancePolicy(valueobjects.NetworkIDMainnet, true, "", saltDeriver)
 	if policy.IssuanceConfig.AddressSpaceRef != "" {
-		t.Fatalf("expected disabled policy when collector is missing, got %q", policy.IssuanceConfig.AddressSpaceRef)
+		t.Fatalf("expected empty address-space ref when collector is missing, got %q", policy.IssuanceConfig.AddressSpaceRef)
+	}
+	if !policy.Enabled {
+		t.Fatal("expected explicit enabled flag to be preserved")
 	}
 }
 
 func TestNewEthereumCreate2AddressIssuancePolicyRequiresSaltSecret(t *testing.T) {
 	policy := newEthereumCreate2AddressIssuancePolicy(
 		valueobjects.NetworkIDMainnet,
+		true,
 		"0x2222222222222222222222222222222222222222",
 		ethereum.NewCreate2SaltDeriver(nil),
 	)
 	if policy.IssuanceConfig.AddressSpaceRef != "" {
-		t.Fatalf("expected disabled policy when derivation key is missing, got %q", policy.IssuanceConfig.AddressSpaceRef)
+		t.Fatalf("expected empty address-space ref when derivation key is missing, got %q", policy.IssuanceConfig.AddressSpaceRef)
+	}
+	if !policy.Enabled {
+		t.Fatal("expected explicit enabled flag to be preserved")
 	}
 }
 
@@ -283,13 +291,18 @@ func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	env := map[string]string{
+		envBitcoinMainnetLegacyEnabled:     "true",
 		envBitcoinMainnetLegacyXPub:        " xpub-mainnet-legacy ",
+		envEthereumMainnetCreate2Enabled:   "true",
 		envEthereumMainnetCreate2Collector: "0x2222222222222222222222222222222222222222",
 	}
 
-	policies := buildAddressIssuancePolicies(func(key string) string {
+	policies, err := buildAddressIssuancePolicies(func(key string) string {
 		return env[key]
 	}, saltDeriver)
+	if err != nil {
+		t.Fatalf("buildAddressIssuancePolicies returned error: %v", err)
+	}
 
 	bitcoinPolicy := findAddressIssuancePolicyByID(policies, valueobjects.AddressPolicyIDBitcoinMainnetLegacy)
 	if bitcoinPolicy.IssuanceConfig.AddressSpaceRef != "xpub-mainnet-legacy" {
@@ -315,6 +328,27 @@ func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
 	if ethereumPolicy.IssuanceConfig.AddressSpaceRef == "" {
 		t.Fatal("expected ethereum create2 source ref to be populated")
 	}
+	if !bitcoinPolicy.Enabled {
+		t.Fatal("expected bitcoin policy enabled from explicit env flag")
+	}
+	if !ethereumPolicy.Enabled {
+		t.Fatal("expected ethereum policy enabled from explicit env flag")
+	}
+}
+
+func TestBuildAddressIssuancePoliciesRejectsInvalidEnabledEnv(t *testing.T) {
+	_, err := buildAddressIssuancePolicies(func(key string) string {
+		if key == envEthereumMainnetCreate2Enabled {
+			return "definitely"
+		}
+		return ""
+	}, ethereum.NewCreate2SaltDeriver(nil))
+	if err == nil {
+		t.Fatal("expected invalid enabled env error")
+	}
+	if !strings.Contains(err.Error(), envEthereumMainnetCreate2Enabled) {
+		t.Fatalf("expected env key in error, got %q", err)
+	}
 }
 
 func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidBitcoinXPub(t *testing.T) {
@@ -323,6 +357,7 @@ func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidBitcoinXPub(t *t
 			valueobjects.AddressPolicyIDBitcoinTestnet4NativeSegwit,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeNativeSegwit),
+			true,
 			"tpubDCiB1iLoNxaaj4MTSk2DoTuwUpEfgm4E3vAcTnvG64rR1smhcEsoTeqNCB4af1XHGspgNfWBA3ccpXiwX5JtxwZMTFct6DQWzrKundqdwEa",
 			"m/84'/1'/0'",
 		),
@@ -349,6 +384,7 @@ func TestValidateConfiguredAddressIssuancePoliciesAcceptsValidBitcoinPolicies(t 
 			valueobjects.AddressPolicyIDBitcoinTestnet4Legacy,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeLegacy),
+			true,
 			"tpubDDoLYVq7AUqYP63QvYZxnxk1pCJnWDWdzu9w3BYTP9dJAX47xknZiEKUheaAahn6zBNT5ndCzY2x6MQ8iVj7QpFwuhm5bDF6Ggt3q1Rn2Qs",
 			"m/44'/1'/0'",
 		),
@@ -356,6 +392,7 @@ func TestValidateConfiguredAddressIssuancePoliciesAcceptsValidBitcoinPolicies(t 
 			valueobjects.AddressPolicyIDBitcoinTestnet4NativeSegwit,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeNativeSegwit),
+			true,
 			"tpubDCiB1iLoNxaaj4MTSk2DoTuwUpEfgm4E3vAcTnvG64rR1smhcEsoTeqNCB4af1XHGspgNfWBA3ccpXiwX5JtxwZMTFct6DQWzrKundqdwEq",
 			"m/84'/1'/0'",
 		),
@@ -366,12 +403,34 @@ func TestValidateConfiguredAddressIssuancePoliciesAcceptsValidBitcoinPolicies(t 
 	}
 }
 
+func TestValidateConfiguredAddressIssuancePoliciesRejectsEnabledBitcoinPolicyWithoutXPub(t *testing.T) {
+	policies := []policies.AddressIssuancePolicy{
+		newBitcoinAddressIssuancePolicy(
+			valueobjects.AddressPolicyIDBitcoinTestnet4Legacy,
+			valueobjects.NetworkIDTestnet4,
+			string(valueobjects.AddressSchemeLegacy),
+			true,
+			"",
+			"m/44'/1'/0'",
+		),
+	}
+
+	err := validateConfiguredAddressIssuancePolicies(policies, newBootstrapBitcoinDeriver())
+	if err == nil {
+		t.Fatal("expected missing enabled bitcoin xpub validation error")
+	}
+	if !strings.Contains(err.Error(), envBitcoinTestnet4LegacyXPub) {
+		t.Fatalf("expected env key in error, got %q", err)
+	}
+}
+
 func TestValidateConfiguredAddressIssuancePoliciesSkipsDisabledAndNonBitcoinPolicies(t *testing.T) {
 	policies := []policies.AddressIssuancePolicy{
 		newBitcoinAddressIssuancePolicy(
 			valueobjects.AddressPolicyIDBitcoinTestnet4NativeSegwit,
 			valueobjects.NetworkIDTestnet4,
 			string(valueobjects.AddressSchemeNativeSegwit),
+			false,
 			"",
 			"m/84'/1'/0'",
 		),
@@ -380,6 +439,7 @@ func TestValidateConfiguredAddressIssuancePoliciesSkipsDisabledAndNonBitcoinPoli
 			Chain:           valueobjects.SupportedChainEthereum,
 			Network:         valueobjects.NetworkIDSepolia,
 			Scheme:          "create2",
+			Enabled:         false,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0x1111111111111111111111111111111111111111111111111111111111111111",
 			},
@@ -391,6 +451,29 @@ func TestValidateConfiguredAddressIssuancePoliciesSkipsDisabledAndNonBitcoinPoli
 	}
 }
 
+func TestValidateConfiguredAddressIssuancePoliciesRejectsEnabledEthereumCreate2WithoutStaticConfig(t *testing.T) {
+	policies := []policies.AddressIssuancePolicy{
+		{
+			AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaCreate2,
+			Chain:           valueobjects.SupportedChainEthereum,
+			Network:         valueobjects.NetworkIDSepolia,
+			Scheme:          valueobjects.AddressSchemeCreate2,
+			Enabled:         true,
+		},
+	}
+
+	err := validateConfiguredAddressIssuancePolicies(policies, newBootstrapBitcoinDeriver())
+	if err == nil {
+		t.Fatal("expected enabled ethereum create2 static-config error")
+	}
+	if !strings.Contains(err.Error(), envEthereumSepoliaCreate2Collector) {
+		t.Fatalf("expected collector env key in error, got %q", err)
+	}
+	if !strings.Contains(err.Error(), envEthereumSepoliaCreate2DerivationKey) {
+		t.Fatalf("expected derivation env key in error, got %q", err)
+	}
+}
+
 func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidEthereumAssetReference(t *testing.T) {
 	policies := []policies.AddressIssuancePolicy{
 		{
@@ -399,6 +482,7 @@ func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidEthereumAssetRef
 			Network:         valueobjects.NetworkIDSepolia,
 			Scheme:          valueobjects.AddressSchemeCreate2,
 			AssetReference:  "0xnot-a-token",
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0x1111111111111111111111111111111111111111111111111111111111111111",
 			},
@@ -417,13 +501,14 @@ func TestValidateConfiguredAddressIssuancePoliciesRejectsInvalidEthereumAssetRef
 	}
 }
 
-func TestValidateConfiguredAddressIssuancePoliciesRejectsMissingEthereumAssetReferenceForUSDTPolicy(t *testing.T) {
+func TestValidateConfiguredAddressIssuancePoliciesRejectsEnabledEthereumUSDTPolicyWithoutAssetReference(t *testing.T) {
 	policies := []policies.AddressIssuancePolicy{
 		{
 			AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2,
 			Chain:           valueobjects.SupportedChainEthereum,
 			Network:         valueobjects.NetworkIDSepolia,
 			Scheme:          valueobjects.AddressSchemeCreate2,
+			Enabled:         true,
 			IssuanceConfig: valueobjects.AddressIssuanceConfig{
 				AddressSpaceRef: "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0x1111111111111111111111111111111111111111111111111111111111111111",
 			},
@@ -432,13 +517,63 @@ func TestValidateConfiguredAddressIssuancePoliciesRejectsMissingEthereumAssetRef
 
 	err := validateConfiguredAddressIssuancePolicies(policies, newBootstrapBitcoinDeriver())
 	if err == nil {
-		t.Fatal("expected missing ethereum asset reference validation error")
-	}
-	if !strings.Contains(err.Error(), string(valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2)) {
-		t.Fatalf("expected policy id in error, got %q", err)
+		t.Fatal("expected missing enabled ethereum asset reference validation error")
 	}
 	if !strings.Contains(err.Error(), envEthereumSepoliaUSDTAssetReference) {
 		t.Fatalf("expected env key in error, got %q", err)
+	}
+}
+
+func TestValidateEnabledEthereumIssuanceReadinessRejectsMissingRPCForEnabledPolicy(t *testing.T) {
+	checker, err := ethereum.NewAddressIssuanceReadinessChecker(nil)
+	if err != nil {
+		t.Fatalf("NewAddressIssuanceReadinessChecker returned error: %v", err)
+	}
+
+	policies := []policies.AddressIssuancePolicy{
+		(func() policies.AddressIssuancePolicy {
+			return policies.AddressIssuancePolicy{
+				AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaCreate2,
+				Chain:           valueobjects.SupportedChainEthereum,
+				Network:         valueobjects.NetworkIDSepolia,
+				Scheme:          valueobjects.AddressSchemeCreate2,
+				Enabled:         true,
+				IssuanceConfig: valueobjects.AddressIssuanceConfig{
+					AddressSpaceRef: "create2.v1:factory=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;collector=0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;init_code_hash=0x1111111111111111111111111111111111111111111111111111111111111111",
+				},
+			}.Normalize()
+		})(),
+	}
+
+	err = validateEnabledEthereumIssuanceReadiness(context.Background(), policies, checker)
+	if err == nil {
+		t.Fatal("expected readiness validation error")
+	}
+	if !strings.Contains(err.Error(), "rpc client is not configured") {
+		t.Fatalf("expected rpc configuration error, got %q", err)
+	}
+}
+
+func TestValidateEnabledEthereumIssuanceReadinessSkipsDisabledPolicies(t *testing.T) {
+	checker, err := ethereum.NewAddressIssuanceReadinessChecker(nil)
+	if err != nil {
+		t.Fatalf("NewAddressIssuanceReadinessChecker returned error: %v", err)
+	}
+
+	policies := []policies.AddressIssuancePolicy{
+		(func() policies.AddressIssuancePolicy {
+			return policies.AddressIssuancePolicy{
+				AddressPolicyID: valueobjects.AddressPolicyIDEthereumSepoliaCreate2,
+				Chain:           valueobjects.SupportedChainEthereum,
+				Network:         valueobjects.NetworkIDSepolia,
+				Scheme:          valueobjects.AddressSchemeCreate2,
+				Enabled:         false,
+			}.Normalize()
+		})(),
+	}
+
+	if err := validateEnabledEthereumIssuanceReadiness(context.Background(), policies, checker); err != nil {
+		t.Fatalf("expected disabled ethereum policy to be skipped: %v", err)
 	}
 }
 

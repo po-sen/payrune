@@ -1024,15 +1024,14 @@ func TestAllocatePaymentAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 
 func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
-		newAddressIssuancePolicy(
-			"bitcoin-mainnet-legacy",
-			valueobjects.SupportedChainBitcoin,
-			valueobjects.NetworkIDMainnet,
-			string(valueobjects.AddressSchemeLegacy),
-			8,
-			"",
-			"",
-		),
+		{
+			AddressPolicyID: "bitcoin-mainnet-legacy",
+			Chain:           valueobjects.SupportedChainBitcoin,
+			Network:         valueobjects.NetworkIDMainnet,
+			Scheme:          valueobjects.AddressSchemeLegacy,
+			Decimals:        8,
+			Enabled:         false,
+		},
 	})
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)

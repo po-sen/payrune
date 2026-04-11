@@ -72,6 +72,7 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 	})
 	if err != nil {
 		statusCode, message := mapAllocatePaymentAddressError(err)
+		logMappedControllerError(r, statusCode, message, err)
 		writeErrorJSON(w, statusCode, message)
 		return
 	}

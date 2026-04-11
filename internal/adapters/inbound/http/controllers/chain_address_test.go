@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -127,4 +129,19 @@ func assertErrorResponse(
 	if body.Error != wantError {
 		t.Fatalf("unexpected error message: got %q, want %q", body.Error, wantError)
 	}
+}
+
+func captureControllerLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+
+	var buffer bytes.Buffer
+	previousWriter := log.Writer()
+	previousFlags := log.Flags()
+	log.SetOutput(&buffer)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(previousWriter)
+		log.SetFlags(previousFlags)
+	})
+	return &buffer
 }

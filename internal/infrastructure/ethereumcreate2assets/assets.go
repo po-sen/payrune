@@ -159,6 +159,14 @@ func LookupReceiverArtifact(fileName string) (ReceiverArtifact, bool) {
 	return artifact, ok
 }
 
+func ExpectedFactoryRuntimeCodeHashHex() (string, bool) {
+	artifact, ok := LookupReceiverArtifact(FactoryArtifactName)
+	if !ok {
+		return "", false
+	}
+	return artifact.RuntimeCodeHashHex()
+}
+
 func loadDeploymentMetadata(fileName string) (DeploymentMetadata, error) {
 	raw, err := embeddedAssets.ReadFile(path.Join("metadata", fileName))
 	if err != nil {
@@ -222,6 +230,19 @@ func (a ReceiverArtifact) InitCodeHashHex(collectorAddress string) (string, bool
 		return "", false
 	}
 	return initCodeHashHex, true
+}
+
+func (a ReceiverArtifact) RuntimeCodeHashHex() (string, bool) {
+	runtimeCodeHex := strings.TrimSpace(a.RuntimeCodeHex)
+	if runtimeCodeHex == "" {
+		return "", false
+	}
+
+	runtimeCodeHashHex, err := keccak256Hex(runtimeCodeHex)
+	if err != nil {
+		return "", false
+	}
+	return runtimeCodeHashHex, true
 }
 
 func normalizeNetworkKey(network string) string {
