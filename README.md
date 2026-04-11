@@ -72,7 +72,7 @@ Example success response:
 
 For Sepolia smoke testing, use Tether's published USD₮ test-token contract
 `0xd077a400968890eacc75cdc901f0356c943e4fdb` and acquire test tokens from the Pimlico or Candide
-faucets linked in Tether WDK docs before enabling `ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE`.
+faucets linked in Tether WDK docs before enabling `ETHEREUM_SEPOLIA_USDT_CREATE2_ENABLED=true`.
 
 Create an Ethereum USDT payment address:
 
@@ -285,26 +285,28 @@ Get free test USD₮ from:
 - Pimlico faucet: `https://dashboard.pimlico.io/test-erc20-faucet`
 - Candide faucet: `https://dashboard.candide.dev/faucet`
 
-The checked-in [`deployments/compose/compose.test.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.test.env)
-already points `ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE` at that address.
+The checked-in [`deployments/compose/compose.dev.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.dev.env)
+already points `ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE` at that address and enables the Sepolia
+CREATE2 policies explicitly.
 
 ## Main Parameters
 
 API / core:
 
 - `DATABASE_URL`: PostgreSQL for local/process runtime
-- `BITCOIN_MAINNET_*_XPUB`: enable mainnet address policies
-- `BITCOIN_TESTNET4_*_XPUB`: enable testnet4 address policies
+- `*_ENABLED`: explicit operator intent for each address policy; disabled policies are skipped by config validation and Ethereum startup readiness
+- `BITCOIN_MAINNET_*_XPUB`: required when the matching mainnet Bitcoin policy is enabled
+- `BITCOIN_TESTNET4_*_XPUB`: required when the matching testnet4 Bitcoin policy is enabled
 - `BITCOIN_MAINNET_REQUIRED_CONFIRMATIONS`: default `2`
 - `BITCOIN_TESTNET4_REQUIRED_CONFIRMATIONS`: default `2`
 - `BITCOIN_MAINNET_RECEIPT_EXPIRES_AFTER`: default `24h`
 - `BITCOIN_TESTNET4_RECEIPT_EXPIRES_AFTER`: default `24h`
-- `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS`
-- `ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY`
-- `ETHEREUM_MAINNET_USDT_ASSET_REFERENCE`
-- `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS`
-- `ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY`
-- `ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE`
+- `ETHEREUM_MAINNET_CREATE2_COLLECTOR_ADDRESS`: required when `ETHEREUM_MAINNET_CREATE2_ENABLED=true`
+- `ETHEREUM_MAINNET_CREATE2_DERIVATION_KEY`: required when `ETHEREUM_MAINNET_CREATE2_ENABLED=true` or `ETHEREUM_MAINNET_USDT_CREATE2_ENABLED=true`
+- `ETHEREUM_MAINNET_USDT_ASSET_REFERENCE`: required when `ETHEREUM_MAINNET_USDT_CREATE2_ENABLED=true`
+- `ETHEREUM_SEPOLIA_CREATE2_COLLECTOR_ADDRESS`: required when `ETHEREUM_SEPOLIA_CREATE2_ENABLED=true`
+- `ETHEREUM_SEPOLIA_CREATE2_DERIVATION_KEY`: required when `ETHEREUM_SEPOLIA_CREATE2_ENABLED=true` or `ETHEREUM_SEPOLIA_USDT_CREATE2_ENABLED=true`
+- `ETHEREUM_SEPOLIA_USDT_ASSET_REFERENCE`: required when `ETHEREUM_SEPOLIA_USDT_CREATE2_ENABLED=true`
 - `ETHEREUM_PAYMENT_RPC_URL`
 - `ETHEREUM_PAYMENT_FROM_ADDRESS`
 - `ETHEREUM_PAYMENT_TO_ADDRESS`
@@ -337,9 +339,34 @@ Cloudflare helper env file:
 
 Local Docker Compose:
 
+Default behavior:
+
+- `make up`, `make down`, and `make config` use [`compose.dev.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.dev.env) with the `development` profile
+- `make up-mainnet`, `make down-mainnet`, and `make config-mainnet` use [`compose.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.env) with the base stack and no extra profile
+- `make help` prints the supported local and Cloudflare entrypoints
+
+Formal/mainnet-style local compose:
+
 ```bash
+cp deployments/compose/compose.env.example deployments/compose/compose.env
+make up-mainnet
+make down-mainnet
+make config-mainnet
+```
+
+Unified example env:
+
+- [`deployments/compose/compose.env.example`](/Users/posen/Desktop/payrune/deployments/compose/compose.env.example) includes both base mainnet blocks and local development-chain blocks (`bitcoin testnet4`, `ethereum sepolia`)
+- the formal/mainnet-style path keeps the local development policy flags disabled by default in that example
+- checked-in [`deployments/compose/compose.dev.env`](/Users/posen/Desktop/payrune/deployments/compose/compose.dev.env) remains the ready-to-run local development env file and now keeps only the required development overrides
+
+Local development path:
+
+```bash
+rm -f deployments/compose/compose.env
 make up
 make down
+make config
 ```
 
 Cloudflare Workers:
