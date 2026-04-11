@@ -57,7 +57,7 @@ func TestLoadReceiptRequiredConfirmationsFromEnvDefaults(t *testing.T) {
 	if got := config[policies.PaymentReceiptTermsScope{
 		Chain:   valueobjects.SupportedChainEthereum,
 		Network: valueobjects.NetworkIDSepolia,
-	}]; got != 1 {
+	}]; got != 12 {
 		t.Fatalf("unexpected ethereum sepolia confirmations: got %d", got)
 	}
 }

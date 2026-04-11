@@ -19,7 +19,7 @@ import (
 
 const (
 	cloudflarePollerDefaultBatchSize          = 2
-	cloudflarePollerDefaultRescheduleInterval = 10 * time.Minute
+	cloudflarePollerDefaultRescheduleInterval = 5 * time.Minute
 	cloudflarePollerDefaultClaimTTL           = 30 * time.Second
 )
 

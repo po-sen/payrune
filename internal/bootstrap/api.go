@@ -63,7 +63,7 @@ const (
 	envEthereumSepoliaCreate2Enabled            = "ETHEREUM_SEPOLIA_CREATE2_ENABLED"
 	envEthereumSepoliaUSDTCreate2Enabled        = "ETHEREUM_SEPOLIA_USDT_CREATE2_ENABLED"
 	defaultBitcoinRequiredConfirmations         = int32(1)
-	defaultEthereumSepoliaRequiredConfirmations = int32(1)
+	defaultEthereumSepoliaRequiredConfirmations = int32(12)
 	defaultBitcoinReceiptExpiresAfter           = 7 * 24 * time.Hour
 )
 
@@ -261,7 +261,7 @@ func loadReceiptRequiredConfirmationsFromLookup(
 	ethereumSepoliaConfirmations, err := parsePositiveInt32LookupWithDefault(
 		lookup,
 		envEthereumSepoliaRequiredConfirmations,
-		fallback,
+		defaultEthereumSepoliaRequiredConfirmations,
 	)
 	if err != nil {
 		return nil, err
