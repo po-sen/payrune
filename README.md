@@ -389,8 +389,3 @@ Cloudflare credentials:
 1. migrate PostgreSQL
 2. deploy `receipt-webhook-mock`
 3. deploy the unified `payrune` worker for API, poller, and dispatcher
-
-Compatibility note:
-
-- Cloudflare helper scripts now prefer `deployments/cloudflare/cloudflare.env`
-- existing root `.env.cloudflare` files still work as a fallback for now

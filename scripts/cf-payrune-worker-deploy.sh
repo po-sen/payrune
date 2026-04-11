@@ -3,8 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKER_DIR="$ROOT_DIR/deployments/cloudflare/payrune"
-PRIMARY_CLOUDFLARE_ENV_FILE="$ROOT_DIR/deployments/cloudflare/cloudflare.env"
-LEGACY_CLOUDFLARE_ENV_FILE="$ROOT_DIR/.env.cloudflare"
+CLOUDFLARE_ENV_FILE="$ROOT_DIR/deployments/cloudflare/cloudflare.env"
 DEPLOY_ARGS=("$@")
 SYNC_SECRET_VARS=(
 	"POSTGRES_CONNECTION_STRING"
@@ -33,19 +32,7 @@ SYNC_SECRET_VARS=(
 	"ETHEREUM_SEPOLIA_RPC_PASSWORD"
 )
 
-resolve_cloudflare_env_file() {
-	if [[ -f "$PRIMARY_CLOUDFLARE_ENV_FILE" ]]; then
-		printf '%s' "$PRIMARY_CLOUDFLARE_ENV_FILE"
-		return
-	fi
-	if [[ -f "$LEGACY_CLOUDFLARE_ENV_FILE" ]]; then
-		printf '%s' "$LEGACY_CLOUDFLARE_ENV_FILE"
-		return
-	fi
-	printf '%s' "$PRIMARY_CLOUDFLARE_ENV_FILE"
-}
-
-load_root_cloudflare_env() {
+load_cloudflare_env() {
 	local env_file="$1"
 	local line key value
 
@@ -81,8 +68,7 @@ load_root_cloudflare_env() {
 	done <"$env_file"
 }
 
-CLOUDFLARE_ENV_FILE="$(resolve_cloudflare_env_file)"
-load_root_cloudflare_env "$CLOUDFLARE_ENV_FILE"
+load_cloudflare_env "$CLOUDFLARE_ENV_FILE"
 
 if [[ -t 1 ]]; then
 	COLOR_BLUE=$'\033[1;34m'

@@ -101,8 +101,6 @@ make cf-up
 
 `deployments/cloudflare/cloudflare.env` is auto-loaded before deploy and migrate flows.
 Shell env still wins over values from that file.
-For backward compatibility, existing repo-root `.env.cloudflare` files are still accepted when the
-new deployment-local env file is absent.
 
 The default Cloudflare stack deploys `receipt-webhook-mock` first, then deploys this unified
 worker.

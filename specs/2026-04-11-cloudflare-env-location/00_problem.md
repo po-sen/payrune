@@ -54,7 +54,7 @@ links:
 - G2:
   - Make Cloudflare scripts and docs prefer the new deployment-local env path.
 - G3:
-  - Avoid breaking existing local setups immediately by keeping a compatibility path for the old root env file.
+  - Remove the old root env-file path from the Cloudflare helper contract so the deployment-local path is the only supported local file location.
 
 ## Non-goals (out of scope)
 
@@ -68,7 +68,7 @@ links:
 - A1:
   - `deployments/cloudflare/cloudflare.env.example` and `deployments/cloudflare/cloudflare.env` are clearer names than root dotfiles for deployment-local config.
 - A2:
-  - Temporary fallback support for root `.env.cloudflare` is preferable to a hard breaking cutover.
+  - Operators can move any existing local root `.env.cloudflare` file into `deployments/cloudflare/cloudflare.env`.
 
 ## Open questions
 
@@ -84,6 +84,6 @@ links:
   - The checked-in example file lives under `deployments/cloudflare/`.
 
 - Metric:
-  - Existing operator workflows keep working during the transition.
+  - Local Cloudflare helper behavior is unambiguous.
 - Target:
-  - Scripts accept the new deployment-local env file and still support the old root file as fallback.
+  - Scripts read only `deployments/cloudflare/cloudflare.env` as the local env-file path.

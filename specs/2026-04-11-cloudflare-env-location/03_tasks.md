@@ -40,7 +40,7 @@ links:
 - M1:
   - Move the checked-in Cloudflare env example and align docs.
 - M2:
-  - Update Cloudflare scripts to prefer the new deployment-local env path while keeping root fallback support.
+  - Update Cloudflare scripts to use only the deployment-local env path.
 - M3:
   - Validate Cloudflare helper behavior and repo checks.
 
@@ -59,18 +59,18 @@ links:
        - The checked-in Cloudflare env example lives under `deployments/cloudflare/`, and docs point to the new path.
      - [ ] Logs/metrics to check (if applicable):
        - Not applicable.
-2. T-002 - Update scripts to prefer the new env path with legacy fallback
+2. T-002 - Update scripts to use only the deployment-local env path
    - Scope:
-     - Update Cloudflare helper scripts to load `deployments/cloudflare/cloudflare.env` first and fall back to root `.env.cloudflare` when the new file is absent.
+     - Update Cloudflare helper scripts to load only `deployments/cloudflare/cloudflare.env`.
    - Output:
-     - Backward-compatible env loading in Cloudflare helper scripts.
+     - Single-path env loading in Cloudflare helper scripts.
    - Linked requirements: FR-002, FR-003, NFR-001, NFR-002, NFR-005
    - Validation:
      - [ ] How to verify (manual steps or command):
        - Inspect `scripts/cf-*.sh`.
        - `make -n cf-up`
      - [ ] Expected result:
-       - Scripts prefer the new deployment-local env path and still mention fallback compatibility for legacy root env files.
+       - Scripts refer only to `deployments/cloudflare/cloudflare.env`.
      - [ ] Logs/metrics to check (if applicable):
        - Script log messages mention the effective env-file behavior.
 3. T-003 - Run validation
@@ -106,7 +106,7 @@ links:
 - Migration sequencing:
   - None.
 - Rollback steps:
-  - Restore the root example path and script root-only loading if the deployment-local path causes operator confusion.
+  - Restore the root example path and legacy script fallback if the deployment-local path causes operator confusion.
 
 ## Validation evidence
 

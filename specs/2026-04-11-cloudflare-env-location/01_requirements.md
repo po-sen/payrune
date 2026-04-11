@@ -53,16 +53,15 @@ links:
 - Notes:
   - Root-level path references should be removed from normal documentation.
 
-### FR-003 - Preserve backward compatibility for existing local root env files
+### FR-003 - Support only the deployment-local env file path
 
 - Description:
-  - Existing local `.env.cloudflare` users should not be broken immediately by the path move.
+  - Cloudflare helper scripts must use the deployment-local env path as the only supported local env-file location.
 - Acceptance criteria:
   - [ ] AC1: If `deployments/cloudflare/cloudflare.env` exists, scripts load it.
-  - [ ] AC2: If the new file does not exist but root `.env.cloudflare` exists, scripts still load the root file.
-  - [ ] AC3: Script/operator messages make it clear which file location is being used.
+  - [ ] AC2: Scripts do not read root `.env.cloudflare`.
+  - [ ] AC3: Script/operator messages refer only to `deployments/cloudflare/cloudflare.env`.
 - Notes:
-  - This is a transition compatibility requirement, not a permanent guarantee.
   - The legacy root file does not need to stay gitignored once the deployment-local path exists.
 
 ## Non-functional requirements
@@ -70,7 +69,7 @@ links:
 - Performance (NFR-001):
   - The path move must not add meaningful overhead beyond one extra file-existence check in shell scripts.
 - Availability/Reliability (NFR-002):
-  - Existing Cloudflare deploy flows must continue working after the change when either the new or legacy local env file exists.
+  - Existing Cloudflare deploy flows must continue working after the change when the deployment-local env file exists.
 - Security/Privacy (NFR-003):
 - Compliance (NFR-004):
 - Observability (NFR-005):
