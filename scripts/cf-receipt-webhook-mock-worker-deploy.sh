@@ -3,6 +3,20 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKER_DIR="$ROOT_DIR/deployments/cloudflare/receipt-webhook-mock"
+PRIMARY_CLOUDFLARE_ENV_FILE="$ROOT_DIR/deployments/cloudflare/cloudflare.env"
+LEGACY_CLOUDFLARE_ENV_FILE="$ROOT_DIR/.env.cloudflare"
+
+resolve_cloudflare_env_file() {
+	if [[ -f "$PRIMARY_CLOUDFLARE_ENV_FILE" ]]; then
+		printf '%s' "$PRIMARY_CLOUDFLARE_ENV_FILE"
+		return
+	fi
+	if [[ -f "$LEGACY_CLOUDFLARE_ENV_FILE" ]]; then
+		printf '%s' "$LEGACY_CLOUDFLARE_ENV_FILE"
+		return
+	fi
+	printf '%s' "$PRIMARY_CLOUDFLARE_ENV_FILE"
+}
 
 load_root_cloudflare_env() {
 	local env_file="$1"
@@ -40,7 +54,8 @@ load_root_cloudflare_env() {
 	done <"$env_file"
 }
 
-load_root_cloudflare_env "$ROOT_DIR/.env.cloudflare"
+CLOUDFLARE_ENV_FILE="$(resolve_cloudflare_env_file)"
+load_root_cloudflare_env "$CLOUDFLARE_ENV_FILE"
 
 if [[ -t 1 ]]; then
 	COLOR_BLUE=$'\033[1;34m'
@@ -64,10 +79,10 @@ fail() { printf '%sERROR: %s%s\n' "$COLOR_RED" "$1" "$COLOR_RESET" >&2; exit 1; 
 require_env() {
 	local name="$1"
 	if [[ -n "${!name:-}" ]]; then
-		info "Using $name from shell env or .env.cloudflare."
+		info "Using $name from shell env or $CLOUDFLARE_ENV_FILE."
 		return
 	fi
-	fail "$name is required. Set it in shell env or .env.cloudflare."
+	fail "$name is required. Set it in shell env or $CLOUDFLARE_ENV_FILE."
 }
 
 sync_secret_from_env() {
@@ -82,7 +97,7 @@ sync_secret_from_env() {
 }
 
 step "Preparing receipt webhook mock deploy inputs"
-info "Auto-loading .env.cloudflare when present."
+info "Auto-loading $CLOUDFLARE_ENV_FILE when present."
 require_env "PAYMENT_RECEIPT_WEBHOOK_SECRET"
 
 cd "$WORKER_DIR"

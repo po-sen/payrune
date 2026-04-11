@@ -99,8 +99,10 @@ from checked-in deployment metadata and contract artifacts once the CREATE2 cont
 make cf-up
 ```
 
-Repo root `.env.cloudflare` is auto-loaded before deploy and migrate flows.
-Shell env still wins over values from `.env.cloudflare`.
+`deployments/cloudflare/cloudflare.env` is auto-loaded before deploy and migrate flows.
+Shell env still wins over values from that file.
+For backward compatibility, existing repo-root `.env.cloudflare` files are still accepted when the
+new deployment-local env file is absent.
 
 The default Cloudflare stack deploys `receipt-webhook-mock` first, then deploys this unified
 worker.
@@ -108,7 +110,7 @@ worker.
 ## Migration
 
 ```bash
-make cf-migrate
+./scripts/cf-cloudflare-migrate.sh
 ```
 
 Run this separately before deploy when the target PostgreSQL schema needs to be updated.

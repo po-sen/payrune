@@ -2,6 +2,20 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PRIMARY_CLOUDFLARE_ENV_FILE="$ROOT_DIR/deployments/cloudflare/cloudflare.env"
+LEGACY_CLOUDFLARE_ENV_FILE="$ROOT_DIR/.env.cloudflare"
+
+resolve_cloudflare_env_file() {
+	if [[ -f "$PRIMARY_CLOUDFLARE_ENV_FILE" ]]; then
+		printf '%s' "$PRIMARY_CLOUDFLARE_ENV_FILE"
+		return
+	fi
+	if [[ -f "$LEGACY_CLOUDFLARE_ENV_FILE" ]]; then
+		printf '%s' "$LEGACY_CLOUDFLARE_ENV_FILE"
+		return
+	fi
+	printf '%s' "$PRIMARY_CLOUDFLARE_ENV_FILE"
+}
 
 load_root_cloudflare_env() {
 	local env_file="$1"
@@ -39,7 +53,8 @@ load_root_cloudflare_env() {
 	done <"$env_file"
 }
 
-load_root_cloudflare_env "$ROOT_DIR/.env.cloudflare"
+CLOUDFLARE_ENV_FILE="$(resolve_cloudflare_env_file)"
+load_root_cloudflare_env "$CLOUDFLARE_ENV_FILE"
 
 if [[ -t 1 ]]; then
 	COLOR_BLUE=$'\033[1;34m'
@@ -76,15 +91,15 @@ require_env() {
 	local name="$1"
 
 	if [[ -n "${!name:-}" ]]; then
-		info "Using $name from shell env or .env.cloudflare."
+		info "Using $name from shell env or $CLOUDFLARE_ENV_FILE."
 		return
 	fi
 
-	fail "$name is required. Set it in shell env or .env.cloudflare."
+	fail "$name is required. Set it in shell env or $CLOUDFLARE_ENV_FILE."
 }
 
 step "Preparing PostgreSQL migration"
-info "Auto-loading .env.cloudflare when present."
+info "Auto-loading $CLOUDFLARE_ENV_FILE when present."
 require_env "POSTGRES_CONNECTION_STRING"
 
 step "Running PostgreSQL migrations"

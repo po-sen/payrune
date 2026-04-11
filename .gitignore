@@ -1,2 +1,2 @@
-.env.cloudflare
+deployments/cloudflare/cloudflare.env
 deployments/compose/compose.env

@@ -333,7 +333,7 @@ Webhook:
 
 Cloudflare helper env file:
 
-- copy [`.env.cloudflare.example`](/Users/posen/Desktop/payrune/.env.cloudflare.example) to `.env.cloudflare`
+- copy [`cloudflare.env.example`](/Users/posen/Desktop/payrune/deployments/cloudflare/cloudflare.env.example) to [`cloudflare.env`](/Users/posen/Desktop/payrune/deployments/cloudflare/cloudflare.env)
 
 ## Deploy
 
@@ -373,14 +373,14 @@ Cloudflare Workers:
 
 ```bash
 wrangler login
-cp .env.cloudflare.example .env.cloudflare
+cp deployments/cloudflare/cloudflare.env.example deployments/cloudflare/cloudflare.env
 make cf-up
 make cf-down
 ```
 
 Cloudflare credentials:
 
-- you can keep `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env.cloudflare`
+- you can keep `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `deployments/cloudflare/cloudflare.env`
 - local interactive deploy can still use `wrangler login`
 - CI or non-interactive deploy can also source the same values from CI secrets
 
@@ -389,3 +389,8 @@ Cloudflare credentials:
 1. migrate PostgreSQL
 2. deploy `receipt-webhook-mock`
 3. deploy the unified `payrune` worker for API, poller, and dispatcher
+
+Compatibility note:
+
+- Cloudflare helper scripts now prefer `deployments/cloudflare/cloudflare.env`
+- existing root `.env.cloudflare` files still work as a fallback for now
