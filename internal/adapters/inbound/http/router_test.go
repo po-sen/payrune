@@ -27,15 +27,6 @@ func (f *fakeListAddressPoliciesUseCase) Execute(
 	return dto.ListAddressPoliciesResponse{}, nil
 }
 
-type fakeGenerateAddressUseCase struct{}
-
-func (f *fakeGenerateAddressUseCase) Execute(
-	context.Context,
-	dto.GenerateAddressInput,
-) (dto.GenerateAddressResponse, error) {
-	return dto.GenerateAddressResponse{}, nil
-}
-
 type fakeAllocatePaymentAddressUseCase struct{}
 
 func (f *fakeAllocatePaymentAddressUseCase) Execute(
@@ -77,7 +68,6 @@ func TestNewPublicRouterRegistersRoutesAndAppliesCORS(t *testing.T) {
 func TestRouterRegistersChainAddressRoutes(t *testing.T) {
 	router := newRouter(RouterControllers{
 		ListAddressPolicies:    controllers.NewListAddressPoliciesController(&fakeListAddressPoliciesUseCase{}),
-		GenerateAddress:        controllers.NewGenerateAddressController(&fakeGenerateAddressUseCase{}),
 		AllocatePaymentAddress: controllers.NewAllocatePaymentAddressController(&fakeAllocatePaymentAddressUseCase{}),
 		GetPaymentAddressStatus: controllers.NewGetPaymentAddressStatusController(
 			&fakeGetPaymentAddressStatusUseCase{},
@@ -97,7 +87,6 @@ func TestRouterRegistersChainAddressRoutes(t *testing.T) {
 var (
 	_ inport.CheckHealthUseCase             = (*fakeCheckHealthUseCase)(nil)
 	_ inport.ListAddressPoliciesUseCase     = (*fakeListAddressPoliciesUseCase)(nil)
-	_ inport.GenerateAddressUseCase         = (*fakeGenerateAddressUseCase)(nil)
 	_ inport.AllocatePaymentAddressUseCase  = (*fakeAllocatePaymentAddressUseCase)(nil)
 	_ inport.GetPaymentAddressStatusUseCase = (*fakeGetPaymentAddressStatusUseCase)(nil)
 )

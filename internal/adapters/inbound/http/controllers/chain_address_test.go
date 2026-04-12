@@ -30,23 +30,6 @@ func (f *fakeListAddressPoliciesUseCase) Execute(
 	return f.response, nil
 }
 
-type fakeGenerateAddressUseCase struct {
-	response  dto.GenerateAddressResponse
-	err       error
-	lastInput dto.GenerateAddressInput
-}
-
-func (f *fakeGenerateAddressUseCase) Execute(
-	_ context.Context,
-	input dto.GenerateAddressInput,
-) (dto.GenerateAddressResponse, error) {
-	f.lastInput = input
-	if f.err != nil {
-		return dto.GenerateAddressResponse{}, f.err
-	}
-	return f.response, nil
-}
-
 type fakeAllocatePaymentAddressUseCase struct {
 	response  dto.AllocatePaymentAddressResponse
 	err       error

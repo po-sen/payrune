@@ -21,23 +21,6 @@ type ListAddressPoliciesResponse struct {
 	AddressPolicies []AddressPolicy
 }
 
-type GenerateAddressInput struct {
-	Chain           valueobjects.SupportedChain
-	AddressPolicyID string
-	Index           uint32
-}
-
-type GenerateAddressResponse struct {
-	AddressPolicyID string
-	Chain           string
-	Network         string
-	Scheme          string
-	AssetReference  string
-	Decimals        uint8
-	Index           uint32
-	Address         string
-}
-
 type AllocatePaymentAddressInput struct {
 	Chain               valueobjects.SupportedChain
 	AddressPolicyID     string

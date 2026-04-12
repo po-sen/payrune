@@ -38,17 +38,6 @@ type listAddressPoliciesResponse struct {
 	AddressPolicies []addressPolicyResponse `json:"addressPolicies"`
 }
 
-type generateAddressResponse struct {
-	AddressPolicyID string `json:"addressPolicyId"`
-	Chain           string `json:"chain"`
-	Network         string `json:"network"`
-	Scheme          string `json:"scheme"`
-	AssetReference  string `json:"assetReference,omitempty"`
-	Decimals        uint8  `json:"decimals"`
-	Index           uint32 `json:"index"`
-	Address         string `json:"address"`
-}
-
 type allocatePaymentAddressResponse struct {
 	PaymentAddressID    string `json:"paymentAddressId"`
 	AddressPolicyID     string `json:"addressPolicyId"`
@@ -115,19 +104,6 @@ func newListAddressPoliciesResponse(response dto.ListAddressPoliciesResponse) li
 	return listAddressPoliciesResponse{
 		Chain:           response.Chain,
 		AddressPolicies: policies,
-	}
-}
-
-func newGenerateAddressResponse(response dto.GenerateAddressResponse) generateAddressResponse {
-	return generateAddressResponse{
-		AddressPolicyID: response.AddressPolicyID,
-		Chain:           response.Chain,
-		Network:         response.Network,
-		Scheme:          response.Scheme,
-		AssetReference:  response.AssetReference,
-		Decimals:        response.Decimals,
-		Index:           response.Index,
-		Address:         response.Address,
 	}
 }
 

@@ -122,14 +122,6 @@ func (r *inMemoryAddressPolicyReader) FindIssuanceByID(
 	return policy, true, nil
 }
 
-type fakeChainAddressDeriver struct {
-	supportedChains map[valueobjects.SupportedChain]bool
-	output          outport.DeriveChainAddressOutput
-	err             error
-	lastInput       outport.DeriveChainAddressInput
-	calls           int
-}
-
 type fakeIssuedPaymentAddressDeriver struct {
 	supportedChains map[valueobjects.SupportedChain]bool
 	output          outport.DeriveIssuedPaymentAddressOutput
@@ -164,35 +156,6 @@ func (f *fakeIssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	f.lastInput = input
 	if f.err != nil {
 		return outport.DeriveIssuedPaymentAddressOutput{}, f.err
-	}
-	return f.output, nil
-}
-
-func newFakeChainAddressDeriver() *fakeChainAddressDeriver {
-	return &fakeChainAddressDeriver{
-		supportedChains: map[valueobjects.SupportedChain]bool{
-			valueobjects.SupportedChainBitcoin: true,
-		},
-		output: outport.DeriveChainAddressOutput{
-			Address:             "bc1qdefault",
-			IssuanceRefKind:     valueobjects.IssuanceRefKindHDPathAbsolute,
-			RelativeIssuanceRef: "0/0",
-		},
-	}
-}
-
-func (f *fakeChainAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
-	return f.supportedChains[chain]
-}
-
-func (f *fakeChainAddressDeriver) DeriveAddress(
-	_ context.Context,
-	input outport.DeriveChainAddressInput,
-) (outport.DeriveChainAddressOutput, error) {
-	f.calls++
-	f.lastInput = input
-	if f.err != nil {
-		return outport.DeriveChainAddressOutput{}, f.err
 	}
 	return f.output, nil
 }

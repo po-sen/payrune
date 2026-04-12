@@ -8,7 +8,6 @@ import (
 type RouterControllers struct {
 	Health                  http.Handler
 	ListAddressPolicies     http.Handler
-	GenerateAddress         http.Handler
 	AllocatePaymentAddress  http.Handler
 	GetPaymentAddressStatus http.Handler
 }
@@ -20,9 +19,6 @@ func newRouter(routeControllers RouterControllers) http.Handler {
 	}
 	if routeControllers.ListAddressPolicies != nil {
 		mux.Handle("/v1/chains/{chain}/address-policies", routeControllers.ListAddressPolicies)
-	}
-	if routeControllers.GenerateAddress != nil {
-		mux.Handle("/v1/chains/{chain}/addresses", routeControllers.GenerateAddress)
 	}
 	if routeControllers.AllocatePaymentAddress != nil {
 		mux.Handle("/v1/chains/{chain}/payment-addresses", routeControllers.AllocatePaymentAddress)

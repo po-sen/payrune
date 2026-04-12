@@ -107,13 +107,6 @@ func buildCloudflareAPIHTTPHandler(
 	)
 	bitcoinChainAddressDeriver := bitcoin.NewChainAddressDeriver(bitcoinDeriver)
 	ethereumChainAddressDeriver := ethereum.NewChainAddressDeriver()
-	chainAddressDeriver, err := blockchain.NewMultiChainAddressDeriver(
-		bitcoinChainAddressDeriver,
-		ethereumChainAddressDeriver,
-	)
-	if err != nil {
-		return nil, err
-	}
 	ethereumCreate2SaltDeriver := ethereum.NewCreate2SaltDeriver(
 		buildEthereumCreate2DerivationKeys(
 			cloudflareAPIEnvValue(env, envEthereumMainnetCreate2DerivationKey),
@@ -144,10 +137,6 @@ func buildCloudflareAPIHTTPHandler(
 	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
 
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
-	generateAddressUseCase := usecases.NewGenerateAddressUseCase(
-		chainAddressDeriver,
-		addressPolicyReader,
-	)
 	dbExecutor := cloudflarepostgresadapter.NewExecutor(bridgeID, bridge)
 	unitOfWork := cloudflarepostgresadapter.NewUnitOfWork(bridgeID, bridge)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
@@ -176,7 +165,6 @@ func buildCloudflareAPIHTTPHandler(
 	return httpadapter.NewPublicRouter(httpadapter.RouterControllers{
 		Health:              httpcontroller.NewHealthController(healthUseCase),
 		ListAddressPolicies: httpcontroller.NewListAddressPoliciesController(listAddressPoliciesUseCase),
-		GenerateAddress:     httpcontroller.NewGenerateAddressController(generateAddressUseCase),
 		AllocatePaymentAddress: httpcontroller.NewAllocatePaymentAddressController(
 			allocatePaymentAddressUseCase,
 		),

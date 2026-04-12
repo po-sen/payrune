@@ -7,7 +7,6 @@ var (
 	ErrAddressPolicyIDRequired             = errors.New("address policy id is required")
 	ErrAddressPolicyChainMismatch          = errors.New("address policy chain mismatch")
 	ErrAddressPolicyNotEnabled             = errors.New("address policy is not enabled")
-	ErrAddressPolicyPreviewNotSupported    = errors.New("address preview is not supported for this address policy")
 	ErrExpectedAmountMinorInvalid          = errors.New("expected amount minor must be greater than zero")
 	ErrChainInvalid                        = errors.New("chain is invalid")
 	ErrNetworkInvalid                      = errors.New("network is invalid")

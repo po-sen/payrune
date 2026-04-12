@@ -11,10 +11,6 @@ type ListAddressPoliciesUseCase interface {
 	Execute(ctx context.Context, chain valueobjects.SupportedChain) (dto.ListAddressPoliciesResponse, error)
 }
 
-type GenerateAddressUseCase interface {
-	Execute(ctx context.Context, input dto.GenerateAddressInput) (dto.GenerateAddressResponse, error)
-}
-
 type AllocatePaymentAddressUseCase interface {
 	Execute(
 		ctx context.Context,

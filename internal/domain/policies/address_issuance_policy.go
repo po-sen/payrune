@@ -59,27 +59,3 @@ func (p AddressIssuancePolicy) ValidateForAllocationIssuance(
 	}
 	return normalized, nil
 }
-
-func (p AddressIssuancePolicy) SupportsAddressPreview() bool {
-	normalized := p.Normalize()
-	return !(normalized.Chain == valueobjects.SupportedChainEthereum && normalized.Scheme.IsCreate2())
-}
-
-func (p AddressIssuancePolicy) ValidateForAddressPreview(
-	requestedChain valueobjects.SupportedChain,
-) (AddressIssuancePolicy, error) {
-	normalized := p.Normalize()
-	if normalized.AddressPolicyID.IsZero() {
-		return AddressIssuancePolicy{}, ErrAddressPolicyIDRequired
-	}
-	if normalized.Chain != requestedChain {
-		return AddressIssuancePolicy{}, ErrAddressPolicyChainMismatch
-	}
-	if !normalized.IsEnabled() {
-		return AddressIssuancePolicy{}, ErrAddressPolicyNotEnabled
-	}
-	if !normalized.SupportsAddressPreview() {
-		return AddressIssuancePolicy{}, ErrAddressPolicyPreviewNotSupported
-	}
-	return normalized, nil
-}

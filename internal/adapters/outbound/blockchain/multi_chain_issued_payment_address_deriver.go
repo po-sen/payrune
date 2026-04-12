@@ -106,3 +106,7 @@ func isNilChainSpecificIssuedPaymentAddressDeriver(deriver chainSpecificIssuedPa
 		return false
 	}
 }
+
+func normalizeSupportedChain(chain valueobjects.SupportedChain) (valueobjects.SupportedChain, bool) {
+	return valueobjects.ParseSupportedChain(string(chain))
+}

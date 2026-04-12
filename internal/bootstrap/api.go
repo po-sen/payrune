@@ -130,14 +130,6 @@ func newAPIContainer() (*apiContainer, error) {
 	)
 	bitcoinChainAddressDeriver := bitcoin.NewChainAddressDeriver(bitcoinDeriver)
 	ethereumChainAddressDeriver := ethereum.NewChainAddressDeriver()
-	chainAddressDeriver, err := blockchain.NewMultiChainAddressDeriver(
-		bitcoinChainAddressDeriver,
-		ethereumChainAddressDeriver,
-	)
-	if err != nil {
-		_ = db.Close()
-		return nil, err
-	}
 	ethereumCreate2SaltDeriver := ethereum.NewCreate2SaltDeriver(
 		buildEthereumCreate2DerivationKeys(
 			os.Getenv(envEthereumMainnetCreate2DerivationKey),
@@ -164,10 +156,6 @@ func newAPIContainer() (*apiContainer, error) {
 	}
 	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
-	generateAddressUseCase := usecases.NewGenerateAddressUseCase(
-		chainAddressDeriver,
-		addressPolicyReader,
-	)
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
 		requiredConfirmationsByScope,
@@ -196,7 +184,6 @@ func newAPIContainer() (*apiContainer, error) {
 		APIHandler: httpadapter.NewPublicRouter(httpadapter.RouterControllers{
 			Health:                 healthController,
 			ListAddressPolicies:    httpcontroller.NewListAddressPoliciesController(listAddressPoliciesUseCase),
-			GenerateAddress:        httpcontroller.NewGenerateAddressController(generateAddressUseCase),
 			AllocatePaymentAddress: httpcontroller.NewAllocatePaymentAddressController(allocatePaymentAddressUseCase),
 			GetPaymentAddressStatus: httpcontroller.NewGetPaymentAddressStatusController(
 				getPaymentAddressStatusUseCase,
