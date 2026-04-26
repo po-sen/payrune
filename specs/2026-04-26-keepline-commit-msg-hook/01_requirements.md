@@ -19,7 +19,7 @@ links:
 
 ## Glossary (optional)
 
-- Keepline: The Go CLI at `github.com/po-sen/keepline/cmd/keepline@v0.1.0` used to validate commit messages.
+- Keepline: The Go-based pre-commit hook repository at `https://github.com/po-sen/keepline`, pinned to `rev: v0.1.0`.
 - Commit message hook: A pre-commit hook that receives the commit message file at the `commit-msg` Git hook stage.
 
 ## Out-of-scope behaviors
@@ -29,31 +29,32 @@ links:
 
 ## Functional requirements
 
-### FR-001 - Commit message hook installation type
+### FR-001 - Default install hook types
 
-- Description: `.pre-commit-config.yaml` must declare `commit-msg` as a default install hook type.
+- Description: `.pre-commit-config.yaml` must declare both regular pre-commit checks and commit message checks as default install hook types.
 - Acceptance criteria:
   - [x] `default_install_hook_types` exists at the top level.
+  - [x] `pre-commit` is included in `default_install_hook_types`.
   - [x] `commit-msg` is included in `default_install_hook_types`.
-- Notes: Existing hook repositories and regular pre-commit stage behavior should remain valid.
+- Notes: Existing hook repositories remain on their normal stages; this only changes what `pre-commit install` installs by default.
 
-### FR-002 - Keepline local hook
+### FR-002 - Keepline versioned hook repository
 
-- Description: `.pre-commit-config.yaml` must include a local hook named `keepline-commit-msg`.
+- Description: `.pre-commit-config.yaml` must include Keepline as a versioned pre-commit hook repository.
 - Acceptance criteria:
-  - [x] The hook entry is `go run github.com/po-sen/keepline/cmd/keepline@v0.1.0 commit-msg`.
-  - [x] The hook uses `language: system`.
-  - [x] The hook runs at `stages: [commit-msg]`.
-  - [x] The hook passes filenames to Keepline.
-- Notes: The hook should live in the existing pre-commit configuration rather than a separate helper script unless validation requires one.
+  - [x] The repo is `https://github.com/po-sen/keepline`.
+  - [x] The repo is pinned with `rev: v0.1.0`.
+  - [x] The configured hook id is `keepline-commit-msg`.
+  - [x] The configuration does not duplicate Keepline's hook manifest details as a local `go run` hook.
+- Notes: Keepline `v0.1.0` provides `entry: keepline commit-msg`, `language: golang`, `stages: [commit-msg]`, and `pass_filenames: true` through its hook manifest.
 
 ### FR-003 - Hook execution verification
 
 - Description: The configured hook must be tested locally against a sample commit message file.
 - Acceptance criteria:
-  - [x] A direct or pre-commit-driven command proves `github.com/po-sen/keepline/cmd/keepline@v0.1.0` can be executed.
+  - [x] A pre-commit-driven command proves Keepline `v0.1.0` can be installed and executed through the remote hook repository.
   - [x] Validation output distinguishes a tool execution problem from a commit message policy failure.
-- Notes: Network access may be required for the first `go run` download if the module is not already cached.
+- Notes: Network access may be required for the first pre-commit hook environment installation if the repository is not already cached.
 
 ## Non-functional requirements
 
@@ -62,9 +63,9 @@ links:
 - Security/Privacy (NFR-003): The change must not disable existing secret detection or large-file checks.
 - Compliance (NFR-004): The spec folder must pass `SPEC_DIR="specs/2026-04-26-keepline-commit-msg-hook" bash scripts/spec-lint.sh`.
 - Observability (NFR-005): Validation commands must produce enough output to tell whether Keepline ran.
-- Maintainability (NFR-006): The hook configuration should be local, explicit, and limited to the requested Keepline command.
+- Maintainability (NFR-006): The hook configuration should use Keepline's published pre-commit hook metadata rather than duplicating its entry command locally.
 
 ## Dependencies and integrations
 
-- External systems: Go module proxy or GitHub module fetch for `github.com/po-sen/keepline/cmd/keepline@v0.1.0` when not already cached.
+- External systems: GitHub/pre-commit hook fetch for `https://github.com/po-sen/keepline` at `v0.1.0`, plus Go toolchain installation for Keepline's `language: golang` hook when not already cached.
 - Internal services: `.pre-commit-config.yaml`, `scripts/spec-lint.sh`.

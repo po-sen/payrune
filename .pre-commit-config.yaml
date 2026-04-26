@@ -1,15 +1,12 @@
 default_install_hook_types:
+  - pre-commit
   - commit-msg
 
 repos:
-  - repo: local
+  - repo: https://github.com/po-sen/keepline
+    rev: v0.1.0
     hooks:
       - id: keepline-commit-msg
-        name: keepline commit message
-        entry: go run github.com/po-sen/keepline/cmd/keepline@v0.1.0 commit-msg
-        language: system
-        stages: [commit-msg]
-        pass_filenames: true
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
