@@ -7,7 +7,6 @@ import (
 	"time"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type fakeCloudflareEsploraBridge struct {
@@ -22,7 +21,7 @@ type fakeCloudflareEsploraBridge struct {
 func (f *fakeCloudflareEsploraBridge) FetchLatestBlockHeight(
 	context.Context,
 	string,
-	valueobjects.NetworkID,
+	string,
 ) (int64, error) {
 	return f.latestBlockHeight, f.latestErr
 }
@@ -30,7 +29,7 @@ func (f *fakeCloudflareEsploraBridge) FetchLatestBlockHeight(
 func (f *fakeCloudflareEsploraBridge) FetchAddressChainTransactions(
 	context.Context,
 	string,
-	valueobjects.NetworkID,
+	string,
 	string,
 ) ([]esploraTransaction, error) {
 	return f.chainTransactions, f.chainErr
@@ -39,7 +38,7 @@ func (f *fakeCloudflareEsploraBridge) FetchAddressChainTransactions(
 func (f *fakeCloudflareEsploraBridge) FetchAddressMempoolTransactions(
 	context.Context,
 	string,
-	valueobjects.NetworkID,
+	string,
 	string,
 ) ([]esploraTransaction, error) {
 	return f.mempoolTxs, f.mempoolErr
@@ -73,7 +72,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverObserveAddress(t *testing.T) {
 	})
 
 	output, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkIDTestnet4,
+		Network:               outport.NetworkIDTestnet4,
 		Address:               "tb1qexample",
 		IssuedAt:              issuedAt,
 		RequiredConfirmations: 1,
@@ -100,7 +99,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverFetchLatestBlockHeight(t *testin
 
 	latestBlockHeight, err := observer.FetchLatestBlockHeight(
 		context.Background(),
-		valueobjects.NetworkIDMainnet,
+		outport.NetworkIDMainnet,
 	)
 	if err != nil {
 		t.Fatalf("FetchLatestBlockHeight returned error: %v", err)
@@ -116,7 +115,7 @@ func TestCloudflareBitcoinEsploraReceiptObserverBridgeError(t *testing.T) {
 	})
 
 	_, err := observer.ObserveAddress(context.Background(), outport.ObservePaymentAddressInput{
-		Network:               valueobjects.NetworkIDMainnet,
+		Network:               outport.NetworkIDMainnet,
 		Address:               "bc1qexample",
 		IssuedAt:              time.Date(2026, 3, 11, 12, 0, 0, 0, time.UTC),
 		RequiredConfirmations: 1,

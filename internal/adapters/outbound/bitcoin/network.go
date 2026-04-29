@@ -2,8 +2,6 @@ package bitcoin
 
 import (
 	"strings"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 type network string
@@ -18,11 +16,11 @@ var bitcoinNetworks = map[string]network{
 	"testnet4": networkTestnet4,
 }
 
-func parseNetwork(raw valueobjects.NetworkID) (network, bool) {
-	network, ok := bitcoinNetworks[strings.ToLower(strings.TrimSpace(string(raw)))]
+func parseNetwork(raw string) (network, bool) {
+	network, ok := bitcoinNetworks[strings.ToLower(strings.TrimSpace(raw))]
 	return network, ok
 }
 
-func (n network) NetworkID() valueobjects.NetworkID {
-	return valueobjects.NetworkID(n)
+func (n network) NetworkID() string {
+	return string(n)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/valueobjects"
@@ -20,32 +19,36 @@ func NewListAddressPoliciesUseCase(policyReader outport.AddressPolicyReader) inp
 
 func (uc *listAddressPoliciesUseCase) Execute(
 	ctx context.Context,
-	chain valueobjects.SupportedChain,
-) (dto.ListAddressPoliciesResponse, error) {
+	chain string,
+) (inport.ListAddressPoliciesResponse, error) {
 	if uc.policyReader == nil {
-		return dto.ListAddressPoliciesResponse{}, inport.ErrAddressPolicyReaderNotConfigured
+		return inport.ListAddressPoliciesResponse{}, inport.ErrAddressPolicyReaderNotConfigured
+	}
+	normalizedChain, ok := valueobjects.ParseSupportedChain(chain)
+	if !ok {
+		return inport.ListAddressPoliciesResponse{}, inport.ErrChainNotSupported
 	}
 
-	policyRecords, err := uc.policyReader.ListByChain(ctx, chain)
+	policyRecords, err := uc.policyReader.ListByChain(ctx, string(normalizedChain))
 	if err != nil {
-		return dto.ListAddressPoliciesResponse{}, inport.ErrDependencyFailure
+		return inport.ListAddressPoliciesResponse{}, inport.ErrDependencyFailure
 	}
 
-	policies := make([]dto.AddressPolicy, 0)
+	policies := make([]inport.AddressPolicy, 0)
 	for _, policy := range policyRecords {
-		policies = append(policies, dto.AddressPolicy{
-			AddressPolicyID: string(policy.AddressPolicyID),
-			Chain:           string(policy.Chain),
-			Network:         string(policy.Network),
-			Scheme:          string(policy.Scheme),
+		policies = append(policies, inport.AddressPolicy{
+			AddressPolicyID: policy.AddressPolicyID,
+			Chain:           policy.Chain,
+			Network:         policy.Network,
+			Scheme:          policy.Scheme,
 			AssetReference:  strings.TrimSpace(policy.AssetReference),
 			Decimals:        policy.Decimals,
 			Enabled:         policy.Enabled,
 		})
 	}
 
-	return dto.ListAddressPoliciesResponse{
-		Chain:           string(chain),
+	return inport.ListAddressPoliciesResponse{
+		Chain:           string(normalizedChain),
 		AddressPolicies: policies,
 	}, nil
 }

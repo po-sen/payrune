@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type IssuedPaymentAddressDeriver struct {
@@ -25,12 +24,12 @@ func NewIssuedPaymentAddressDeriver(
 	}
 }
 
-func (d *IssuedPaymentAddressDeriver) Chain() valueobjects.SupportedChain {
-	return valueobjects.SupportedChainEthereum
+func (d *IssuedPaymentAddressDeriver) Chain() string {
+	return outport.SupportedChainEthereum
 }
 
-func (d *IssuedPaymentAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
-	return chain == valueobjects.SupportedChainEthereum
+func (d *IssuedPaymentAddressDeriver) SupportsChain(chain string) bool {
+	return chain == outport.SupportedChainEthereum
 }
 
 func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
@@ -41,18 +40,17 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDeriverNotConfigured
 	}
 
-	policy := input.Policy.Normalize()
 	relativeIssuanceRef, err := d.deriveRelativeIssuanceRef(ctx, input)
 	if err != nil {
 		return outport.DeriveIssuedPaymentAddressOutput{}, err
 	}
 
 	output, err := d.chainAddressDeriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:               policy.Chain,
-		Network:             policy.Network,
-		Scheme:              policy.Scheme,
-		AddressSpaceRef:     policy.IssuanceConfig.AddressSpaceRef,
-		IssuanceRefPrefix:   policy.IssuanceConfig.IssuanceRefPrefix,
+		Chain:               input.Policy.Chain,
+		Network:             input.Policy.Network,
+		Scheme:              input.Policy.Scheme,
+		AddressSpaceRef:     input.Policy.AddressSpaceRef,
+		IssuanceRefPrefix:   input.Policy.IssuanceRefPrefix,
 		RelativeIssuanceRef: relativeIssuanceRef,
 		SlotIndex:           input.Allocation.SlotIndex,
 	})
@@ -68,7 +66,7 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	}
 
 	sweepMaterialJSON, err := buildSweepMaterialJSON(
-		policy,
+		input.Policy,
 		output.Address,
 		output.IssuanceRef,
 	)
@@ -88,8 +86,7 @@ func (d *IssuedPaymentAddressDeriver) deriveRelativeIssuanceRef(
 	ctx context.Context,
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (string, error) {
-	policy := input.Policy.Normalize()
-	if !policy.Scheme.IsCreate2() {
+	if input.Policy.Scheme != outport.AddressSchemeCreate2 {
 		return "", nil
 	}
 	if d.create2SaltDeriver == nil {
@@ -97,8 +94,8 @@ func (d *IssuedPaymentAddressDeriver) deriveRelativeIssuanceRef(
 	}
 
 	relativeIssuanceRef, err := d.create2SaltDeriver.DeriveAllocationSalt(ctx, DeriveCreate2AllocationSaltInput{
-		Network:          policy.Network,
-		AddressPolicyID:  policy.AddressPolicyID,
+		Network:          input.Policy.Network,
+		AddressPolicyID:  input.Policy.AddressPolicyID,
 		PaymentAddressID: input.Allocation.PaymentAddressID,
 		SlotIndex:        input.Allocation.SlotIndex,
 	})

@@ -6,23 +6,22 @@ import (
 	"fmt"
 	"strings"
 
-	"payrune/internal/domain/policies"
-	"payrune/internal/domain/valueobjects"
+	outport "payrune/internal/application/ports/outbound"
 	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
 
 const zeroEthereumAddress = "0x0000000000000000000000000000000000000000"
 
 type EthereumAddressIssuanceReadinessChecker struct {
-	clients map[valueobjects.NetworkID]*ethereumRPCClient
+	clients map[string]*ethereumRPCClient
 }
 
 func NewAddressIssuanceReadinessChecker(
-	configs map[valueobjects.NetworkID]*EthereumRPCObserverConfig,
+	configs map[string]*EthereumRPCObserverConfig,
 ) (*EthereumAddressIssuanceReadinessChecker, error) {
-	clients := make(map[valueobjects.NetworkID]*ethereumRPCClient, len(configs))
+	clients := make(map[string]*ethereumRPCClient, len(configs))
 	for rawNetwork, config := range configs {
-		network, ok := valueobjects.ParseNetworkID(string(rawNetwork))
+		network, ok := outport.NormalizeNetworkID(rawNetwork)
 		if !ok {
 			return nil, fmt.Errorf("ethereum network is invalid: %s", rawNetwork)
 		}
@@ -43,40 +42,39 @@ func NewAddressIssuanceReadinessChecker(
 
 func (c *EthereumAddressIssuanceReadinessChecker) CheckIssuanceReadiness(
 	ctx context.Context,
-	policy policies.AddressIssuancePolicy,
+	policy outport.AddressIssuancePolicyRecord,
 ) error {
-	normalized := policy.Normalize()
-	if normalized.Chain != valueobjects.SupportedChainEthereum || !normalized.IsEnabled() {
+	if policy.Chain != outport.SupportedChainEthereum || !policy.Enabled {
 		return nil
 	}
 
-	client, ok := c.clients[normalized.Network]
+	client, ok := c.clients[policy.Network]
 	if !ok || client == nil {
 		return c.policyUnavailableError(
-			normalized,
+			policy,
 			"ethereum rpc client is not configured for network %s",
-			normalized.Network,
+			policy.Network,
 		)
 	}
 
-	if err := c.checkFactory(ctx, normalized, client); err != nil {
+	if err := c.checkFactory(ctx, policy, client); err != nil {
 		return err
 	}
 
-	assetReference := strings.TrimSpace(normalized.AssetReference)
+	assetReference := strings.TrimSpace(policy.AssetReference)
 	if assetReference == "" {
 		return nil
 	}
 
-	return c.checkTokenContract(ctx, normalized, client, assetReference)
+	return c.checkTokenContract(ctx, policy, client, assetReference)
 }
 
 func (c *EthereumAddressIssuanceReadinessChecker) checkFactory(
 	ctx context.Context,
-	policy policies.AddressIssuancePolicy,
+	policy outport.AddressIssuancePolicyRecord,
 	client *ethereumRPCClient,
 ) error {
-	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(string(policy.Network))
+	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(policy.Network)
 	if !ok {
 		return c.policyUnavailableError(policy, "ethereum create2 metadata is missing")
 	}
@@ -117,7 +115,7 @@ func (c *EthereumAddressIssuanceReadinessChecker) checkFactory(
 
 func (c *EthereumAddressIssuanceReadinessChecker) checkTokenContract(
 	ctx context.Context,
-	policy policies.AddressIssuancePolicy,
+	policy outport.AddressIssuancePolicyRecord,
 	client *ethereumRPCClient,
 	assetReference string,
 ) error {
@@ -165,7 +163,7 @@ func (c *EthereumAddressIssuanceReadinessChecker) checkTokenContract(
 }
 
 func (c *EthereumAddressIssuanceReadinessChecker) policyUnavailableError(
-	policy policies.AddressIssuancePolicy,
+	policy outport.AddressIssuancePolicyRecord,
 	format string,
 	args ...any,
 ) error {

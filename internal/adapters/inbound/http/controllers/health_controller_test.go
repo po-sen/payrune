@@ -9,21 +9,21 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/application/dto"
+	inport "payrune/internal/application/ports/inbound"
 )
 
 type fakeCheckHealthUseCase struct {
-	response dto.HealthResponse
+	response inport.HealthResponse
 	err      error
 }
 
-func (f *fakeCheckHealthUseCase) Execute(_ context.Context) (dto.HealthResponse, error) {
+func (f *fakeCheckHealthUseCase) Execute(_ context.Context) (inport.HealthResponse, error) {
 	return f.response, f.err
 }
 
 func TestHealthControllerGetHealth(t *testing.T) {
 	controller := NewHealthController(&fakeCheckHealthUseCase{
-		response: dto.HealthResponse{
+		response: inport.HealthResponse{
 			Status:    "up",
 			Timestamp: time.Date(2026, 3, 3, 11, 0, 0, 0, time.UTC),
 		},

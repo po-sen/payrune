@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	applicationoutbox "payrune/internal/application/outbox"
-	"payrune/internal/domain/events"
 )
 
 var (
@@ -24,18 +21,55 @@ var (
 	ErrPaymentReceiptStatusNotificationPersistedDeliveryStatusInvalid  = errors.New("persisted receipt notification delivery status is invalid")
 )
 
+type PaymentReceiptStatusChangedRecord struct {
+	PaymentAddressID      int64
+	PreviousStatus        string
+	CurrentStatus         string
+	ObservedTotalMinor    int64
+	ConfirmedTotalMinor   int64
+	UnconfirmedTotalMinor int64
+	StatusChangedAt       time.Time
+}
+
+type PaymentReceiptStatusNotificationOutboxMessage struct {
+	NotificationID        int64
+	PaymentAddressID      int64
+	AddressPolicyID       string
+	CustomerReference     string
+	PreviousStatus        string
+	CurrentStatus         string
+	ObservedTotalMinor    int64
+	ConfirmedTotalMinor   int64
+	UnconfirmedTotalMinor int64
+	StatusChangedAt       time.Time
+	DeliveryStatus        string
+	DeliveryAttempts      int32
+	NextAttemptAt         time.Time
+	LastFailureReason     string
+	DeliveredAt           *time.Time
+}
+
+type PaymentReceiptStatusNotificationDeliveryResult struct {
+	NotificationID    int64
+	Status            string
+	Attempts          int32
+	LastFailureReason string
+	NextAttemptAt     *time.Time
+	DeliveredAt       *time.Time
+}
+
 type PaymentReceiptStatusNotificationOutbox interface {
 	EnqueueStatusChanged(
 		ctx context.Context,
-		event events.PaymentReceiptStatusChanged,
+		event PaymentReceiptStatusChangedRecord,
 	) error
 	ClaimPending(
 		ctx context.Context,
 		input ClaimPaymentReceiptStatusNotificationsInput,
-	) ([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error)
+	) ([]PaymentReceiptStatusNotificationOutboxMessage, error)
 	SaveDeliveryResult(
 		ctx context.Context,
-		result applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
+		result PaymentReceiptStatusNotificationDeliveryResult,
 	) error
 }
 

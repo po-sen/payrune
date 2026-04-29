@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type IssuedPaymentAddressDeriver struct {
@@ -18,12 +17,12 @@ func NewIssuedPaymentAddressDeriver(chainAddressDeriver *ChainAddressDeriver) *I
 	return &IssuedPaymentAddressDeriver{chainAddressDeriver: chainAddressDeriver}
 }
 
-func (d *IssuedPaymentAddressDeriver) Chain() valueobjects.SupportedChain {
-	return valueobjects.SupportedChainBitcoin
+func (d *IssuedPaymentAddressDeriver) Chain() string {
+	return outport.SupportedChainBitcoin
 }
 
-func (d *IssuedPaymentAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
-	return chain == valueobjects.SupportedChainBitcoin
+func (d *IssuedPaymentAddressDeriver) SupportsChain(chain string) bool {
+	return chain == outport.SupportedChainBitcoin
 }
 
 func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
@@ -34,13 +33,12 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDeriverNotConfigured
 	}
 
-	policy := input.Policy.Normalize()
 	output, err := d.chainAddressDeriver.DeriveAddress(ctx, outport.DeriveChainAddressInput{
-		Chain:             policy.Chain,
-		Network:           policy.Network,
-		Scheme:            policy.Scheme,
-		AddressSpaceRef:   policy.IssuanceConfig.AddressSpaceRef,
-		IssuanceRefPrefix: policy.IssuanceConfig.IssuanceRefPrefix,
+		Chain:             input.Policy.Chain,
+		Network:           input.Policy.Network,
+		Scheme:            input.Policy.Scheme,
+		AddressSpaceRef:   input.Policy.AddressSpaceRef,
+		IssuanceRefPrefix: input.Policy.IssuanceRefPrefix,
 		SlotIndex:         input.Allocation.SlotIndex,
 	})
 	if err != nil {
@@ -55,12 +53,12 @@ func (d *IssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	}
 
 	sweepMaterialJSON, err := buildSweepMaterialJSON(
-		string(policy.Chain),
-		string(policy.Network),
+		input.Policy.Chain,
+		input.Policy.Network,
 		output.Address,
 		output.IssuanceRef,
-		policy.IssuanceConfig.AddressSpaceRef,
-		string(policy.Scheme.Normalize()),
+		input.Policy.AddressSpaceRef,
+		input.Policy.Scheme,
 	)
 	if err != nil {
 		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationFailed

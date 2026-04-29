@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
@@ -45,7 +44,7 @@ func newAllocateDeriveOutput(address string, path string) outport.DeriveIssuedPa
 	}
 	return outport.DeriveIssuedPaymentAddressOutput{
 		Address:         address,
-		IssuanceRefKind: kind,
+		IssuanceRefKind: string(kind),
 		IssuanceRef:     path,
 		SweepMaterial:   fmt.Sprintf(`{"address":%q,"issuance_ref":%q}`, address, path),
 	}
@@ -114,8 +113,8 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	response, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 120000,
 		CustomerReference:   "order-001",
@@ -139,10 +138,10 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 			allocator.lastReopenInput.IssuancePolicy.AddressPolicyID,
 		)
 	}
-	if allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSpaceRef != "xpub-main" {
+	if allocator.lastReopenInput.IssuancePolicy.AddressSpaceRef != "xpub-main" {
 		t.Fatalf(
 			"unexpected account public key passed to allocator reopen: got %q",
-			allocator.lastReopenInput.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			allocator.lastReopenInput.IssuancePolicy.AddressSpaceRef,
 		)
 	}
 	if allocator.lastReopenInput.CustomerReference != "order-001" {
@@ -223,17 +222,17 @@ func TestAllocatePaymentAddressUseCaseSuccess(t *testing.T) {
 	if deriver.lastInput.Allocation.SlotIndex != 11 {
 		t.Fatalf("unexpected derivation index passed to issued deriver: got %d", deriver.lastInput.Allocation.SlotIndex)
 	}
-	if deriver.lastInput.Policy.Network != valueobjects.NetworkIDMainnet {
+	if deriver.lastInput.Policy.Network != string(valueobjects.NetworkIDMainnet) {
 		t.Fatalf("unexpected network passed to issued deriver: got %q", deriver.lastInput.Policy.Network)
 	}
-	if deriver.lastInput.Policy.Scheme != valueobjects.AddressSchemeNativeSegwit {
+	if deriver.lastInput.Policy.Scheme != string(valueobjects.AddressSchemeNativeSegwit) {
 		t.Fatalf("unexpected scheme passed to issued deriver: got %q", deriver.lastInput.Policy.Scheme)
 	}
-	if deriver.lastInput.Policy.IssuanceConfig.AddressSpaceRef != "xpub-main" {
-		t.Fatalf("unexpected address source ref passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.AddressSpaceRef)
+	if deriver.lastInput.Policy.AddressSpaceRef != "xpub-main" {
+		t.Fatalf("unexpected address source ref passed to issued deriver: got %q", deriver.lastInput.Policy.AddressSpaceRef)
 	}
-	if deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix != "m/84'/0'/0'" {
-		t.Fatalf("unexpected address reference prefix passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix)
+	if deriver.lastInput.Policy.IssuanceRefPrefix != "m/84'/0'/0'" {
+		t.Fatalf("unexpected address reference prefix passed to issued deriver: got %q", deriver.lastInput.Policy.IssuanceRefPrefix)
 	}
 	if response.Address != "bc1qallocatedaddress" {
 		t.Fatalf("unexpected address: got %q", response.Address)
@@ -259,7 +258,7 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
 	deriver := newFakeIssuedPaymentAddressDeriver()
-	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
+	deriver.supportedChains[string(valueobjects.SupportedChainEthereum)] = true
 	deriver.output = newAllocateDeriveOutput(
 		"0x1234567890abcdef1234567890abcdef12345678",
 		"ethereum-mainnet-create2/0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -295,8 +294,8 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainEthereum,
+	response, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainEthereum),
 		AddressPolicyID:     "ethereum-mainnet-create2",
 		ExpectedAmountMinor: 15000000000000000,
 		CustomerReference:   "order-eth-001",
@@ -304,7 +303,7 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
 	}
-	if allocator.lastCompleteInput.Allocation.Chain != valueobjects.SupportedChainEthereum {
+	if allocator.lastCompleteInput.Allocation.Chain != string(valueobjects.SupportedChainEthereum) {
 		t.Fatalf("unexpected chain persisted on allocation: got %q", allocator.lastCompleteInput.Allocation.Chain)
 	}
 	if allocator.lastCompleteInput.Allocation.Scheme != "create2" {
@@ -317,13 +316,13 @@ func TestAllocatePaymentAddressUseCaseSupportsEthereumCreate2(t *testing.T) {
 			allocator.lastCompleteInput.SweepMaterial,
 		)
 	}
-	if deriver.lastInput.Policy.Chain != valueobjects.SupportedChainEthereum {
+	if deriver.lastInput.Policy.Chain != string(valueobjects.SupportedChainEthereum) {
 		t.Fatalf("unexpected chain passed to issued deriver: got %q", deriver.lastInput.Policy.Chain)
 	}
-	if deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix != "ethereum-mainnet-create2" {
+	if deriver.lastInput.Policy.IssuanceRefPrefix != "ethereum-mainnet-create2" {
 		t.Fatalf(
 			"unexpected address reference prefix passed to issued deriver: got %q",
-			deriver.lastInput.Policy.IssuanceConfig.IssuanceRefPrefix,
+			deriver.lastInput.Policy.IssuanceRefPrefix,
 		)
 	}
 	if deriver.lastInput.Allocation.PaymentAddressID != 145 {
@@ -355,7 +354,7 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenIssuedAddress
 	allocator := &fakePaymentAddressAllocationStore{}
 	txManager := newFakeUnitOfWork(allocator)
 	deriver := newFakeIssuedPaymentAddressDeriver()
-	deriver.supportedChains[valueobjects.SupportedChainEthereum] = true
+	deriver.supportedChains[string(valueobjects.SupportedChainEthereum)] = true
 	deriver.err = expectedErr
 	catalog := newInMemoryAddressPolicyReader([]policies.AddressIssuancePolicy{
 		newEthereumCreate2IssuancePolicy(
@@ -388,8 +387,8 @@ func TestAllocatePaymentAddressUseCasePersistsDerivationFailureWhenIssuedAddress
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainEthereum,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainEthereum),
 		AddressPolicyID:     "ethereum-mainnet-create2",
 		ExpectedAmountMinor: 15000000000000000,
 		CustomerReference:   "order-eth-salt-error",
@@ -427,7 +426,7 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 	idempotencyStore := &fakePaymentAddressIdempotencyStore{
 		found: true,
 		record: outport.PaymentAddressIdempotencyRecord{
-			Chain:               valueobjects.SupportedChainBitcoin,
+			Chain:               string(valueobjects.SupportedChainBitcoin),
 			IdempotencyKey:      "idem-duplicate",
 			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 			ExpectedAmountMinor: 120000,
@@ -455,8 +454,8 @@ func TestAllocatePaymentAddressUseCaseReturnsExistingIssuedAllocationForDuplicat
 		newAllocatePaymentAddressClock(),
 	)
 
-	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	response, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 120000,
 		CustomerReference:   "order-duplicate",
@@ -503,7 +502,7 @@ func TestAllocatePaymentAddressUseCaseRejectsConflictingDuplicateIdempotencyKey(
 	idempotencyStore := &fakePaymentAddressIdempotencyStore{
 		found: true,
 		record: outport.PaymentAddressIdempotencyRecord{
-			Chain:               valueobjects.SupportedChainBitcoin,
+			Chain:               string(valueobjects.SupportedChainBitcoin),
 			IdempotencyKey:      "idem-conflict",
 			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 			ExpectedAmountMinor: 120000,
@@ -528,8 +527,8 @@ func TestAllocatePaymentAddressUseCaseRejectsConflictingDuplicateIdempotencyKey(
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 99999,
 		CustomerReference:   "order-conflict",
@@ -570,7 +569,7 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 			{},
 			{
 				record: outport.PaymentAddressIdempotencyRecord{
-					Chain:               valueobjects.SupportedChainBitcoin,
+					Chain:               string(valueobjects.SupportedChainBitcoin),
 					IdempotencyKey:      "idem-race",
 					AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 					ExpectedAmountMinor: 88000,
@@ -602,8 +601,8 @@ func TestAllocatePaymentAddressUseCaseResolvesConcurrentDuplicateAfterUniqueConf
 		newAllocatePaymentAddressClock(),
 	)
 
-	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	response, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 88000,
 		CustomerReference:   "order-race",
@@ -687,8 +686,8 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificRequiredConfirmations(t
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 25000,
 		CustomerReference:   "order-66",
@@ -758,8 +757,8 @@ func TestAllocatePaymentAddressUseCaseUsesNetworkSpecificReceiptExpiry(t *testin
 		clock,
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 25000,
 		CustomerReference:   "order-67",
@@ -815,8 +814,8 @@ func TestAllocatePaymentAddressUseCaseReusesFailedReservationBeforeFresh(t *test
 		newAllocatePaymentAddressClock(),
 	)
 
-	response, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	response, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 5000,
 		CustomerReference:   "invoice-55",
@@ -895,8 +894,8 @@ func TestAllocatePaymentAddressUseCaseReturnsTransactionError(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 	})
@@ -943,8 +942,8 @@ func TestAllocatePaymentAddressUseCaseReturnsTrackingRegistrationError(t *testin
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 500,
 	})
@@ -970,8 +969,8 @@ func TestAllocatePaymentAddressUseCaseRejectUnsupportedChain(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChain("eth"),
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChain("eth")),
 		AddressPolicyID:     "eth-mainnet",
 		ExpectedAmountMinor: 1,
 	})
@@ -991,8 +990,8 @@ func TestAllocatePaymentAddressUseCaseRejectInvalidAddressPolicyID(t *testing.T)
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin/mainnet",
 		ExpectedAmountMinor: 1,
 	})
@@ -1012,8 +1011,8 @@ func TestAllocatePaymentAddressUseCaseRejectUnknownPolicy(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 	})
@@ -1043,8 +1042,8 @@ func TestAllocatePaymentAddressUseCaseRejectDisabledPolicy(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 	})
@@ -1073,8 +1072,8 @@ func TestAllocatePaymentAddressUseCaseMapsExhaustedError(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 	})
@@ -1106,8 +1105,8 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
 		&fakeIssuedPaymentAddressDeriver{
-			supportedChains: map[valueobjects.SupportedChain]bool{
-				valueobjects.SupportedChainBitcoin: true,
+			supportedChains: map[string]bool{
+				string(valueobjects.SupportedChainBitcoin): true,
 			},
 			err: expectedErr,
 		},
@@ -1116,8 +1115,8 @@ func TestAllocatePaymentAddressUseCaseDerivationError(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 		IdempotencyKey:      "idem-derive-failed",
@@ -1178,8 +1177,8 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 	useCase := newAllocatePaymentAddressUseCaseForTest(
 		txManager,
 		&fakeIssuedPaymentAddressDeriver{
-			supportedChains: map[valueobjects.SupportedChain]bool{
-				valueobjects.SupportedChainBitcoin: true,
+			supportedChains: map[string]bool{
+				string(valueobjects.SupportedChainBitcoin): true,
 			},
 			err: expectedErr,
 		},
@@ -1188,8 +1187,8 @@ func TestAllocatePaymentAddressUseCaseDerivationPathError(t *testing.T) {
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 	})
@@ -1224,8 +1223,8 @@ func TestAllocatePaymentAddressUseCaseRejectInvalidExpectedAmount(t *testing.T) 
 		newAllocatePaymentAddressClock(),
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	_, err := useCase.Execute(context.Background(), inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 0,
 	})
@@ -1235,8 +1234,8 @@ func TestAllocatePaymentAddressUseCaseRejectInvalidExpectedAmount(t *testing.T) 
 }
 
 func TestAllocatePaymentAddressUseCaseValidationMissingDependencies(t *testing.T) {
-	input := dto.AllocatePaymentAddressInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+	input := inport.AllocatePaymentAddressInput{
+		Chain:               string(valueobjects.SupportedChainBitcoin),
 		AddressPolicyID:     "bitcoin-mainnet-legacy",
 		ExpectedAmountMinor: 1,
 	}

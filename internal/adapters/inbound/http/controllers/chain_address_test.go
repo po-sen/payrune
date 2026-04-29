@@ -9,57 +9,56 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"payrune/internal/application/dto"
-	"payrune/internal/domain/valueobjects"
+	inport "payrune/internal/application/ports/inbound"
 )
 
 type fakeListAddressPoliciesUseCase struct {
-	response  dto.ListAddressPoliciesResponse
+	response  inport.ListAddressPoliciesResponse
 	err       error
-	lastChain valueobjects.SupportedChain
+	lastChain string
 }
 
 func (f *fakeListAddressPoliciesUseCase) Execute(
 	_ context.Context,
-	chain valueobjects.SupportedChain,
-) (dto.ListAddressPoliciesResponse, error) {
+	chain string,
+) (inport.ListAddressPoliciesResponse, error) {
 	f.lastChain = chain
 	if f.err != nil {
-		return dto.ListAddressPoliciesResponse{}, f.err
+		return inport.ListAddressPoliciesResponse{}, f.err
 	}
 	return f.response, nil
 }
 
 type fakeAllocatePaymentAddressUseCase struct {
-	response  dto.AllocatePaymentAddressResponse
+	response  inport.AllocatePaymentAddressResponse
 	err       error
-	lastInput dto.AllocatePaymentAddressInput
+	lastInput inport.AllocatePaymentAddressInput
 }
 
 func (f *fakeAllocatePaymentAddressUseCase) Execute(
 	_ context.Context,
-	input dto.AllocatePaymentAddressInput,
-) (dto.AllocatePaymentAddressResponse, error) {
+	input inport.AllocatePaymentAddressInput,
+) (inport.AllocatePaymentAddressResponse, error) {
 	f.lastInput = input
 	if f.err != nil {
-		return dto.AllocatePaymentAddressResponse{}, f.err
+		return inport.AllocatePaymentAddressResponse{}, f.err
 	}
 	return f.response, nil
 }
 
 type fakeGetPaymentAddressStatusUseCase struct {
-	response  dto.GetPaymentAddressStatusResponse
+	response  inport.GetPaymentAddressStatusResponse
 	err       error
-	lastInput dto.GetPaymentAddressStatusInput
+	lastInput inport.GetPaymentAddressStatusInput
 }
 
 func (f *fakeGetPaymentAddressStatusUseCase) Execute(
 	_ context.Context,
-	input dto.GetPaymentAddressStatusInput,
-) (dto.GetPaymentAddressStatusResponse, error) {
+	input inport.GetPaymentAddressStatusInput,
+) (inport.GetPaymentAddressStatusResponse, error) {
 	f.lastInput = input
 	if f.err != nil {
-		return dto.GetPaymentAddressStatusResponse{}, f.err
+		return inport.GetPaymentAddressStatusResponse{}, f.err
 	}
 	return f.response, nil
 }

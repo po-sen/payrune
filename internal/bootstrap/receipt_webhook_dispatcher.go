@@ -189,7 +189,7 @@ func newReceiptWebhookDispatcherContainer() (*receiptWebhookDispatcherContainer,
 		_ = db.Close()
 		return nil, err
 	}
-	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicyRecords(addressIssuancePolicies))
 
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	clock := system.NewClock()

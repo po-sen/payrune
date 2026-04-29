@@ -7,9 +7,6 @@ import (
 	"time"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/policies"
-	"payrune/internal/domain/valueobjects"
 )
 
 type stubAllocationExecutor struct {
@@ -47,16 +44,14 @@ func (s *stubAllocationExecutor) QueryRowContext(_ context.Context, query string
 	return row
 }
 
-func newCloudflareAllocationStoreTestPolicy() policies.AddressIssuancePolicy {
-	return policies.AddressIssuancePolicy{
+func newCloudflareAllocationStoreTestPolicy() outport.AddressIssuancePolicyRecord {
+	return outport.AddressIssuancePolicyRecord{
 		AddressPolicyID: "bitcoin-mainnet-native-segwit",
-		Chain:           valueobjects.SupportedChainBitcoin,
-		Network:         valueobjects.NetworkIDMainnet,
-		Scheme:          valueobjects.AddressSchemeNativeSegwit,
-		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSpaceRef: "xpub-main",
-		},
-	}.Normalize()
+		Chain:           outport.SupportedChainBitcoin,
+		Network:         outport.NetworkIDMainnet,
+		Scheme:          outport.AddressSchemeNativeSegwit,
+		AddressSpaceRef: "xpub-main",
+	}
 }
 
 func newCloudflareReservePaymentAddressAllocationInput(customerReference string) outport.ReservePaymentAddressAllocationInput {
@@ -114,12 +109,12 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 	issuedAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
 
 	err := store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
-		Allocation: entities.PaymentAddressAllocation{
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 44,
 			AddressPolicyID:  "bitcoin-mainnet-native-segwit",
-			Chain:            valueobjects.SupportedChainBitcoin,
-			Network:          valueobjects.NetworkIDMainnet,
-			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			Chain:            outport.SupportedChainBitcoin,
+			Network:          outport.NetworkIDMainnet,
+			Scheme:           outport.AddressSchemeNativeSegwit,
 			AssetReference:   "",
 			Address:          " bc1qallocated ",
 		},
@@ -151,12 +146,12 @@ func TestPaymentAddressAllocationStoreCompleteRejectsInvalidSweepMaterialInput(t
 	store := NewPaymentAddressAllocationStore(executor)
 
 	err := store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
-		Allocation: entities.PaymentAddressAllocation{
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 44,
 			AddressPolicyID:  "bitcoin-mainnet-native-segwit",
-			Chain:            valueobjects.SupportedChainBitcoin,
-			Network:          valueobjects.NetworkIDMainnet,
-			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			Chain:            outport.SupportedChainBitcoin,
+			Network:          outport.NetworkIDMainnet,
+			Scheme:           outport.AddressSchemeNativeSegwit,
 			AssetReference:   "",
 			Address:          "bc1qallocated",
 		},
@@ -175,9 +170,9 @@ func TestPaymentAddressAllocationStoreMarkDerivationFailedSuccess(t *testing.T) 
 	executor := &stubAllocationExecutor{}
 	store := NewPaymentAddressAllocationStore(executor)
 
-	err := store.MarkDerivationFailed(context.Background(), entities.PaymentAddressAllocation{
+	err := store.MarkDerivationFailed(context.Background(), outport.PaymentAddressAllocationRecord{
 		PaymentAddressID:        44,
-		DerivationFailureReason: valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
+		DerivationFailureReason: outport.PaymentAddressAllocationFailureDerivationFailed,
 	})
 	if err != nil {
 		t.Fatalf("MarkDerivationFailed returned error: %v", err)
@@ -217,7 +212,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationUsesAllocationTable
 	}
 	if len(executor.queryRowCalls[0].args) != 2 ||
 		executor.queryRowCalls[0].args[0] != input.IssuancePolicy.AddressPolicyID ||
-		executor.queryRowCalls[0].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		executor.queryRowCalls[0].args[1] != input.IssuancePolicy.AddressSpaceRef {
 		t.Fatalf("unexpected policy lookup args: %+v", executor.queryRowCalls[0].args)
 	}
 	if len(executor.execCalls) != 1 {
@@ -260,7 +255,7 @@ func TestPaymentAddressAllocationStoreReserveFreshUsesAllocationTableAndPolicyCu
 	if len(executor.queryRowCalls[1].args) != 5 {
 		t.Fatalf("unexpected allocation insert args: %+v", executor.queryRowCalls[1].args)
 	}
-	if executor.queryRowCalls[1].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+	if executor.queryRowCalls[1].args[1] != input.IssuancePolicy.AddressSpaceRef {
 		t.Fatalf("expected address space ref in allocation insert, got %+v", executor.queryRowCalls[1].args)
 	}
 	if executor.queryRowCalls[1].args[2] != int64(31) {
@@ -268,17 +263,17 @@ func TestPaymentAddressAllocationStoreReserveFreshUsesAllocationTableAndPolicyCu
 	}
 	if len(executor.execCalls[0].args) != 2 ||
 		executor.execCalls[0].args[0] != input.IssuancePolicy.AddressPolicyID ||
-		executor.execCalls[0].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		executor.execCalls[0].args[1] != input.IssuancePolicy.AddressSpaceRef {
 		t.Fatalf("unexpected cursor seed args: %+v", executor.execCalls[0].args)
 	}
 	if len(executor.queryRowCalls[0].args) != 2 ||
 		executor.queryRowCalls[0].args[0] != input.IssuancePolicy.AddressPolicyID ||
-		executor.queryRowCalls[0].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		executor.queryRowCalls[0].args[1] != input.IssuancePolicy.AddressSpaceRef {
 		t.Fatalf("unexpected policy cursor lookup args: %+v", executor.queryRowCalls[0].args)
 	}
 	if len(executor.execCalls[1].args) != 2 ||
 		executor.execCalls[1].args[0] != input.IssuancePolicy.AddressPolicyID ||
-		executor.execCalls[1].args[1] != input.IssuancePolicy.IssuanceConfig.AddressSpaceRef {
+		executor.execCalls[1].args[1] != input.IssuancePolicy.AddressSpaceRef {
 		t.Fatalf("unexpected cursor update args: %+v", executor.execCalls[1].args)
 	}
 }

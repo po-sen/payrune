@@ -9,7 +9,6 @@ import (
 	"github.com/lib/pq"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 const paymentAddressIdempotencyPrimaryKey = "pk_payment_address_idempotency_keys"
@@ -50,7 +49,7 @@ func (r *PaymentAddressIdempotencyStore) FindByKey(
 		  WHERE chain = $1
 		    AND idempotency_key = $2
 		  LIMIT 1`,
-		string(input.Chain),
+		input.Chain,
 		idempotencyKey,
 	).Scan(
 		&rawChain,
@@ -66,12 +65,12 @@ func (r *PaymentAddressIdempotencyStore) FindByKey(
 		return outport.PaymentAddressIdempotencyRecord{}, false, outport.ErrPaymentAddressIdempotencyStoreFailed
 	}
 
-	chain, ok := valueobjects.ParseSupportedChain(rawChain)
+	chain, ok := outport.NormalizeSupportedChain(rawChain)
 	if !ok {
 		return outport.PaymentAddressIdempotencyRecord{}, false, outport.ErrPaymentAddressIdempotencyPersistedChainInvalid
 	}
-	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
-	if err != nil {
+	parsedAddressPolicyID, ok := outport.NormalizeAddressPolicyID(addressPolicyID)
+	if !ok {
 		return outport.PaymentAddressIdempotencyRecord{}, false, outport.ErrPaymentAddressIdempotencyPersistedAddressPolicyIDInvalid
 	}
 
@@ -90,7 +89,7 @@ func (r *PaymentAddressIdempotencyStore) Claim(
 	input outport.ClaimPaymentAddressIdempotencyInput,
 ) (outport.PaymentAddressIdempotencyRecord, error) {
 	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
-	addressPolicyID := input.AddressPolicyID.Normalize()
+	addressPolicyID, ok := outport.NormalizeAddressPolicyID(input.AddressPolicyID)
 	customerReference := strings.TrimSpace(input.CustomerReference)
 
 	if input.Chain == "" {
@@ -99,7 +98,7 @@ func (r *PaymentAddressIdempotencyStore) Claim(
 	if idempotencyKey == "" {
 		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyKeyRequired
 	}
-	if addressPolicyID.IsZero() {
+	if !ok {
 		return outport.PaymentAddressIdempotencyRecord{}, outport.ErrPaymentAddressIdempotencyAddressPolicyIDRequired
 	}
 	if input.ExpectedAmountMinor <= 0 {
@@ -116,9 +115,9 @@ func (r *PaymentAddressIdempotencyStore) Claim(
 			   customer_reference
 			 )
 		 VALUES ($1, $2, $3, $4, $5)`,
-		string(input.Chain),
+		input.Chain,
 		idempotencyKey,
-		string(addressPolicyID),
+		addressPolicyID,
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
 	)
@@ -161,7 +160,7 @@ func (r *PaymentAddressIdempotencyStore) Complete(
 		 WHERE chain = $1
 		   AND idempotency_key = $2
 		   AND payment_address_id IS NULL`,
-		string(input.Chain),
+		input.Chain,
 		idempotencyKey,
 		input.PaymentAddressID,
 	)
@@ -197,7 +196,7 @@ func (r *PaymentAddressIdempotencyStore) Release(
 		  WHERE chain = $1
 		    AND idempotency_key = $2
 		    AND payment_address_id IS NULL`,
-		string(input.Chain),
+		input.Chain,
 		idempotencyKey,
 	)
 	if err != nil {

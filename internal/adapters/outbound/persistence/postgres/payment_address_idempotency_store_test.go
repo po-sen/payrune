@@ -11,19 +11,18 @@ import (
 	"github.com/lib/pq"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 func newFindPaymentAddressIdempotencyInput(idempotencyKey string) outport.FindPaymentAddressIdempotencyInput {
 	return outport.FindPaymentAddressIdempotencyInput{
-		Chain:          valueobjects.SupportedChainBitcoin,
+		Chain:          outport.SupportedChainBitcoin,
 		IdempotencyKey: idempotencyKey,
 	}
 }
 
 func newClaimPaymentAddressIdempotencyInput(idempotencyKey string) outport.ClaimPaymentAddressIdempotencyInput {
 	return outport.ClaimPaymentAddressIdempotencyInput{
-		Chain:               valueobjects.SupportedChainBitcoin,
+		Chain:               outport.SupportedChainBitcoin,
 		IdempotencyKey:      idempotencyKey,
 		AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 		ExpectedAmountMinor: 125000,
@@ -292,7 +291,7 @@ func TestPaymentAddressIdempotencyStoreCompleteSuccess(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = store.Complete(context.Background(), outport.CompletePaymentAddressIdempotencyInput{
-		Chain:            valueobjects.SupportedChainBitcoin,
+		Chain:            outport.SupportedChainBitcoin,
 		IdempotencyKey:   " idem-complete ",
 		PaymentAddressID: 99,
 	})
@@ -320,7 +319,7 @@ func TestPaymentAddressIdempotencyStoreCompleteValidation(t *testing.T) {
 		{
 			name: "missing key",
 			input: outport.CompletePaymentAddressIdempotencyInput{
-				Chain:            valueobjects.SupportedChainBitcoin,
+				Chain:            outport.SupportedChainBitcoin,
 				IdempotencyKey:   " ",
 				PaymentAddressID: 99,
 			},
@@ -329,7 +328,7 @@ func TestPaymentAddressIdempotencyStoreCompleteValidation(t *testing.T) {
 		{
 			name: "invalid payment address id",
 			input: outport.CompletePaymentAddressIdempotencyInput{
-				Chain:            valueobjects.SupportedChainBitcoin,
+				Chain:            outport.SupportedChainBitcoin,
 				IdempotencyKey:   "idem-complete",
 				PaymentAddressID: 0,
 			},
@@ -361,7 +360,7 @@ func TestPaymentAddressIdempotencyStoreCompleteClaimNotFound(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = store.Complete(context.Background(), outport.CompletePaymentAddressIdempotencyInput{
-		Chain:            valueobjects.SupportedChainBitcoin,
+		Chain:            outport.SupportedChainBitcoin,
 		IdempotencyKey:   "idem-complete",
 		PaymentAddressID: 99,
 	})
@@ -384,7 +383,7 @@ func TestPaymentAddressIdempotencyStoreReleaseSuccess(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = store.Release(context.Background(), outport.ReleasePaymentAddressIdempotencyInput{
-		Chain:          valueobjects.SupportedChainBitcoin,
+		Chain:          outport.SupportedChainBitcoin,
 		IdempotencyKey: " idem-release ",
 	})
 	if err != nil {
@@ -410,7 +409,7 @@ func TestPaymentAddressIdempotencyStoreReleaseValidation(t *testing.T) {
 		{
 			name: "missing key",
 			input: outport.ReleasePaymentAddressIdempotencyInput{
-				Chain:          valueobjects.SupportedChainBitcoin,
+				Chain:          outport.SupportedChainBitcoin,
 				IdempotencyKey: " ",
 			},
 			wantErr: outport.ErrPaymentAddressIdempotencyKeyRequired,
@@ -441,7 +440,7 @@ func TestPaymentAddressIdempotencyStoreReleaseClaimNotFound(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = store.Release(context.Background(), outport.ReleasePaymentAddressIdempotencyInput{
-		Chain:          valueobjects.SupportedChainBitcoin,
+		Chain:          outport.SupportedChainBitcoin,
 		IdempotencyKey: "idem-release",
 	})
 	if !errors.Is(err, outport.ErrPaymentAddressIdempotencyClaimNotFound) {

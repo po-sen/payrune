@@ -5,17 +5,15 @@ import (
 	"errors"
 	"time"
 
-	applicationoutbox "payrune/internal/application/outbox"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/events"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
 type inMemoryAddressPolicyReader struct {
 	ordered      []outport.AddressPolicyRecord
-	issuanceByID map[valueobjects.AddressPolicyID]policies.AddressIssuancePolicy
+	issuanceByID map[string]outport.AddressIssuancePolicyRecord
 	listErr      error
 	findErr      error
 }
@@ -64,25 +62,27 @@ func newEthereumCreate2IssuancePolicy(
 
 func newInMemoryAddressPolicyReader(issuancePolicies []policies.AddressIssuancePolicy) *inMemoryAddressPolicyReader {
 	ordered := make([]outport.AddressPolicyRecord, 0, len(issuancePolicies))
-	issuanceByID := make(map[valueobjects.AddressPolicyID]policies.AddressIssuancePolicy, len(issuancePolicies))
+	issuanceByID := make(map[string]outport.AddressIssuancePolicyRecord, len(issuancePolicies))
 
 	for _, policy := range issuancePolicies {
 		normalized := policy.Normalize()
 		if normalized.AddressPolicyID.IsZero() {
 			continue
 		}
-		if _, exists := issuanceByID[normalized.AddressPolicyID]; exists {
+		if _, exists := issuanceByID[string(normalized.AddressPolicyID)]; exists {
 			continue
 		}
+		record := addressIssuancePolicyRecordFromDomain(normalized)
 		ordered = append(ordered, outport.AddressPolicyRecord{
-			AddressPolicyID: normalized.AddressPolicyID,
-			Chain:           normalized.Chain,
-			Network:         normalized.Network,
-			Scheme:          normalized.Scheme,
-			Decimals:        normalized.Decimals,
-			Enabled:         normalized.Enabled,
+			AddressPolicyID: record.AddressPolicyID,
+			Chain:           record.Chain,
+			Network:         record.Network,
+			Scheme:          record.Scheme,
+			AssetReference:  record.AssetReference,
+			Decimals:        record.Decimals,
+			Enabled:         record.Enabled,
 		})
-		issuanceByID[normalized.AddressPolicyID] = normalized
+		issuanceByID[record.AddressPolicyID] = record
 	}
 
 	return &inMemoryAddressPolicyReader{
@@ -93,7 +93,7 @@ func newInMemoryAddressPolicyReader(issuancePolicies []policies.AddressIssuanceP
 
 func (r *inMemoryAddressPolicyReader) ListByChain(
 	_ context.Context,
-	chain valueobjects.SupportedChain,
+	chain string,
 ) ([]outport.AddressPolicyRecord, error) {
 	if r.listErr != nil {
 		return nil, r.listErr
@@ -110,20 +110,20 @@ func (r *inMemoryAddressPolicyReader) ListByChain(
 
 func (r *inMemoryAddressPolicyReader) FindIssuanceByID(
 	_ context.Context,
-	addressPolicyID valueobjects.AddressPolicyID,
-) (policies.AddressIssuancePolicy, bool, error) {
+	addressPolicyID string,
+) (outport.AddressIssuancePolicyRecord, bool, error) {
 	if r.findErr != nil {
-		return policies.AddressIssuancePolicy{}, false, r.findErr
+		return outport.AddressIssuancePolicyRecord{}, false, r.findErr
 	}
 	policy, ok := r.issuanceByID[addressPolicyID]
 	if !ok {
-		return policies.AddressIssuancePolicy{}, false, nil
+		return outport.AddressIssuancePolicyRecord{}, false, nil
 	}
 	return policy, true, nil
 }
 
 type fakeIssuedPaymentAddressDeriver struct {
-	supportedChains map[valueobjects.SupportedChain]bool
+	supportedChains map[string]bool
 	output          outport.DeriveIssuedPaymentAddressOutput
 	err             error
 	lastInput       outport.DeriveIssuedPaymentAddressInput
@@ -132,19 +132,19 @@ type fakeIssuedPaymentAddressDeriver struct {
 
 func newFakeIssuedPaymentAddressDeriver() *fakeIssuedPaymentAddressDeriver {
 	return &fakeIssuedPaymentAddressDeriver{
-		supportedChains: map[valueobjects.SupportedChain]bool{
-			valueobjects.SupportedChainBitcoin: true,
+		supportedChains: map[string]bool{
+			string(valueobjects.SupportedChainBitcoin): true,
 		},
 		output: outport.DeriveIssuedPaymentAddressOutput{
 			Address:         "bc1qdefault",
-			IssuanceRefKind: valueobjects.IssuanceRefKindHDPathAbsolute,
+			IssuanceRefKind: string(valueobjects.IssuanceRefKindHDPathAbsolute),
 			IssuanceRef:     "0/0",
 			SweepMaterial:   `{"address":"bc1qdefault","issuance_ref":"0/0"}`,
 		},
 	}
 }
 
-func (f *fakeIssuedPaymentAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
+func (f *fakeIssuedPaymentAddressDeriver) SupportsChain(chain string) bool {
 	return f.supportedChains[chain]
 }
 
@@ -216,47 +216,47 @@ type fakeFindIssuedPaymentAddressAllocationResult struct {
 func (f *fakePaymentAddressAllocationStore) FindIssuedByID(
 	_ context.Context,
 	input outport.FindIssuedPaymentAddressAllocationByIDInput,
-) (entities.PaymentAddressAllocation, bool, error) {
+) (outport.PaymentAddressAllocationRecord, bool, error) {
 	f.findIssuedByIDCalls++
 	f.lastFindIssuedByID = input
 	if len(f.findIssuedByIDResults) >= f.findIssuedByIDCalls {
 		result := f.findIssuedByIDResults[f.findIssuedByIDCalls-1]
-		return result.allocation, result.found, result.err
+		return paymentAddressAllocationRecordFromDomain(result.allocation), result.found, result.err
 	}
 	if f.issuedByIDErr != nil {
-		return entities.PaymentAddressAllocation{}, false, f.issuedByIDErr
+		return outport.PaymentAddressAllocationRecord{}, false, f.issuedByIDErr
 	}
 	if f.issuedByIDFound {
-		return f.issuedByID, true, nil
+		return paymentAddressAllocationRecordFromDomain(f.issuedByID), true, nil
 	}
-	return entities.PaymentAddressAllocation{}, false, nil
+	return outport.PaymentAddressAllocationRecord{}, false, nil
 }
 
 func (f *fakePaymentAddressAllocationStore) ReopenFailedReservation(
 	_ context.Context,
 	input outport.ReservePaymentAddressAllocationInput,
-) (entities.PaymentAddressAllocation, bool, error) {
+) (outport.PaymentAddressAllocationRecord, bool, error) {
 	f.reopenCalls++
 	f.lastReopenInput = input
 	if f.reopenErr != nil {
-		return entities.PaymentAddressAllocation{}, false, f.reopenErr
+		return outport.PaymentAddressAllocationRecord{}, false, f.reopenErr
 	}
 	if f.reopenFound {
-		return f.reopenReservation, true, nil
+		return paymentAddressAllocationRecordFromDomain(f.reopenReservation), true, nil
 	}
-	return entities.PaymentAddressAllocation{}, false, nil
+	return outport.PaymentAddressAllocationRecord{}, false, nil
 }
 
 func (f *fakePaymentAddressAllocationStore) ReserveFresh(
 	_ context.Context,
 	input outport.ReservePaymentAddressAllocationInput,
-) (entities.PaymentAddressAllocation, error) {
+) (outport.PaymentAddressAllocationRecord, error) {
 	f.reserveFreshCalls++
 	f.lastReserveFreshInput = input
 	if f.reserveFreshErr != nil {
-		return entities.PaymentAddressAllocation{}, f.reserveFreshErr
+		return outport.PaymentAddressAllocationRecord{}, f.reserveFreshErr
 	}
-	return f.freshReservation, nil
+	return paymentAddressAllocationRecordFromDomain(f.freshReservation), nil
 }
 
 func (f *fakePaymentAddressAllocationStore) Complete(
@@ -270,10 +270,10 @@ func (f *fakePaymentAddressAllocationStore) Complete(
 
 func (f *fakePaymentAddressAllocationStore) MarkDerivationFailed(
 	_ context.Context,
-	input entities.PaymentAddressAllocation,
+	input outport.PaymentAddressAllocationRecord,
 ) error {
 	f.markFailedCalls++
-	f.lastFailedInput = input
+	f.lastFailedInput, _ = paymentAddressAllocationFromRecord(input)
 	return f.markFailedErr
 }
 
@@ -408,11 +408,11 @@ type fakeAllocatePaymentReceiptTrackingStore struct {
 
 func (f *fakeAllocatePaymentReceiptTrackingStore) Create(
 	_ context.Context,
-	tracking entities.PaymentReceiptTracking,
+	tracking outport.PaymentReceiptTrackingRecord,
 	nextPollAt time.Time,
 ) error {
 	f.createCalls++
-	f.lastCreateTracking = tracking
+	f.lastCreateTracking, _ = paymentReceiptTrackingFromRecord(tracking)
 	f.lastCreateNextPoll = nextPollAt
 	return f.createErr
 }
@@ -420,13 +420,13 @@ func (f *fakeAllocatePaymentReceiptTrackingStore) Create(
 func (f *fakeAllocatePaymentReceiptTrackingStore) ClaimDue(
 	_ context.Context,
 	_ outport.ClaimPaymentReceiptTrackingsInput,
-) ([]entities.PaymentReceiptTracking, error) {
+) ([]outport.PaymentReceiptTrackingRecord, error) {
 	return nil, nil
 }
 
 func (f *fakeAllocatePaymentReceiptTrackingStore) Save(
 	_ context.Context,
-	_ entities.PaymentReceiptTracking,
+	_ outport.PaymentReceiptTrackingRecord,
 	_ time.Time,
 	_ time.Time,
 ) error {
@@ -437,7 +437,7 @@ type fakeAllocatePaymentReceiptStatusNotificationOutbox struct{}
 
 func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) EnqueueStatusChanged(
 	_ context.Context,
-	_ events.PaymentReceiptStatusChanged,
+	_ outport.PaymentReceiptStatusChangedRecord,
 ) error {
 	return nil
 }
@@ -445,13 +445,13 @@ func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) EnqueueStatusChange
 func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) ClaimPending(
 	_ context.Context,
 	_ outport.ClaimPaymentReceiptStatusNotificationsInput,
-) ([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error) {
+) ([]outport.PaymentReceiptStatusNotificationOutboxMessage, error) {
 	return nil, nil
 }
 
 func (f *fakeAllocatePaymentReceiptStatusNotificationOutbox) SaveDeliveryResult(
 	_ context.Context,
-	_ applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
+	_ outport.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	return nil
 }

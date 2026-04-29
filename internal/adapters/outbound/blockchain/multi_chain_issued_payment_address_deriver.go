@@ -7,11 +7,10 @@ import (
 	"reflect"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type chainSpecificIssuedPaymentAddressDeriver interface {
-	Chain() valueobjects.SupportedChain
+	Chain() string
 	DeriveIssuedAddress(
 		ctx context.Context,
 		input outport.DeriveIssuedPaymentAddressInput,
@@ -19,7 +18,7 @@ type chainSpecificIssuedPaymentAddressDeriver interface {
 }
 
 type MultiChainIssuedPaymentAddressDeriver struct {
-	derivers map[valueobjects.SupportedChain]chainSpecificIssuedPaymentAddressDeriver
+	derivers map[string]chainSpecificIssuedPaymentAddressDeriver
 }
 
 var _ outport.IssuedPaymentAddressDeriver = (*MultiChainIssuedPaymentAddressDeriver)(nil)
@@ -31,7 +30,7 @@ func NewMultiChainIssuedPaymentAddressDeriver(
 		return nil, errors.New("at least one issued payment address deriver is required")
 	}
 
-	normalized := make(map[valueobjects.SupportedChain]chainSpecificIssuedPaymentAddressDeriver, len(derivers))
+	normalized := make(map[string]chainSpecificIssuedPaymentAddressDeriver, len(derivers))
 	for _, deriver := range derivers {
 		if isNilChainSpecificIssuedPaymentAddressDeriver(deriver) {
 			return nil, errors.New("issued payment address deriver is required")
@@ -51,7 +50,7 @@ func NewMultiChainIssuedPaymentAddressDeriver(
 	return &MultiChainIssuedPaymentAddressDeriver{derivers: normalized}, nil
 }
 
-func (d *MultiChainIssuedPaymentAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
+func (d *MultiChainIssuedPaymentAddressDeriver) SupportsChain(chain string) bool {
 	normalizedChain, ok := normalizeSupportedChain(chain)
 	if !ok {
 		return false
@@ -65,8 +64,7 @@ func (d *MultiChainIssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	ctx context.Context,
 	input outport.DeriveIssuedPaymentAddressInput,
 ) (outport.DeriveIssuedPaymentAddressOutput, error) {
-	policy := input.Policy.Normalize()
-	normalizedChain, ok := normalizeSupportedChain(policy.Chain)
+	normalizedChain, ok := normalizeSupportedChain(input.Policy.Chain)
 	if !ok {
 		return outport.DeriveIssuedPaymentAddressOutput{}, outport.ErrIssuedPaymentAddressDerivationInputInvalid
 	}
@@ -77,7 +75,7 @@ func (d *MultiChainIssuedPaymentAddressDeriver) DeriveIssuedAddress(
 	}
 
 	output, err := deriver.DeriveIssuedAddress(ctx, outport.DeriveIssuedPaymentAddressInput{
-		Policy:     policy,
+		Policy:     input.Policy,
 		Allocation: input.Allocation,
 	})
 	if err != nil {
@@ -107,6 +105,6 @@ func isNilChainSpecificIssuedPaymentAddressDeriver(deriver chainSpecificIssuedPa
 	}
 }
 
-func normalizeSupportedChain(chain valueobjects.SupportedChain) (valueobjects.SupportedChain, bool) {
-	return valueobjects.ParseSupportedChain(string(chain))
+func normalizeSupportedChain(chain string) (string, bool) {
+	return outport.NormalizeSupportedChain(chain)
 }

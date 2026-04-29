@@ -5,8 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"payrune/internal/domain/policies"
-	"payrune/internal/domain/valueobjects"
+	outport "payrune/internal/application/ports/outbound"
 	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
 
@@ -16,16 +15,14 @@ func TestEthereumAddressIssuanceReadinessCheckerAllowsBitcoinPolicy(t *testing.T
 		t.Fatalf("NewAddressIssuanceReadinessChecker returned error: %v", err)
 	}
 
-	err = checker.CheckIssuanceReadiness(context.Background(), policies.AddressIssuancePolicy{
-		AddressPolicyID: valueobjects.AddressPolicyIDBitcoinMainnetLegacy,
-		Chain:           valueobjects.SupportedChainBitcoin,
-		Network:         valueobjects.NetworkIDMainnet,
-		Scheme:          valueobjects.AddressSchemeLegacy,
-		Decimals:        8,
-		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSpaceRef:   "xpub",
-			IssuanceRefPrefix: "m/44'/0'/0'",
-		},
+	err = checker.CheckIssuanceReadiness(context.Background(), outport.AddressIssuancePolicyRecord{
+		AddressPolicyID:   "bitcoin-mainnet-legacy",
+		Chain:             outport.SupportedChainBitcoin,
+		Network:           outport.NetworkIDMainnet,
+		Scheme:            outport.AddressSchemeLegacy,
+		Decimals:          8,
+		AddressSpaceRef:   "xpub",
+		IssuanceRefPrefix: "m/44'/0'/0'",
 	})
 	if err != nil {
 		t.Fatalf("expected bitcoin policy to bypass ethereum readiness, got %v", err)
@@ -40,7 +37,7 @@ func TestEthereumAddressIssuanceReadinessCheckerRejectsMissingRPCConfig(t *testi
 
 	err = checker.CheckIssuanceReadiness(
 		context.Background(),
-		newEthereumReadinessPolicy(valueobjects.AddressPolicyIDEthereumSepoliaCreate2, valueobjects.NetworkIDSepolia, "", 18),
+		newEthereumReadinessPolicy("ethereum-sepolia-create2", outport.NetworkIDSepolia, "", 18),
 	)
 	if err == nil {
 		t.Fatalf("expected unavailable error, got %v", err)
@@ -54,13 +51,13 @@ func TestEthereumAddressIssuanceReadinessCheckerChecksNativeFactory(t *testing.T
 	state, server := newTestEthereumRPCServer(t)
 	defer server.Close()
 
-	metadata, artifact := mustLoadFactoryFixture(t, valueobjects.NetworkIDSepolia)
+	metadata, artifact := mustLoadFactoryFixture(t, outport.NetworkIDSepolia)
 	state.codesByAddress[strings.ToLower(metadata.FactoryAddress)] = artifact.RuntimeCodeHex
 
 	checker := newEthereumReadinessCheckerForTest(t, server.URL)
 	err := checker.CheckIssuanceReadiness(
 		context.Background(),
-		newEthereumReadinessPolicy(valueobjects.AddressPolicyIDEthereumSepoliaCreate2, valueobjects.NetworkIDSepolia, "", 18),
+		newEthereumReadinessPolicy("ethereum-sepolia-create2", outport.NetworkIDSepolia, "", 18),
 	)
 	if err != nil {
 		t.Fatalf("expected native ethereum policy to be ready, got %v", err)
@@ -80,7 +77,7 @@ func TestEthereumAddressIssuanceReadinessCheckerRejectsMissingFactoryCode(t *tes
 	checker := newEthereumReadinessCheckerForTest(t, server.URL)
 	err := checker.CheckIssuanceReadiness(
 		context.Background(),
-		newEthereumReadinessPolicy(valueobjects.AddressPolicyIDEthereumSepoliaCreate2, valueobjects.NetworkIDSepolia, "", 18),
+		newEthereumReadinessPolicy("ethereum-sepolia-create2", outport.NetworkIDSepolia, "", 18),
 	)
 	if err == nil {
 		t.Fatalf("expected unavailable error, got %v", err)
@@ -94,13 +91,13 @@ func TestEthereumAddressIssuanceReadinessCheckerRejectsFactoryRuntimeHashMismatc
 	state, server := newTestEthereumRPCServer(t)
 	defer server.Close()
 
-	metadata, _ := mustLoadFactoryFixture(t, valueobjects.NetworkIDSepolia)
+	metadata, _ := mustLoadFactoryFixture(t, outport.NetworkIDSepolia)
 	state.codesByAddress[strings.ToLower(metadata.FactoryAddress)] = "0x60006000"
 
 	checker := newEthereumReadinessCheckerForTest(t, server.URL)
 	err := checker.CheckIssuanceReadiness(
 		context.Background(),
-		newEthereumReadinessPolicy(valueobjects.AddressPolicyIDEthereumSepoliaCreate2, valueobjects.NetworkIDSepolia, "", 18),
+		newEthereumReadinessPolicy("ethereum-sepolia-create2", outport.NetworkIDSepolia, "", 18),
 	)
 	if err == nil {
 		t.Fatalf("expected unavailable error, got %v", err)
@@ -114,7 +111,7 @@ func TestEthereumAddressIssuanceReadinessCheckerChecksTokenContract(t *testing.T
 	state, server := newTestEthereumRPCServer(t)
 	defer server.Close()
 
-	metadata, artifact := mustLoadFactoryFixture(t, valueobjects.NetworkIDSepolia)
+	metadata, artifact := mustLoadFactoryFixture(t, outport.NetworkIDSepolia)
 	tokenAddress := "0xd077a400968890eacc75cdc901f0356c943e4fdb"
 
 	state.codesByAddress[strings.ToLower(metadata.FactoryAddress)] = artifact.RuntimeCodeHex
@@ -125,7 +122,7 @@ func TestEthereumAddressIssuanceReadinessCheckerChecksTokenContract(t *testing.T
 	checker := newEthereumReadinessCheckerForTest(t, server.URL)
 	err := checker.CheckIssuanceReadiness(
 		context.Background(),
-		newEthereumReadinessPolicy(valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2, valueobjects.NetworkIDSepolia, strings.ToUpper(tokenAddress), 6),
+		newEthereumReadinessPolicy("ethereum-sepolia-usdt-create2", outport.NetworkIDSepolia, strings.ToUpper(tokenAddress), 6),
 	)
 	if err != nil {
 		t.Fatalf("expected token policy to be ready, got %v", err)
@@ -142,7 +139,7 @@ func TestEthereumAddressIssuanceReadinessCheckerRejectsTokenDecimalsMismatch(t *
 	state, server := newTestEthereumRPCServer(t)
 	defer server.Close()
 
-	metadata, artifact := mustLoadFactoryFixture(t, valueobjects.NetworkIDSepolia)
+	metadata, artifact := mustLoadFactoryFixture(t, outport.NetworkIDSepolia)
 	tokenAddress := "0xd077a400968890eacc75cdc901f0356c943e4fdb"
 
 	state.codesByAddress[strings.ToLower(metadata.FactoryAddress)] = artifact.RuntimeCodeHex
@@ -153,7 +150,7 @@ func TestEthereumAddressIssuanceReadinessCheckerRejectsTokenDecimalsMismatch(t *
 	checker := newEthereumReadinessCheckerForTest(t, server.URL)
 	err := checker.CheckIssuanceReadiness(
 		context.Background(),
-		newEthereumReadinessPolicy(valueobjects.AddressPolicyIDEthereumSepoliaUSDTCreate2, valueobjects.NetworkIDSepolia, tokenAddress, 6),
+		newEthereumReadinessPolicy("ethereum-sepolia-usdt-create2", outport.NetworkIDSepolia, tokenAddress, 6),
 	)
 	if err == nil {
 		t.Fatalf("expected unavailable error, got %v", err)
@@ -169,8 +166,8 @@ func newEthereumReadinessCheckerForTest(
 ) *EthereumAddressIssuanceReadinessChecker {
 	t.Helper()
 
-	checker, err := NewAddressIssuanceReadinessChecker(map[valueobjects.NetworkID]*EthereumRPCObserverConfig{
-		valueobjects.NetworkIDSepolia: {Endpoint: endpoint},
+	checker, err := NewAddressIssuanceReadinessChecker(map[string]*EthereumRPCObserverConfig{
+		outport.NetworkIDSepolia: {Endpoint: endpoint},
 	})
 	if err != nil {
 		t.Fatalf("NewAddressIssuanceReadinessChecker returned error: %v", err)
@@ -180,7 +177,7 @@ func newEthereumReadinessCheckerForTest(
 
 func mustLoadFactoryFixture(
 	t *testing.T,
-	network valueobjects.NetworkID,
+	network string,
 ) (ethereumcreate2assets.DeploymentMetadata, ethereumcreate2assets.ReceiverArtifact) {
 	t.Helper()
 
@@ -196,21 +193,19 @@ func mustLoadFactoryFixture(
 }
 
 func newEthereumReadinessPolicy(
-	addressPolicyID valueobjects.AddressPolicyID,
-	network valueobjects.NetworkID,
+	addressPolicyID string,
+	network string,
 	assetReference string,
 	decimals uint8,
-) policies.AddressIssuancePolicy {
-	return policies.AddressIssuancePolicy{
+) outport.AddressIssuancePolicyRecord {
+	return outport.AddressIssuancePolicyRecord{
 		AddressPolicyID: addressPolicyID,
-		Chain:           valueobjects.SupportedChainEthereum,
+		Chain:           outport.SupportedChainEthereum,
 		Network:         network,
-		Scheme:          valueobjects.AddressSchemeCreate2,
+		Scheme:          outport.AddressSchemeCreate2,
 		AssetReference:  assetReference,
 		Decimals:        decimals,
 		Enabled:         true,
-		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSpaceRef: "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
-		},
-	}.Normalize()
+		AddressSpaceRef: "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
+	}
 }

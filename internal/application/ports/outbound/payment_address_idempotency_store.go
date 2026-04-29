@@ -3,8 +3,6 @@ package outbound
 import (
 	"context"
 	"errors"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 var (
@@ -21,35 +19,35 @@ var (
 )
 
 type PaymentAddressIdempotencyRecord struct {
-	Chain               valueobjects.SupportedChain
+	Chain               string
 	IdempotencyKey      string
-	AddressPolicyID     valueobjects.AddressPolicyID
+	AddressPolicyID     string
 	ExpectedAmountMinor int64
 	CustomerReference   string
 	PaymentAddressID    int64
 }
 
 type FindPaymentAddressIdempotencyInput struct {
-	Chain          valueobjects.SupportedChain
+	Chain          string
 	IdempotencyKey string
 }
 
 type ClaimPaymentAddressIdempotencyInput struct {
-	Chain               valueobjects.SupportedChain
+	Chain               string
 	IdempotencyKey      string
-	AddressPolicyID     valueobjects.AddressPolicyID
+	AddressPolicyID     string
 	ExpectedAmountMinor int64
 	CustomerReference   string
 }
 
 type CompletePaymentAddressIdempotencyInput struct {
-	Chain            valueobjects.SupportedChain
+	Chain            string
 	IdempotencyKey   string
 	PaymentAddressID int64
 }
 
 type ReleasePaymentAddressIdempotencyInput struct {
-	Chain          valueobjects.SupportedChain
+	Chain          string
 	IdempotencyKey string
 }
 

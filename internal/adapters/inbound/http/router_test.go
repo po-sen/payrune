@@ -7,42 +7,40 @@ import (
 	"testing"
 
 	"payrune/internal/adapters/inbound/http/controllers"
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type fakeCheckHealthUseCase struct{}
 
-func (f *fakeCheckHealthUseCase) Execute(context.Context) (dto.HealthResponse, error) {
-	return dto.HealthResponse{Status: "ok"}, nil
+func (f *fakeCheckHealthUseCase) Execute(context.Context) (inport.HealthResponse, error) {
+	return inport.HealthResponse{Status: "ok"}, nil
 }
 
 type fakeListAddressPoliciesUseCase struct{}
 
 func (f *fakeListAddressPoliciesUseCase) Execute(
 	context.Context,
-	valueobjects.SupportedChain,
-) (dto.ListAddressPoliciesResponse, error) {
-	return dto.ListAddressPoliciesResponse{}, nil
+	string,
+) (inport.ListAddressPoliciesResponse, error) {
+	return inport.ListAddressPoliciesResponse{}, nil
 }
 
 type fakeAllocatePaymentAddressUseCase struct{}
 
 func (f *fakeAllocatePaymentAddressUseCase) Execute(
 	context.Context,
-	dto.AllocatePaymentAddressInput,
-) (dto.AllocatePaymentAddressResponse, error) {
-	return dto.AllocatePaymentAddressResponse{}, nil
+	inport.AllocatePaymentAddressInput,
+) (inport.AllocatePaymentAddressResponse, error) {
+	return inport.AllocatePaymentAddressResponse{}, nil
 }
 
 type fakeGetPaymentAddressStatusUseCase struct{}
 
 func (f *fakeGetPaymentAddressStatusUseCase) Execute(
 	context.Context,
-	dto.GetPaymentAddressStatusInput,
-) (dto.GetPaymentAddressStatusResponse, error) {
-	return dto.GetPaymentAddressStatusResponse{}, nil
+	inport.GetPaymentAddressStatusInput,
+) (inport.GetPaymentAddressStatusResponse, error) {
+	return inport.GetPaymentAddressStatusResponse{}, nil
 }
 
 func TestNewPublicRouterRegistersRoutesAndAppliesCORS(t *testing.T) {

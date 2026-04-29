@@ -5,11 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/domain/entities"
-	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
 
@@ -44,26 +42,49 @@ func NewRunReceiptPollingCycleUseCase(
 	}
 }
 
+func pollablePaymentReceiptStatusStrings() []string {
+	return []string{
+		string(valueobjects.PaymentReceiptStatusWatching),
+		string(valueobjects.PaymentReceiptStatusPartiallyPaid),
+		string(valueobjects.PaymentReceiptStatusPaidUnconfirmed),
+		string(valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted),
+	}
+}
+
 func (uc *runReceiptPollingCycleUseCase) Execute(
 	ctx context.Context,
-	input dto.RunReceiptPollingCycleInput,
-) (dto.RunReceiptPollingCycleOutput, error) {
+	input inport.RunReceiptPollingCycleInput,
+) (inport.RunReceiptPollingCycleOutput, error) {
 	if uc.unitOfWork == nil {
-		return dto.RunReceiptPollingCycleOutput{}, inport.ErrUnitOfWorkNotConfigured
+		return inport.RunReceiptPollingCycleOutput{}, inport.ErrUnitOfWorkNotConfigured
 	}
 	if uc.observer == nil {
-		return dto.RunReceiptPollingCycleOutput{}, inport.ErrBlockchainReceiptObserverNotConfigured
+		return inport.RunReceiptPollingCycleOutput{}, inport.ErrBlockchainReceiptObserverNotConfigured
 	}
 	if uc.clock == nil {
-		return dto.RunReceiptPollingCycleOutput{}, inport.ErrClockNotConfigured
+		return inport.RunReceiptPollingCycleOutput{}, inport.ErrClockNotConfigured
 	}
 	if input.BatchSize <= 0 {
-		return dto.RunReceiptPollingCycleOutput{}, inport.ErrBatchSizeMustBeGreaterThanZero
+		return inport.RunReceiptPollingCycleOutput{}, inport.ErrBatchSizeMustBeGreaterThanZero
 	}
 
 	now := uc.clock.NowUTC()
 	if input.Network != "" && input.Chain == "" {
-		return dto.RunReceiptPollingCycleOutput{}, inport.ErrPollChainRequiredWhenPollNetworkSet
+		return inport.RunReceiptPollingCycleOutput{}, inport.ErrPollChainRequiredWhenPollNetworkSet
+	}
+	if input.Chain != "" {
+		chain, ok := valueobjects.ParseChainID(input.Chain)
+		if !ok {
+			return inport.RunReceiptPollingCycleOutput{}, inport.ErrChainNotSupported
+		}
+		input.Chain = string(chain)
+	}
+	if input.Network != "" {
+		network, ok := valueobjects.ParseNetworkID(input.Network)
+		if !ok {
+			return inport.RunReceiptPollingCycleOutput{}, inport.ErrChainNotSupported
+		}
+		input.Network = string(network)
 	}
 
 	var trackings []entities.PaymentReceiptTracking
@@ -77,29 +98,38 @@ func (uc *runReceiptPollingCycleUseCase) Execute(
 			Now:        now,
 			Limit:      input.BatchSize,
 			ClaimUntil: now.Add(input.ClaimTTL),
-			Chain:      string(input.Chain),
-			Network:    string(input.Network),
-			Statuses:   policies.PollablePaymentReceiptStatuses(),
+			Chain:      input.Chain,
+			Network:    input.Network,
+			Statuses:   pollablePaymentReceiptStatusStrings(),
 		})
 		if err != nil {
 			return inport.ErrDependencyFailure
 		}
 
-		trackings = claimedTrackings
+		trackings = make([]entities.PaymentReceiptTracking, 0, len(claimedTrackings))
+		for _, trackingRecord := range claimedTrackings {
+			tracking, err := paymentReceiptTrackingFromRecord(trackingRecord)
+			if err != nil {
+				return inport.ErrInternalFailure
+			}
+			trackings = append(trackings, tracking)
+		}
 		return nil
 	})
 	if err != nil {
 		switch {
 		case errors.Is(err, inport.ErrPaymentReceiptTrackingStoreNotConfigured):
-			return dto.RunReceiptPollingCycleOutput{}, err
+			return inport.RunReceiptPollingCycleOutput{}, err
 		case errors.Is(err, inport.ErrDependencyFailure):
-			return dto.RunReceiptPollingCycleOutput{}, err
+			return inport.RunReceiptPollingCycleOutput{}, err
+		case errors.Is(err, inport.ErrInternalFailure):
+			return inport.RunReceiptPollingCycleOutput{}, err
 		default:
-			return dto.RunReceiptPollingCycleOutput{}, inport.ErrDependencyFailure
+			return inport.RunReceiptPollingCycleOutput{}, inport.ErrDependencyFailure
 		}
 	}
 
-	output := dto.RunReceiptPollingCycleOutput{ClaimedCount: len(trackings)}
+	output := inport.RunReceiptPollingCycleOutput{ClaimedCount: len(trackings)}
 	latestBlockHeights := make(map[receiptPollingScopeKey]int64)
 	latestBlockHeightErrs := make(map[receiptPollingScopeKey]error)
 	nextPollAt := now.Add(input.RescheduleInterval)
@@ -171,8 +201,8 @@ func (uc *runReceiptPollingCycleUseCase) processTracking(
 
 	observation, err := uc.observer.ObserveAddress(ctx, outport.ObserveChainPaymentAddressInput{
 		AssetReference:        tracking.AssetReference,
-		Chain:                 tracking.Chain,
-		Network:               tracking.Network,
+		Chain:                 string(tracking.Chain),
+		Network:               string(tracking.Network),
 		Address:               tracking.Address,
 		IssuedAt:              tracking.IssuedAt,
 		ObservedTotalMinor:    tracking.ObservedTotalMinor,
@@ -260,7 +290,7 @@ func (uc *runReceiptPollingCycleUseCase) savePollingFailure(
 		if trackingStore == nil {
 			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
-		if err := trackingStore.Save(ctx, trackingWithFailureReason, now, nextPollAt); err != nil {
+		if err := trackingStore.Save(ctx, paymentReceiptTrackingRecordFromDomain(trackingWithFailureReason), now, nextPollAt); err != nil {
 			return inport.ErrDependencyFailure
 		}
 		return nil
@@ -295,7 +325,7 @@ func (uc *runReceiptPollingCycleUseCase) saveTrackingAndMaybeEnqueueStatusChange
 		if trackingStore == nil {
 			return inport.ErrPaymentReceiptTrackingStoreNotConfigured
 		}
-		if err := trackingStore.Save(ctx, tracking, now, nextPollAt); err != nil {
+		if err := trackingStore.Save(ctx, paymentReceiptTrackingRecordFromDomain(tracking), now, nextPollAt); err != nil {
 			return inport.ErrDependencyFailure
 		}
 		if !statusChanged {
@@ -305,7 +335,7 @@ func (uc *runReceiptPollingCycleUseCase) saveTrackingAndMaybeEnqueueStatusChange
 		if notificationOutbox == nil {
 			return inport.ErrPaymentReceiptStatusOutboxNotConfigured
 		}
-		if err := notificationOutbox.EnqueueStatusChanged(ctx, statusChangedEvent); err != nil {
+		if err := notificationOutbox.EnqueueStatusChanged(ctx, paymentReceiptStatusChangedRecordFromDomain(statusChangedEvent)); err != nil {
 			return inport.ErrDependencyFailure
 		}
 		return nil
@@ -343,7 +373,7 @@ func (uc *runReceiptPollingCycleUseCase) fetchLatestBlockHeightForTracking(
 		return 0, err
 	}
 
-	latestBlockHeight, err := uc.observer.FetchLatestBlockHeight(ctx, tracking.Chain, tracking.Network)
+	latestBlockHeight, err := uc.observer.FetchLatestBlockHeight(ctx, string(tracking.Chain), string(tracking.Network))
 	if err != nil {
 		errCache[scopeKey] = err
 		return 0, err

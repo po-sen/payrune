@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"payrune/internal/domain/policies"
+	outport "payrune/internal/application/ports/outbound"
 	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
 
@@ -27,18 +27,16 @@ type sweepMaterial struct {
 }
 
 func buildSweepMaterialJSON(
-	policy policies.AddressIssuancePolicy,
+	policy outport.AddressIssuancePolicyRecord,
 	address string,
 	create2Salt string,
 ) (string, error) {
-	policy = policy.Normalize()
-
-	sourceRef, err := parseCreate2SourceRef(policy.IssuanceConfig.AddressSpaceRef)
+	sourceRef, err := parseCreate2SourceRef(policy.AddressSpaceRef)
 	if err != nil {
 		return "", err
 	}
 
-	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(string(policy.Network))
+	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(policy.Network)
 	if !ok {
 		return "", fmt.Errorf("ethereum create2 metadata not found for network: %s", policy.Network)
 	}
@@ -54,16 +52,19 @@ func buildSweepMaterialJSON(
 	if initCodeHash != sourceRef.initCodeHash {
 		return "", fmt.Errorf("ethereum create2 init code hash mismatch for collector: %s", sourceRef.collector)
 	}
-	if !policy.IsEnabled() {
+	if !policy.Enabled {
 		return "", fmt.Errorf("ethereum payment asset reference is unavailable for policy: %s", policy.AddressPolicyID)
 	}
 	assetReference := strings.TrimSpace(policy.AssetReference)
+	if assetReference != "" {
+		assetReference = strings.ToLower(assetReference)
+	}
 
 	raw, err := json.Marshal(sweepMaterial{
 		MaterialType:     "ethereum_create2",
 		MaterialVersion:  create2SweepMaterialVersion,
-		Chain:            string(policy.Chain),
-		Network:          string(policy.Network),
+		Chain:            policy.Chain,
+		Network:          policy.Network,
 		AssetReference:   assetReference,
 		Address:          strings.TrimSpace(address),
 		PredictedAddress: strings.TrimSpace(address),

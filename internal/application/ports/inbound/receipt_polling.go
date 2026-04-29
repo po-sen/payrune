@@ -1,17 +1,16 @@
-package dto
+package inbound
 
 import (
+	"context"
 	"time"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 type RunReceiptPollingCycleInput struct {
 	BatchSize          int
 	RescheduleInterval time.Duration
 	ClaimTTL           time.Duration
-	Chain              valueobjects.ChainID
-	Network            valueobjects.NetworkID
+	Chain              string
+	Network            string
 }
 
 type RunReceiptPollingCycleOutput struct {
@@ -19,4 +18,8 @@ type RunReceiptPollingCycleOutput struct {
 	UpdatedCount         int
 	TerminalFailedCount  int
 	ProcessingErrorCount int
+}
+
+type RunReceiptPollingCycleUseCase interface {
+	Execute(ctx context.Context, input RunReceiptPollingCycleInput) (RunReceiptPollingCycleOutput, error)
 }

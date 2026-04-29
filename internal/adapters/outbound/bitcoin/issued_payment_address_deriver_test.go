@@ -6,9 +6,6 @@ import (
 	"testing"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/policies"
-	"payrune/internal/domain/valueobjects"
 )
 
 type fakeIssuedBitcoinAddressDeriver struct {
@@ -61,17 +58,15 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 	deriver := NewIssuedPaymentAddressDeriver(NewChainAddressDeriver(underlying))
 
 	output, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
-			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          valueobjects.AddressSchemeNativeSegwit,
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSpaceRef:   "xpub-main",
-				IssuanceRefPrefix: "m/84'/0'/0'",
-			},
-		}.Normalize(),
-		Allocation: entities.PaymentAddressAllocation{
+		Policy: outport.AddressIssuancePolicyRecord{
+			AddressPolicyID:   "bitcoin-mainnet-native-segwit",
+			Chain:             outport.SupportedChainBitcoin,
+			Network:           outport.NetworkIDMainnet,
+			Scheme:            outport.AddressSchemeNativeSegwit,
+			AddressSpaceRef:   "xpub-main",
+			IssuanceRefPrefix: "m/84'/0'/0'",
+		},
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 55,
 			SlotIndex:        5,
 		},
@@ -85,7 +80,7 @@ func TestIssuedPaymentAddressDeriverDerivesBitcoinAddress(t *testing.T) {
 	if output.IssuanceRef != "m/84'/0'/0'/0/5" {
 		t.Fatalf("unexpected address reference: got %q", output.IssuanceRef)
 	}
-	if output.IssuanceRefKind != valueobjects.IssuanceRefKindHDPathAbsolute {
+	if output.IssuanceRefKind != outport.IssuanceRefKindHDPathAbsolute {
 		t.Fatalf("unexpected issuance ref kind: got %q", output.IssuanceRefKind)
 	}
 	if output.SweepMaterial != `{"material_type":"bitcoin_hd","material_version":1,"chain":"bitcoin","network":"mainnet","address":"bc1qallocated","hd_derivation_path":"m/84'/0'/0'/0/5","account_xpub":"xpub-main","script_type":"nativeSegwit"}` {
@@ -111,17 +106,15 @@ func TestIssuedPaymentAddressDeriverPropagatesChainDeriverError(t *testing.T) {
 	}))
 
 	_, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
-			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          valueobjects.AddressSchemeNativeSegwit,
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSpaceRef:   "xpub-main",
-				IssuanceRefPrefix: "m/84'/0'/0'",
-			},
-		}.Normalize(),
-		Allocation: entities.PaymentAddressAllocation{
+		Policy: outport.AddressIssuancePolicyRecord{
+			AddressPolicyID:   "bitcoin-mainnet-native-segwit",
+			Chain:             outport.SupportedChainBitcoin,
+			Network:           outport.NetworkIDMainnet,
+			Scheme:            outport.AddressSchemeNativeSegwit,
+			AddressSpaceRef:   "xpub-main",
+			IssuanceRefPrefix: "m/84'/0'/0'",
+		},
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 44,
 			SlotIndex:        11,
 		},

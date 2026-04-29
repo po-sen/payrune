@@ -3,8 +3,6 @@ package controllers
 import (
 	"net/http"
 	"strings"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 const publicUnsupportedChainMessage = "chain is not supported"
@@ -12,12 +10,13 @@ const publicUnsupportedChainMessage = "chain is not supported"
 func parseSupportedChainPathValue(
 	w http.ResponseWriter,
 	r *http.Request,
-) (valueobjects.SupportedChain, bool) {
-	chainRaw := strings.TrimSpace(r.PathValue("chain"))
-	chain, ok := valueobjects.ParseSupportedChain(chainRaw)
-	if !ok {
+) (string, bool) {
+	chain := strings.ToLower(strings.TrimSpace(r.PathValue("chain")))
+	switch chain {
+	case "bitcoin", "ethereum":
+		return chain, true
+	default:
 		writeErrorJSON(w, http.StatusNotFound, publicUnsupportedChainMessage)
 		return "", false
 	}
-	return chain, true
 }

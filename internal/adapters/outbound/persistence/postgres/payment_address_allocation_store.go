@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/valueobjects"
 )
 
 const maxSlotIndex int64 = 0x7fffffff
@@ -25,9 +23,9 @@ func NewPaymentAddressAllocationStore(executor executor) *PaymentAddressAllocati
 func (r *PaymentAddressAllocationStore) FindIssuedByID(
 	ctx context.Context,
 	input outport.FindIssuedPaymentAddressAllocationByIDInput,
-) (entities.PaymentAddressAllocation, bool, error) {
+) (outport.PaymentAddressAllocationRecord, bool, error) {
 	if input.PaymentAddressID <= 0 {
-		return entities.PaymentAddressAllocation{}, false, nil
+		return outport.PaymentAddressAllocationRecord{}, false, nil
 	}
 
 	var (
@@ -76,53 +74,57 @@ func (r *PaymentAddressAllocationStore) FindIssuedByID(
 		&failureReason,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return entities.PaymentAddressAllocation{}, false, nil
+		return outport.PaymentAddressAllocationRecord{}, false, nil
 	}
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, false, outport.ErrPaymentAddressAllocationStoreFailed
+		return outport.PaymentAddressAllocationRecord{}, false, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 	if slotIndex < 0 || slotIndex > maxSlotIndex {
-		return entities.PaymentAddressAllocation{}, false, outport.ErrAddressIndexExhausted
+		return outport.PaymentAddressAllocationRecord{}, false, outport.ErrAddressIndexExhausted
 	}
 
-	chain, ok := valueobjects.ParseSupportedChain(rawChain)
+	chain, ok := outport.NormalizeSupportedChain(rawChain)
 	if !ok {
-		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
+		return outport.PaymentAddressAllocationRecord{}, false, fmt.Errorf(
 			"%w: %s",
 			outport.ErrPaymentAddressAllocationPersistedChainInvalid,
 			rawChain,
 		)
 	}
-	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
-	if err != nil {
-		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
+	parsedAddressPolicyID, ok := outport.NormalizeAddressPolicyID(addressPolicyID)
+	if !ok {
+		return outport.PaymentAddressAllocationRecord{}, false, fmt.Errorf(
 			"%w: %s",
 			outport.ErrPaymentAddressAllocationPersistedAddressPolicyIDInvalid,
 			strings.TrimSpace(addressPolicyID),
 		)
 	}
-	network, ok := valueobjects.ParseNetworkID(rawNetwork)
+	network, ok := outport.NormalizeNetworkID(rawNetwork)
 	if !ok {
-		return entities.PaymentAddressAllocation{}, false, fmt.Errorf(
+		return outport.PaymentAddressAllocationRecord{}, false, fmt.Errorf(
 			"%w: %s",
 			outport.ErrPaymentAddressAllocationPersistedNetworkInvalid,
 			rawNetwork,
 		)
 	}
+	normalizedScheme, ok := outport.NormalizeAddressScheme(scheme)
+	if !ok {
+		return outport.PaymentAddressAllocationRecord{}, false, outport.ErrPaymentAddressAllocationStoreFailed
+	}
 	assetReference := strings.TrimSpace(rawAssetReference)
 
 	derivationFailureReason := normalizePaymentAddressAllocationDerivationFailureReason(failureReason)
 
-	return entities.PaymentAddressAllocation{
+	return outport.PaymentAddressAllocationRecord{
 		PaymentAddressID:        paymentAddressID,
 		AddressPolicyID:         parsedAddressPolicyID,
 		SlotIndex:               uint32(slotIndex),
 		ExpectedAmountMinor:     expectedAmountMinor,
 		CustomerReference:       customerReference,
-		Status:                  valueobjects.PaymentAddressAllocationStatusIssued,
+		Status:                  outport.PaymentAddressAllocationStatusIssued,
 		Chain:                   chain,
 		Network:                 network,
-		Scheme:                  valueobjects.AddressScheme(scheme).Normalize(),
+		Scheme:                  normalizedScheme,
 		AssetReference:          assetReference,
 		Address:                 strings.TrimSpace(address),
 		DerivationFailureReason: derivationFailureReason,
@@ -180,7 +182,7 @@ func (r *PaymentAddressAllocationStore) Complete(
 
 func (r *PaymentAddressAllocationStore) MarkDerivationFailed(
 	ctx context.Context,
-	allocation entities.PaymentAddressAllocation,
+	allocation outport.PaymentAddressAllocationRecord,
 ) error {
 	result, err := r.executor.ExecContext(
 		ctx,
@@ -208,10 +210,10 @@ func (r *PaymentAddressAllocationStore) MarkDerivationFailed(
 func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 	ctx context.Context,
 	input outport.ReservePaymentAddressAllocationInput,
-) (entities.PaymentAddressAllocation, bool, error) {
+) (outport.PaymentAddressAllocationRecord, bool, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
 	addressPolicyID := input.IssuancePolicy.AddressPolicyID
-	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSpaceRef)
+	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.AddressSpaceRef)
 
 	var paymentAddressID int64
 	var slotIndex int64
@@ -229,13 +231,13 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		addressSpaceRef,
 	).Scan(&paymentAddressID, &slotIndex)
 	if errors.Is(err, sql.ErrNoRows) {
-		return entities.PaymentAddressAllocation{}, false, nil
+		return outport.PaymentAddressAllocationRecord{}, false, nil
 	}
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, false, outport.ErrPaymentAddressAllocationStoreFailed
+		return outport.PaymentAddressAllocationRecord{}, false, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 	if slotIndex < 0 || slotIndex > maxSlotIndex {
-		return entities.PaymentAddressAllocation{}, false, outport.ErrAddressIndexExhausted
+		return outport.PaymentAddressAllocationRecord{}, false, outport.ErrAddressIndexExhausted
 	}
 
 	if _, err := r.executor.ExecContext(
@@ -258,26 +260,26 @@ func (r *PaymentAddressAllocationStore) ReopenFailedReservation(
 		input.ExpectedAmountMinor,
 		nullIfEmpty(customerReference),
 	); err != nil {
-		return entities.PaymentAddressAllocation{}, false, outport.ErrPaymentAddressAllocationStoreFailed
+		return outport.PaymentAddressAllocationRecord{}, false, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
-	return entities.PaymentAddressAllocation{
+	return outport.PaymentAddressAllocationRecord{
 		PaymentAddressID:    paymentAddressID,
 		AddressPolicyID:     addressPolicyID,
 		SlotIndex:           uint32(slotIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,
-		Status:              valueobjects.PaymentAddressAllocationStatusReserved,
+		Status:              outport.PaymentAddressAllocationStatusReserved,
 	}, true, nil
 }
 
 func (r *PaymentAddressAllocationStore) ReserveFresh(
 	ctx context.Context,
 	input outport.ReservePaymentAddressAllocationInput,
-) (entities.PaymentAddressAllocation, error) {
+) (outport.PaymentAddressAllocationRecord, error) {
 	customerReference := strings.TrimSpace(input.CustomerReference)
 	addressPolicyID := input.IssuancePolicy.AddressPolicyID
-	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.IssuanceConfig.AddressSpaceRef)
+	addressSpaceRef := strings.TrimSpace(input.IssuancePolicy.AddressSpaceRef)
 
 	if _, err := r.executor.ExecContext(
 		ctx,
@@ -301,7 +303,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		addressPolicyID,
 		addressSpaceRef,
 	); err != nil {
-		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
+		return outport.PaymentAddressAllocationRecord{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	var nextIndex int64
@@ -316,10 +318,10 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		addressSpaceRef,
 	).Scan(&nextIndex)
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
+		return outport.PaymentAddressAllocationRecord{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 	if nextIndex > maxSlotIndex {
-		return entities.PaymentAddressAllocation{}, outport.ErrAddressIndexExhausted
+		return outport.PaymentAddressAllocationRecord{}, outport.ErrAddressIndexExhausted
 	}
 
 	var paymentAddressID int64
@@ -342,7 +344,7 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		nullIfEmpty(customerReference),
 	).Scan(&paymentAddressID)
 	if err != nil {
-		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
+		return outport.PaymentAddressAllocationRecord{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
 	if _, err := r.executor.ExecContext(
@@ -355,16 +357,16 @@ func (r *PaymentAddressAllocationStore) ReserveFresh(
 		addressPolicyID,
 		addressSpaceRef,
 	); err != nil {
-		return entities.PaymentAddressAllocation{}, outport.ErrPaymentAddressAllocationStoreFailed
+		return outport.PaymentAddressAllocationRecord{}, outport.ErrPaymentAddressAllocationStoreFailed
 	}
 
-	return entities.PaymentAddressAllocation{
+	return outport.PaymentAddressAllocationRecord{
 		PaymentAddressID:    paymentAddressID,
 		AddressPolicyID:     addressPolicyID,
 		SlotIndex:           uint32(nextIndex),
 		ExpectedAmountMinor: input.ExpectedAmountMinor,
 		CustomerReference:   customerReference,
-		Status:              valueobjects.PaymentAddressAllocationStatusReserved,
+		Status:              outport.PaymentAddressAllocationStatusReserved,
 	}, nil
 }
 

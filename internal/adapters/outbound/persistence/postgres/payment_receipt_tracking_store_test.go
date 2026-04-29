@@ -13,8 +13,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/valueobjects"
 )
 
 type stubScanner struct {
@@ -227,35 +225,35 @@ func TestScanPaymentReceiptTrackingRejectsInvalidStatus(t *testing.T) {
 	}
 }
 
-func newTrackingStoreTestEntity() entities.PaymentReceiptTracking {
+func newTrackingStoreTestEntity() outport.PaymentReceiptTrackingRecord {
 	issuedAt := time.Date(2026, 3, 7, 12, 0, 0, 0, time.UTC)
 	expiresAt := issuedAt.Add(24 * time.Hour)
 	firstObservedAt := issuedAt.Add(2 * time.Minute)
-	return entities.PaymentReceiptTracking{
+	return outport.PaymentReceiptTrackingRecord{
 		PaymentAddressID:        501,
 		AddressPolicyID:         "bitcoin-mainnet-native-segwit",
-		Chain:                   valueobjects.ChainIDBitcoin,
-		Network:                 valueobjects.NetworkIDMainnet,
+		Chain:                   outport.SupportedChainBitcoin,
+		Network:                 outport.NetworkIDMainnet,
 		Address:                 "bc1qtracking",
 		AssetReference:          "",
 		IssuedAt:                issuedAt,
 		ExpiresAt:               &expiresAt,
 		ExpectedAmountMinor:     100000,
 		RequiredConfirmations:   2,
-		Status:                  valueobjects.PaymentReceiptStatusWatching,
+		Status:                  outport.PaymentReceiptStatusWatching,
 		ObservedTotalMinor:      1000,
 		ConfirmedTotalMinor:     500,
 		UnconfirmedTotalMinor:   500,
 		LastObservedBlockHeight: 123,
 		FirstObservedAt:         &firstObservedAt,
-		LastFailureReason:       valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed,
+		LastFailureReason:       outport.PaymentReceiptTrackingFailureReasonObservationFailed,
 	}
 }
 
 func TestPaymentReceiptTrackingStoreCreateValidation(t *testing.T) {
 	store := NewPaymentReceiptTrackingStore(&stubNotificationExecutor{})
 
-	err := store.Create(context.Background(), entities.PaymentReceiptTracking{}, time.Time{})
+	err := store.Create(context.Background(), outport.PaymentReceiptTrackingRecord{}, time.Time{})
 	if !errors.Is(err, outport.ErrPaymentReceiptTrackingNextPollAtRequired) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
@@ -328,7 +326,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 	_, err := store.ClaimDue(context.Background(), outport.ClaimPaymentReceiptTrackingsInput{
 		Limit:      1,
 		ClaimUntil: now,
-		Statuses:   []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
+		Statuses:   []string{outport.PaymentReceiptStatusWatching},
 	})
 	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimNowRequired) {
 		t.Fatalf("unexpected missing-now error: %v", err)
@@ -337,7 +335,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 	_, err = store.ClaimDue(context.Background(), outport.ClaimPaymentReceiptTrackingsInput{
 		Now:      now,
 		Limit:    1,
-		Statuses: []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
+		Statuses: []string{outport.PaymentReceiptStatusWatching},
 	})
 	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimUntilRequired) {
 		t.Fatalf("unexpected missing-claim-until error: %v", err)
@@ -346,7 +344,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 	_, err = store.ClaimDue(context.Background(), outport.ClaimPaymentReceiptTrackingsInput{
 		Now:        now,
 		ClaimUntil: now,
-		Statuses:   []valueobjects.PaymentReceiptStatus{valueobjects.PaymentReceiptStatusWatching},
+		Statuses:   []string{outport.PaymentReceiptStatusWatching},
 	})
 	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimLimitInvalid) {
 		t.Fatalf("unexpected missing-limit error: %v", err)
@@ -365,7 +363,7 @@ func TestPaymentReceiptTrackingStoreClaimDueValidation(t *testing.T) {
 		Now:        now,
 		ClaimUntil: now,
 		Limit:      1,
-		Statuses:   []valueobjects.PaymentReceiptStatus{""},
+		Statuses:   []string{""},
 	})
 	if !errors.Is(err, outport.ErrPaymentReceiptTrackingClaimStatusRequired) {
 		t.Fatalf("unexpected blank-status error: %v", err)
@@ -446,9 +444,9 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 		Now:        now,
 		ClaimUntil: claimUntil,
 		Limit:      2,
-		Statuses: []valueobjects.PaymentReceiptStatus{
-			valueobjects.PaymentReceiptStatusWatching,
-			valueobjects.PaymentReceiptStatusPaidUnconfirmed,
+		Statuses: []string{
+			outport.PaymentReceiptStatusWatching,
+			outport.PaymentReceiptStatusPaidUnconfirmed,
 		},
 		Chain:   " BitCoin ",
 		Network: " MainNet ",
@@ -462,7 +460,7 @@ func TestPaymentReceiptTrackingStoreClaimDueSuccess(t *testing.T) {
 	if trackings[0].PaymentAddressID != 501 {
 		t.Fatalf("unexpected payment address id: got %d", trackings[0].PaymentAddressID)
 	}
-	if trackings[0].Status != valueobjects.PaymentReceiptStatusPaidUnconfirmed {
+	if trackings[0].Status != outport.PaymentReceiptStatusPaidUnconfirmed {
 		t.Fatalf("unexpected status: got %q", trackings[0].Status)
 	}
 }
@@ -516,8 +514,8 @@ func TestPaymentReceiptTrackingStoreClaimDueSkipsExpiredUntilNextPollAt(t *testi
 		Now:        now,
 		ClaimUntil: claimUntil,
 		Limit:      1,
-		Statuses: []valueobjects.PaymentReceiptStatus{
-			valueobjects.PaymentReceiptStatusWatching,
+		Statuses: []string{
+			outport.PaymentReceiptStatusWatching,
 		},
 	})
 	if err != nil {
@@ -531,12 +529,12 @@ func TestPaymentReceiptTrackingStoreClaimDueSkipsExpiredUntilNextPollAt(t *testi
 func TestPaymentReceiptTrackingStoreSaveValidation(t *testing.T) {
 	store := NewPaymentReceiptTrackingStore(&stubNotificationExecutor{})
 
-	err := store.Save(context.Background(), entities.PaymentReceiptTracking{}, time.Time{}, time.Now().UTC())
+	err := store.Save(context.Background(), outport.PaymentReceiptTrackingRecord{}, time.Time{}, time.Now().UTC())
 	if !errors.Is(err, outport.ErrPaymentReceiptTrackingPolledAtRequired) {
 		t.Fatalf("unexpected missing-polled-at error: %v", err)
 	}
 
-	err = store.Save(context.Background(), entities.PaymentReceiptTracking{}, time.Now().UTC(), time.Time{})
+	err = store.Save(context.Background(), outport.PaymentReceiptTrackingRecord{}, time.Now().UTC(), time.Time{})
 	if !errors.Is(err, outport.ErrPaymentReceiptTrackingNextPollAtRequired) {
 		t.Fatalf("unexpected missing-next-poll-at error: %v", err)
 	}
@@ -553,7 +551,7 @@ func TestPaymentReceiptTrackingStoreSaveSuccess(t *testing.T) {
 	tracking := newTrackingStoreTestEntity()
 	paidAt := tracking.IssuedAt.Add(5 * time.Minute)
 	tracking.PaidAt = &paidAt
-	tracking.Status = valueobjects.PaymentReceiptStatusPaidUnconfirmed
+	tracking.Status = outport.PaymentReceiptStatusPaidUnconfirmed
 	polledAt := time.Date(2026, 3, 7, 14, 0, 0, 0, time.UTC)
 	nextPollAt := polledAt.Add(15 * time.Second)
 

@@ -1,23 +1,19 @@
 package bitcoin
 
-import (
-	"context"
-
-	"payrune/internal/domain/valueobjects"
-)
+import "context"
 
 type cloudflareEsploraBridge interface {
-	FetchLatestBlockHeight(ctx context.Context, bridgeID string, network valueobjects.NetworkID) (int64, error)
+	FetchLatestBlockHeight(ctx context.Context, bridgeID string, network string) (int64, error)
 	FetchAddressChainTransactions(
 		ctx context.Context,
 		bridgeID string,
-		network valueobjects.NetworkID,
+		network string,
 		address string,
 	) ([]esploraTransaction, error)
 	FetchAddressMempoolTransactions(
 		ctx context.Context,
 		bridgeID string,
-		network valueobjects.NetworkID,
+		network string,
 		address string,
 	) ([]esploraTransaction, error)
 }

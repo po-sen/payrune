@@ -11,21 +11,16 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/policies"
-	"payrune/internal/domain/valueobjects"
 )
 
-func newAllocationStoreTestPolicy() policies.AddressIssuancePolicy {
-	return policies.AddressIssuancePolicy{
+func newAllocationStoreTestPolicy() outport.AddressIssuancePolicyRecord {
+	return outport.AddressIssuancePolicyRecord{
 		AddressPolicyID: "bitcoin-mainnet-native-segwit",
-		Chain:           valueobjects.SupportedChainBitcoin,
-		Network:         valueobjects.NetworkIDMainnet,
-		Scheme:          valueobjects.AddressSchemeNativeSegwit,
-		IssuanceConfig: valueobjects.AddressIssuanceConfig{
-			AddressSpaceRef: "xpub-main",
-		},
-	}.Normalize()
+		Chain:           outport.SupportedChainBitcoin,
+		Network:         outport.NetworkIDMainnet,
+		Scheme:          outport.AddressSchemeNativeSegwit,
+		AddressSpaceRef: "xpub-main",
+	}
 }
 
 func newReservePaymentAddressAllocationInput(customerReference string) outport.ReservePaymentAddressAllocationInput {
@@ -60,12 +55,12 @@ func TestPaymentAddressAllocationStoreCompleteSuccess(t *testing.T) {
 
 	store := NewPaymentAddressAllocationStore(db)
 	issuedAt := time.Date(2026, 3, 7, 9, 0, 0, 0, time.UTC)
-	allocation := entities.PaymentAddressAllocation{
+	allocation := outport.PaymentAddressAllocationRecord{
 		PaymentAddressID: 44,
 		AddressPolicyID:  "bitcoin-mainnet-native-segwit",
-		Chain:            valueobjects.SupportedChainBitcoin,
-		Network:          valueobjects.NetworkIDMainnet,
-		Scheme:           valueobjects.AddressSchemeNativeSegwit,
+		Chain:            outport.SupportedChainBitcoin,
+		Network:          outport.NetworkIDMainnet,
+		Scheme:           outport.AddressSchemeNativeSegwit,
 		AssetReference:   "",
 		Address:          " bc1qallocated ",
 	}
@@ -109,12 +104,12 @@ func TestPaymentAddressAllocationStoreCompleteNotReserved(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
-		Allocation: entities.PaymentAddressAllocation{
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 44,
 			AddressPolicyID:  "bitcoin-mainnet-native-segwit",
-			Chain:            valueobjects.SupportedChainBitcoin,
-			Network:          valueobjects.NetworkIDMainnet,
-			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			Chain:            outport.SupportedChainBitcoin,
+			Network:          outport.NetworkIDMainnet,
+			Scheme:           outport.AddressSchemeNativeSegwit,
 			AssetReference:   "",
 			Address:          "bc1qallocated",
 		},
@@ -136,12 +131,12 @@ func TestPaymentAddressAllocationStoreCompleteRejectsInvalidSweepMaterialInput(t
 	store := NewPaymentAddressAllocationStore(db)
 
 	err = store.Complete(context.Background(), outport.CompletePaymentAddressAllocationInput{
-		Allocation: entities.PaymentAddressAllocation{
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 44,
 			AddressPolicyID:  "bitcoin-mainnet-native-segwit",
-			Chain:            valueobjects.SupportedChainBitcoin,
-			Network:          valueobjects.NetworkIDMainnet,
-			Scheme:           valueobjects.AddressSchemeNativeSegwit,
+			Chain:            outport.SupportedChainBitcoin,
+			Network:          outport.NetworkIDMainnet,
+			Scheme:           outport.AddressSchemeNativeSegwit,
 			AssetReference:   "",
 			Address:          "bc1qallocated",
 		},
@@ -169,7 +164,7 @@ func TestPaymentAddressAllocationStoreFindIssuedByIDInvalidID(t *testing.T) {
 	if found {
 		t.Fatal("expected found=false")
 	}
-	if allocation != (entities.PaymentAddressAllocation{}) {
+	if allocation != (outport.PaymentAddressAllocationRecord{}) {
 		t.Fatalf("unexpected allocation: %+v", allocation)
 	}
 }
@@ -334,9 +329,9 @@ func TestPaymentAddressAllocationStoreMarkDerivationFailedSuccess(t *testing.T) 
 		WithArgs(int64(44), "derivation_failed").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err = store.MarkDerivationFailed(context.Background(), entities.PaymentAddressAllocation{
+	err = store.MarkDerivationFailed(context.Background(), outport.PaymentAddressAllocationRecord{
 		PaymentAddressID:        44,
-		DerivationFailureReason: valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
+		DerivationFailureReason: outport.PaymentAddressAllocationFailureDerivationFailed,
 	})
 	if err != nil {
 		t.Fatalf("MarkDerivationFailed returned error: %v", err)
@@ -358,7 +353,7 @@ func TestPaymentAddressAllocationStoreMarkDerivationFailedNotReserved(t *testing
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_allocations")).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
-	err = store.MarkDerivationFailed(context.Background(), entities.PaymentAddressAllocation{PaymentAddressID: 44})
+	err = store.MarkDerivationFailed(context.Background(), outport.PaymentAddressAllocationRecord{PaymentAddressID: 44})
 	if !errors.Is(err, outport.ErrPaymentAddressAllocationNotReserved) {
 		t.Fatalf("expected ErrPaymentAddressAllocationNotReserved, got %v", err)
 	}
@@ -377,7 +372,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationNotFound(t *testing
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, slot_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicyID,
-			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			input.IssuancePolicy.AddressSpaceRef,
 		).
 		WillReturnError(sql.ErrNoRows)
 
@@ -388,7 +383,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationNotFound(t *testing
 	if reopened {
 		t.Fatal("expected reopened=false")
 	}
-	if allocation != (entities.PaymentAddressAllocation{}) {
+	if allocation != (outport.PaymentAddressAllocationRecord{}) {
 		t.Fatalf("unexpected allocation: %+v", allocation)
 	}
 }
@@ -407,7 +402,7 @@ func TestPaymentAddressAllocationStoreReopenFailedReservationSuccess(t *testing.
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, slot_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicyID,
-			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			input.IssuancePolicy.AddressSpaceRef,
 		).
 		WillReturnRows(rows)
 
@@ -440,21 +435,21 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO address_policy_cursors")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicyID,
-			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			input.IssuancePolicy.AddressSpaceRef,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT next_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicyID,
-			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			input.IssuancePolicy.AddressSpaceRef,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"next_index"}).AddRow(int64(21)))
 
 	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO address_policy_allocations")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicyID,
-			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			input.IssuancePolicy.AddressSpaceRef,
 			int64(21),
 			int64(125000),
 			"order-2",
@@ -464,7 +459,7 @@ func TestPaymentAddressAllocationStoreReserveFreshSuccess(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE address_policy_cursors")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicyID,
-			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			input.IssuancePolicy.AddressSpaceRef,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -496,14 +491,14 @@ func TestPaymentAddressAllocationStoreReserveFreshRejectsOverflowIndex(t *testin
 	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO address_policy_cursors")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicyID,
-			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			input.IssuancePolicy.AddressSpaceRef,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT next_index")).
 		WithArgs(
 			input.IssuancePolicy.AddressPolicyID,
-			input.IssuancePolicy.IssuanceConfig.AddressSpaceRef,
+			input.IssuancePolicy.AddressSpaceRef,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"next_index"}).AddRow(maxSlotIndex + 1))
 

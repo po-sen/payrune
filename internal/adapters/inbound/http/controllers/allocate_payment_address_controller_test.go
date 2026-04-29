@@ -7,14 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 	allocateUC := &fakeAllocatePaymentAddressUseCase{
-		response: dto.AllocatePaymentAddressResponse{
+		response: inport.AllocatePaymentAddressResponse{
 			PaymentAddressID:    "101",
 			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 			ExpectedAmountMinor: 120000,
@@ -45,7 +43,7 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 	if got := rr.Header().Get(idempotencyReplayedHeader); got != "" {
 		t.Fatalf("expected no idempotency replayed header on fresh success, got %q", got)
 	}
-	if allocateUC.lastInput.Chain != valueobjects.SupportedChainBitcoin {
+	if allocateUC.lastInput.Chain != "bitcoin" {
 		t.Fatalf("unexpected chain in input: got %q", allocateUC.lastInput.Chain)
 	}
 	if allocateUC.lastInput.AddressPolicyID != "bitcoin-mainnet-native-segwit" {
@@ -78,7 +76,7 @@ func TestChainAddressControllerAllocatePaymentAddressSuccess(t *testing.T) {
 
 func TestChainAddressControllerAllocateEthereumPaymentAddressSuccess(t *testing.T) {
 	allocateUC := &fakeAllocatePaymentAddressUseCase{
-		response: dto.AllocatePaymentAddressResponse{
+		response: inport.AllocatePaymentAddressResponse{
 			PaymentAddressID:    "201",
 			AddressPolicyID:     "ethereum-mainnet-create2",
 			ExpectedAmountMinor: 15000000000000000,
@@ -104,7 +102,7 @@ func TestChainAddressControllerAllocateEthereumPaymentAddressSuccess(t *testing.
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if allocateUC.lastInput.Chain != valueobjects.SupportedChainEthereum {
+	if allocateUC.lastInput.Chain != "ethereum" {
 		t.Fatalf("unexpected chain in input: got %q", allocateUC.lastInput.Chain)
 	}
 	if allocateUC.lastInput.AddressPolicyID != "ethereum-mainnet-create2" {
@@ -114,7 +112,7 @@ func TestChainAddressControllerAllocateEthereumPaymentAddressSuccess(t *testing.
 
 func TestChainAddressControllerAllocatePaymentAddressAcceptsNullCustomerReference(t *testing.T) {
 	allocateUC := &fakeAllocatePaymentAddressUseCase{
-		response: dto.AllocatePaymentAddressResponse{
+		response: inport.AllocatePaymentAddressResponse{
 			PaymentAddressID:    "202",
 			AddressPolicyID:     "bitcoin-testnet4-native-segwit",
 			ExpectedAmountMinor: 2000,
@@ -147,7 +145,7 @@ func TestChainAddressControllerAllocatePaymentAddressAcceptsNullCustomerReferenc
 
 func TestChainAddressControllerAllocatePaymentAddressReplayHeader(t *testing.T) {
 	allocateUC := &fakeAllocatePaymentAddressUseCase{
-		response: dto.AllocatePaymentAddressResponse{
+		response: inport.AllocatePaymentAddressResponse{
 			PaymentAddressID:    "101",
 			AddressPolicyID:     "bitcoin-mainnet-native-segwit",
 			ExpectedAmountMinor: 120000,

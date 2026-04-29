@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 )
 
@@ -63,7 +62,7 @@ func (c *AllocatePaymentAddressController) ServeHTTP(w http.ResponseWriter, r *h
 		return
 	}
 
-	response, err := c.allocatePaymentAddress.Execute(r.Context(), dto.AllocatePaymentAddressInput{
+	response, err := c.allocatePaymentAddress.Execute(r.Context(), inport.AllocatePaymentAddressInput{
 		Chain:               chain,
 		AddressPolicyID:     addressPolicyID,
 		ExpectedAmountMinor: *request.ExpectedAmountMinor,

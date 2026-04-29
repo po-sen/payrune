@@ -1,9 +1,8 @@
-package dto
+package inbound
 
 import (
+	"context"
 	"time"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 type AddressPolicy struct {
@@ -22,7 +21,7 @@ type ListAddressPoliciesResponse struct {
 }
 
 type AllocatePaymentAddressInput struct {
-	Chain               valueobjects.SupportedChain
+	Chain               string
 	AddressPolicyID     string
 	ExpectedAmountMinor int64
 	CustomerReference   string
@@ -44,7 +43,7 @@ type AllocatePaymentAddressResponse struct {
 }
 
 type GetPaymentAddressStatusInput struct {
-	Chain            valueobjects.SupportedChain
+	Chain            string
 	PaymentAddressID int64
 }
 
@@ -71,4 +70,22 @@ type GetPaymentAddressStatusResponse struct {
 	ConfirmedAt             *time.Time
 	ExpiresAt               *time.Time
 	LastError               string
+}
+
+type ListAddressPoliciesUseCase interface {
+	Execute(ctx context.Context, chain string) (ListAddressPoliciesResponse, error)
+}
+
+type AllocatePaymentAddressUseCase interface {
+	Execute(
+		ctx context.Context,
+		input AllocatePaymentAddressInput,
+	) (AllocatePaymentAddressResponse, error)
+}
+
+type GetPaymentAddressStatusUseCase interface {
+	Execute(
+		ctx context.Context,
+		input GetPaymentAddressStatusInput,
+	) (GetPaymentAddressStatusResponse, error)
 }

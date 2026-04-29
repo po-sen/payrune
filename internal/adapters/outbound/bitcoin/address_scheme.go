@@ -2,8 +2,6 @@ package bitcoin
 
 import (
 	"strings"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 type addressScheme string
@@ -22,7 +20,7 @@ var bitcoinAddressSchemes = map[string]addressScheme{
 	"taproot":      addressSchemeTaproot,
 }
 
-func parseAddressScheme(raw valueobjects.AddressScheme) (addressScheme, bool) {
-	scheme, ok := bitcoinAddressSchemes[strings.ToLower(strings.TrimSpace(string(raw.Normalize())))]
+func parseAddressScheme(raw string) (addressScheme, bool) {
+	scheme, ok := bitcoinAddressSchemes[strings.ToLower(strings.TrimSpace(raw))]
 	return scheme, ok
 }

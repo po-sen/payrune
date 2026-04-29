@@ -13,7 +13,6 @@ import (
 	"time"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 const defaultEsploraChainPageSize = 25
@@ -26,7 +25,7 @@ type BitcoinEsploraObserverConfig struct {
 }
 
 type BitcoinEsploraReceiptObserver struct {
-	clients map[valueobjects.NetworkID]*bitcoinAPIClient
+	clients map[string]*bitcoinAPIClient
 }
 
 type bitcoinAPIClient struct {
@@ -54,9 +53,9 @@ type esploraTxStatus struct {
 }
 
 func NewBitcoinEsploraReceiptObserver(
-	configs map[valueobjects.NetworkID]*BitcoinEsploraObserverConfig,
+	configs map[string]*BitcoinEsploraObserverConfig,
 ) (*BitcoinEsploraReceiptObserver, error) {
-	clients := make(map[valueobjects.NetworkID]*bitcoinAPIClient, len(configs))
+	clients := make(map[string]*bitcoinAPIClient, len(configs))
 	for rawNetwork, config := range configs {
 		bitcoinNetwork, ok := parseNetwork(rawNetwork)
 		if !ok {
@@ -139,7 +138,7 @@ func (o *BitcoinEsploraReceiptObserver) ObserveAddress(
 
 func (o *BitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 	ctx context.Context,
-	network valueobjects.NetworkID,
+	network string,
 ) (int64, error) {
 	client, err := o.selectClient(network)
 	if err != nil {
@@ -153,7 +152,7 @@ func (o *BitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 }
 
 func (o *BitcoinEsploraReceiptObserver) selectClient(
-	network valueobjects.NetworkID,
+	network string,
 ) (*bitcoinAPIClient, error) {
 	bitcoinNetwork, ok := parseNetwork(network)
 	if !ok {

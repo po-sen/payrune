@@ -134,7 +134,7 @@ func buildCloudflareAPIHTTPHandler(
 	if err := validateEnabledEthereumIssuanceReadiness(context.Background(), addressIssuancePolicies, readinessChecker); err != nil {
 		return nil, err
 	}
-	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicyRecords(addressIssuancePolicies))
 
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	dbExecutor := cloudflarepostgresadapter.NewExecutor(bridgeID, bridge)

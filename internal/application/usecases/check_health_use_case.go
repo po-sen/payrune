@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 )
@@ -18,12 +17,12 @@ func NewCheckHealthUseCase(clock outport.Clock) inport.CheckHealthUseCase {
 	return &checkHealthUseCase{clock: clock}
 }
 
-func (uc *checkHealthUseCase) Execute(_ context.Context) (dto.HealthResponse, error) {
+func (uc *checkHealthUseCase) Execute(_ context.Context) (inport.HealthResponse, error) {
 	if uc.clock == nil {
-		return dto.HealthResponse{}, inport.ErrClockNotConfigured
+		return inport.HealthResponse{}, inport.ErrClockNotConfigured
 	}
 
-	return dto.HealthResponse{
+	return inport.HealthResponse{
 		Status:    healthStatusUp,
 		Timestamp: uc.clock.NowUTC(),
 	}, nil

@@ -1,0 +1,258 @@
+[commit_message]
+max_header_length = 72
+
+allowed_types = [
+  "feat",
+  "fix",
+  "docs",
+  "style",
+  "refactor",
+  "perf",
+  "test",
+  "build",
+  "ci",
+  "chore",
+  "revert",
+]
+
+vague_subjects = [
+  "update",
+  "fix",
+  "changes",
+  "wip",
+  "temp",
+  "misc",
+  "stuff",
+]
+
+allow_merge_commits = true
+allow_fixup_commits = true
+allow_squash_commits = true
+allow_revert_commits = true
+allow_uppercase_ticket_prefix = true
+
+[file_policy]
+allowed = []
+
+denied = [
+  ".env",
+  "**/.env",
+  ".env.local",
+  "**/.env.local",
+  ".DS_Store",
+  "**/.DS_Store",
+  "**/*.pem",
+  "**/*.key",
+  "**/*.sqlite3",
+  "**/__pycache__/**",
+  "**/*.pyc",
+  "coverage.out",
+  "**/coverage.out",
+]
+
+[import_policy]
+enabled = true
+
+# Domain must stay pure.
+# It should not depend on application orchestration, adapters, infrastructure,
+# bootstrap wiring, or cmd entrypoints.
+[[import_policy.forbidden]]
+source = "internal/domain/**"
+denied = [
+  "internal/application/**",
+  "internal/adapters/**",
+  "internal/infrastructure/**",
+  "internal/bootstrap/**",
+  "cmd/**",
+]
+
+# Domain entities should not depend on policies.
+# AGENTS says entity runtime code may depend on valueobjects,
+# but must not depend on internal/domain/policies.
+[[import_policy.forbidden]]
+source = "internal/domain/entities/**"
+denied = [
+  "internal/domain/policies/**",
+]
+
+# Value objects should be the bottom of the domain dependency direction.
+[[import_policy.forbidden]]
+source = "internal/domain/valueobjects/**"
+denied = [
+  "internal/domain/entities/**",
+  "internal/domain/events/**",
+  "internal/domain/policies/**",
+]
+
+# Application owns use-case orchestration and port contracts.
+# It should not import concrete adapters, infrastructure, bootstrap, or cmd.
+[[import_policy.forbidden]]
+source = "internal/application/**"
+denied = [
+  "internal/adapters/**",
+  "internal/infrastructure/**",
+  "internal/bootstrap/**",
+  "cmd/**",
+]
+
+# Application ports are the stable boundary contracts adapters may import.
+# They must stay domain-free and must not know any implementation layer.
+[[import_policy.forbidden]]
+source = "internal/application/ports/**"
+denied = [
+  "internal/domain/**",
+  "internal/application/usecases/**",
+  "internal/adapters/**",
+  "internal/infrastructure/**",
+  "internal/bootstrap/**",
+  "cmd/**",
+]
+
+# Adapters are outside the application/core.
+# They may implement ports and use infrastructure helpers, but they must not
+# reach inward to domain/usecases or outward to composition roots.
+[[import_policy.forbidden]]
+source = "internal/adapters/**"
+denied = [
+  "internal/domain/**",
+  "internal/application/usecases/**",
+  "internal/application/dto/**",
+  "internal/application/outbox/**",
+  "internal/bootstrap/**",
+  "cmd/**",
+]
+
+# Inbound and outbound adapters communicate through application ports and
+# bootstrap wiring, never by importing each other's concrete implementations.
+[[import_policy.forbidden]]
+source = "internal/adapters/inbound/**"
+denied = [
+  "internal/adapters/outbound/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/**"
+denied = [
+  "internal/adapters/inbound/**",
+]
+
+# Inbound adapter families should stay independent.
+[[import_policy.forbidden]]
+source = "internal/adapters/inbound/http/**"
+denied = [
+  "internal/adapters/inbound/scheduler/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/inbound/scheduler/**"
+denied = [
+  "internal/adapters/inbound/http/**",
+]
+
+# Outbound adapter families should not reuse one another directly. Shared
+# contracts belong in application ports; shared technical helpers belong in
+# infrastructure; concrete composition belongs in bootstrap.
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/bitcoin/**"
+denied = [
+  "internal/adapters/outbound/blockchain/**",
+  "internal/adapters/outbound/ethereum/**",
+  "internal/adapters/outbound/persistence/**",
+  "internal/adapters/outbound/policy/**",
+  "internal/adapters/outbound/system/**",
+  "internal/adapters/outbound/webhook/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/blockchain/**"
+denied = [
+  "internal/adapters/outbound/bitcoin/**",
+  "internal/adapters/outbound/ethereum/**",
+  "internal/adapters/outbound/persistence/**",
+  "internal/adapters/outbound/policy/**",
+  "internal/adapters/outbound/system/**",
+  "internal/adapters/outbound/webhook/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/ethereum/**"
+denied = [
+  "internal/adapters/outbound/bitcoin/**",
+  "internal/adapters/outbound/blockchain/**",
+  "internal/adapters/outbound/persistence/**",
+  "internal/adapters/outbound/policy/**",
+  "internal/adapters/outbound/system/**",
+  "internal/adapters/outbound/webhook/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/persistence/**"
+denied = [
+  "internal/adapters/outbound/bitcoin/**",
+  "internal/adapters/outbound/blockchain/**",
+  "internal/adapters/outbound/ethereum/**",
+  "internal/adapters/outbound/policy/**",
+  "internal/adapters/outbound/system/**",
+  "internal/adapters/outbound/webhook/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/persistence/cloudflarepostgres/**"
+denied = [
+  "internal/adapters/outbound/persistence/postgres/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/persistence/postgres/**"
+denied = [
+  "internal/adapters/outbound/persistence/cloudflarepostgres/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/policy/**"
+denied = [
+  "internal/adapters/outbound/bitcoin/**",
+  "internal/adapters/outbound/blockchain/**",
+  "internal/adapters/outbound/ethereum/**",
+  "internal/adapters/outbound/persistence/**",
+  "internal/adapters/outbound/system/**",
+  "internal/adapters/outbound/webhook/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/system/**"
+denied = [
+  "internal/adapters/outbound/bitcoin/**",
+  "internal/adapters/outbound/blockchain/**",
+  "internal/adapters/outbound/ethereum/**",
+  "internal/adapters/outbound/persistence/**",
+  "internal/adapters/outbound/policy/**",
+  "internal/adapters/outbound/webhook/**",
+]
+
+[[import_policy.forbidden]]
+source = "internal/adapters/outbound/webhook/**"
+denied = [
+  "internal/adapters/outbound/bitcoin/**",
+  "internal/adapters/outbound/blockchain/**",
+  "internal/adapters/outbound/ethereum/**",
+  "internal/adapters/outbound/persistence/**",
+  "internal/adapters/outbound/policy/**",
+  "internal/adapters/outbound/system/**",
+]
+
+# Infrastructure should stay technical and not depend on core/application/adapters.
+# This matches the architecture conformance work that removed infrastructure
+# reverse dependencies.
+[[import_policy.forbidden]]
+source = "internal/infrastructure/**"
+denied = [
+  "internal/domain/**",
+  "internal/application/**",
+  "internal/adapters/**",
+  "internal/bootstrap/**",
+  "cmd/**",
+]
+
+# Bootstrap and cmd are allowed to wire everything,
+# so do not restrict internal/bootstrap/** or cmd/** for now.

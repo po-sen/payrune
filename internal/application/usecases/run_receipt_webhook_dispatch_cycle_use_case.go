@@ -5,8 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	"payrune/internal/application/dto"
-	applicationoutbox "payrune/internal/application/outbox"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
 )
@@ -34,33 +32,33 @@ func NewRunReceiptWebhookDispatchCycleUseCase(
 
 func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 	ctx context.Context,
-	input dto.RunReceiptWebhookDispatchCycleInput,
-) (dto.RunReceiptWebhookDispatchCycleOutput, error) {
+	input inport.RunReceiptWebhookDispatchCycleInput,
+) (inport.RunReceiptWebhookDispatchCycleOutput, error) {
 	if uc.unitOfWork == nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrUnitOfWorkNotConfigured
+		return inport.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrUnitOfWorkNotConfigured
 	}
 	if uc.notifier == nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrPaymentReceiptStatusNotifierNotConfigured
+		return inport.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrPaymentReceiptStatusNotifierNotConfigured
 	}
 	if uc.policyReader == nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrAddressPolicyReaderNotConfigured
+		return inport.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrAddressPolicyReaderNotConfigured
 	}
 	if uc.clock == nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrClockNotConfigured
+		return inport.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrClockNotConfigured
 	}
 	if input.BatchSize <= 0 {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrBatchSizeMustBeGreaterThanZero
+		return inport.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrBatchSizeMustBeGreaterThanZero
 	}
 	if input.MaxAttempts <= 0 {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrMaxAttemptsMustBeGreaterThanZero
+		return inport.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrMaxAttemptsMustBeGreaterThanZero
 	}
 	if input.RetryDelay <= 0 {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrRetryDelayMustBeGreaterThanZero
+		return inport.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrRetryDelayMustBeGreaterThanZero
 	}
 
 	claimNow := uc.clock.NowUTC()
 
-	var claimedNotifications []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage
+	var claimedNotifications []outport.PaymentReceiptStatusNotificationOutboxMessage
 	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		outbox := txScope.PaymentReceiptStatusNotificationOutbox
 		if outbox == nil {
@@ -82,15 +80,15 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 	if err != nil {
 		switch {
 		case errors.Is(err, inport.ErrPaymentReceiptStatusOutboxNotConfigured):
-			return dto.RunReceiptWebhookDispatchCycleOutput{}, err
+			return inport.RunReceiptWebhookDispatchCycleOutput{}, err
 		case errors.Is(err, inport.ErrDependencyFailure):
-			return dto.RunReceiptWebhookDispatchCycleOutput{}, err
+			return inport.RunReceiptWebhookDispatchCycleOutput{}, err
 		default:
-			return dto.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrDependencyFailure
+			return inport.RunReceiptWebhookDispatchCycleOutput{}, inport.ErrDependencyFailure
 		}
 	}
 
-	output := dto.RunReceiptWebhookDispatchCycleOutput{ClaimedCount: len(claimedNotifications)}
+	output := inport.RunReceiptWebhookDispatchCycleOutput{ClaimedCount: len(claimedNotifications)}
 
 	for _, notification := range claimedNotifications {
 		outcome, err := uc.processNotification(ctx, notification, input)
@@ -98,11 +96,11 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 			return output, err
 		}
 		switch outcome {
-		case applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent:
+		case outport.PaymentReceiptNotificationDeliveryStatusSent:
 			output.SentCount++
-		case applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending:
+		case outport.PaymentReceiptNotificationDeliveryStatusPending:
 			output.RetriedCount++
-		case applicationoutbox.PaymentReceiptNotificationDeliveryStatusFailed:
+		case outport.PaymentReceiptNotificationDeliveryStatusFailed:
 			output.FailedCount++
 		}
 	}
@@ -112,9 +110,9 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) Execute(
 
 func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 	ctx context.Context,
-	notification applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage,
-	input dto.RunReceiptWebhookDispatchCycleInput,
-) (applicationoutbox.PaymentReceiptNotificationDeliveryStatus, error) {
+	notification outport.PaymentReceiptStatusNotificationOutboxMessage,
+	input inport.RunReceiptWebhookDispatchCycleInput,
+) (string, error) {
 	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, notification.AddressPolicyID)
 	if err != nil {
 		return "", inport.ErrDependencyFailure
@@ -128,21 +126,21 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 		PaymentAddressID:      notification.PaymentAddressID,
 		CustomerReference:     notification.CustomerReference,
 		AssetReference:        strings.TrimSpace(policy.AssetReference),
-		PreviousStatus:        string(notification.PreviousStatus),
-		CurrentStatus:         string(notification.CurrentStatus),
+		PreviousStatus:        notification.PreviousStatus,
+		CurrentStatus:         notification.CurrentStatus,
 		ObservedTotalMinor:    notification.ObservedTotalMinor,
 		ConfirmedTotalMinor:   notification.ConfirmedTotalMinor,
 		UnconfirmedTotalMinor: notification.UnconfirmedTotalMinor,
 		StatusChangedAt:       notification.StatusChangedAt,
 	})
 	if err != nil {
-		deliveryResult, resultErr := applicationoutbox.ResolvePaymentReceiptStatusNotificationDeliveryFailure(
+		deliveryResult, resultErr := outport.ResolvePaymentReceiptStatusNotificationDeliveryFailure(
 			notification.NotificationID,
 			notification.DeliveryAttempts,
 			input.MaxAttempts,
 			uc.clock.NowUTC(),
 			input.RetryDelay,
-			applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		)
 		if resultErr != nil {
 			return "", inport.ErrInternalFailure
@@ -153,7 +151,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 		return deliveryResult.Status, nil
 	}
 
-	deliveryResult, err := applicationoutbox.MarkPaymentReceiptStatusNotificationSent(
+	deliveryResult, err := outport.MarkPaymentReceiptStatusNotificationSent(
 		notification.NotificationID,
 		uc.clock.NowUTC(),
 	)
@@ -168,7 +166,7 @@ func (uc *runReceiptWebhookDispatchCycleUseCase) processNotification(
 
 func (uc *runReceiptWebhookDispatchCycleUseCase) saveDeliveryResult(
 	ctx context.Context,
-	deliveryResult applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
+	deliveryResult outport.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	err := uc.unitOfWork.WithinTransaction(ctx, func(txScope outport.TxScope) error {
 		outbox := txScope.PaymentReceiptStatusNotificationOutbox

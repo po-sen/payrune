@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type fakeChainObserver struct {
@@ -15,7 +14,7 @@ type fakeChainObserver struct {
 	latestBlockHeight    int64
 	latestBlockHeightErr error
 	lastInput            outport.ObservePaymentAddressInput
-	lastNetwork          valueobjects.NetworkID
+	lastNetwork          string
 	calls                int
 	fetchCalls           int
 }
@@ -34,7 +33,7 @@ func (f *fakeChainObserver) ObserveAddress(
 
 func (f *fakeChainObserver) FetchLatestBlockHeight(
 	_ context.Context,
-	network valueobjects.NetworkID,
+	network string,
 ) (int64, error) {
 	f.fetchCalls++
 	f.lastNetwork = network
@@ -53,15 +52,15 @@ func TestNewMultiChainReceiptObserverValidation(t *testing.T) {
 		t.Fatal("expected error for empty observer map")
 	}
 
-	_, err = NewMultiChainReceiptObserver(map[valueobjects.ChainID]outport.ChainReceiptObserver{
-		valueobjects.ChainIDBitcoin: nil,
+	_, err = NewMultiChainReceiptObserver(map[string]outport.ChainReceiptObserver{
+		outport.SupportedChainBitcoin: nil,
 	})
 	if err == nil {
 		t.Fatal("expected error for nil observer")
 	}
 
-	_, err = NewMultiChainReceiptObserver(map[valueobjects.ChainID]outport.ChainReceiptObserver{
-		valueobjects.ChainID("eth/mainnet"): &fakeChainObserver{},
+	_, err = NewMultiChainReceiptObserver(map[string]outport.ChainReceiptObserver{
+		"eth/mainnet": &fakeChainObserver{},
 	})
 	if err == nil {
 		t.Fatal("expected error for invalid chain key")
@@ -74,16 +73,16 @@ func TestMultiChainReceiptObserverObserveAddress(t *testing.T) {
 			ObservedTotalMinor: 123,
 		},
 	}
-	router, err := NewMultiChainReceiptObserver(map[valueobjects.ChainID]outport.ChainReceiptObserver{
-		valueobjects.ChainIDBitcoin: bitcoinObserver,
+	router, err := NewMultiChainReceiptObserver(map[string]outport.ChainReceiptObserver{
+		outport.SupportedChainBitcoin: bitcoinObserver,
 	})
 	if err != nil {
 		t.Fatalf("setup router: %v", err)
 	}
 
 	output, err := router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
-		Chain:                 valueobjects.ChainID("BitCoin"),
-		Network:               valueobjects.NetworkIDTestnet4,
+		Chain:                 "BitCoin",
+		Network:               outport.NetworkIDTestnet4,
 		Address:               "tb1qexample",
 		RequiredConfirmations: 1,
 		LatestBlockHeight:     222,
@@ -97,7 +96,7 @@ func TestMultiChainReceiptObserverObserveAddress(t *testing.T) {
 	if bitcoinObserver.calls != 1 {
 		t.Fatalf("unexpected observer calls: got %d", bitcoinObserver.calls)
 	}
-	if bitcoinObserver.lastInput.Network != valueobjects.NetworkIDTestnet4 {
+	if bitcoinObserver.lastInput.Network != outport.NetworkIDTestnet4 {
 		t.Fatalf("unexpected normalized network: got %q", bitcoinObserver.lastInput.Network)
 	}
 	if bitcoinObserver.lastInput.LatestBlockHeight != 222 {
@@ -107,8 +106,8 @@ func TestMultiChainReceiptObserverObserveAddress(t *testing.T) {
 
 func TestMultiChainReceiptObserverFetchLatestBlockHeight(t *testing.T) {
 	bitcoinObserver := &fakeChainObserver{latestBlockHeight: 321}
-	router, err := NewMultiChainReceiptObserver(map[valueobjects.ChainID]outport.ChainReceiptObserver{
-		valueobjects.ChainIDBitcoin: bitcoinObserver,
+	router, err := NewMultiChainReceiptObserver(map[string]outport.ChainReceiptObserver{
+		outport.SupportedChainBitcoin: bitcoinObserver,
 	})
 	if err != nil {
 		t.Fatalf("setup router: %v", err)
@@ -116,8 +115,8 @@ func TestMultiChainReceiptObserverFetchLatestBlockHeight(t *testing.T) {
 
 	latestBlockHeight, err := router.FetchLatestBlockHeight(
 		context.Background(),
-		valueobjects.ChainID("BitCoin"),
-		valueobjects.NetworkIDTestnet4,
+		"BitCoin",
+		outport.NetworkIDTestnet4,
 	)
 	if err != nil {
 		t.Fatalf("FetchLatestBlockHeight returned error: %v", err)
@@ -128,23 +127,23 @@ func TestMultiChainReceiptObserverFetchLatestBlockHeight(t *testing.T) {
 	if bitcoinObserver.fetchCalls != 1 {
 		t.Fatalf("unexpected fetch call count: got %d", bitcoinObserver.fetchCalls)
 	}
-	if bitcoinObserver.lastNetwork != valueobjects.NetworkIDTestnet4 {
+	if bitcoinObserver.lastNetwork != outport.NetworkIDTestnet4 {
 		t.Fatalf("unexpected normalized network: got %q", bitcoinObserver.lastNetwork)
 	}
 }
 
 func TestMultiChainReceiptObserverObserveAddressValidation(t *testing.T) {
 	bitcoinObserver := &fakeChainObserver{}
-	router, err := NewMultiChainReceiptObserver(map[valueobjects.ChainID]outport.ChainReceiptObserver{
-		valueobjects.ChainIDBitcoin: bitcoinObserver,
+	router, err := NewMultiChainReceiptObserver(map[string]outport.ChainReceiptObserver{
+		outport.SupportedChainBitcoin: bitcoinObserver,
 	})
 	if err != nil {
 		t.Fatalf("setup router: %v", err)
 	}
 
 	_, err = router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
-		Chain:                 valueobjects.ChainID("eth/mainnet"),
-		Network:               valueobjects.NetworkIDTestnet4,
+		Chain:                 "eth/mainnet",
+		Network:               outport.NetworkIDTestnet4,
 		Address:               "tb1qexample",
 		RequiredConfirmations: 1,
 	})
@@ -153,8 +152,8 @@ func TestMultiChainReceiptObserverObserveAddressValidation(t *testing.T) {
 	}
 
 	_, err = router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
-		Chain:                 valueobjects.ChainIDBitcoin,
-		Network:               valueobjects.NetworkID("main/net"),
+		Chain:                 outport.SupportedChainBitcoin,
+		Network:               "main/net",
 		Address:               "tb1qexample",
 		RequiredConfirmations: 1,
 	})
@@ -163,8 +162,8 @@ func TestMultiChainReceiptObserverObserveAddressValidation(t *testing.T) {
 	}
 
 	_, err = router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
-		Chain:                 valueobjects.ChainID("ethereum"),
-		Network:               valueobjects.NetworkIDMainnet,
+		Chain:                 "ethereum",
+		Network:               outport.NetworkIDMainnet,
 		Address:               "0x123",
 		RequiredConfirmations: 1,
 	})
@@ -175,16 +174,16 @@ func TestMultiChainReceiptObserverObserveAddressValidation(t *testing.T) {
 
 func TestMultiChainReceiptObserverObserveAddressPassThroughError(t *testing.T) {
 	bitcoinObserver := &fakeChainObserver{err: errors.New("boom")}
-	router, err := NewMultiChainReceiptObserver(map[valueobjects.ChainID]outport.ChainReceiptObserver{
-		valueobjects.ChainIDBitcoin: bitcoinObserver,
+	router, err := NewMultiChainReceiptObserver(map[string]outport.ChainReceiptObserver{
+		outport.SupportedChainBitcoin: bitcoinObserver,
 	})
 	if err != nil {
 		t.Fatalf("setup router: %v", err)
 	}
 
 	_, err = router.ObserveAddress(context.Background(), outport.ObserveChainPaymentAddressInput{
-		Chain:                 valueobjects.ChainIDBitcoin,
-		Network:               valueobjects.NetworkIDMainnet,
+		Chain:                 outport.SupportedChainBitcoin,
+		Network:               outport.NetworkIDMainnet,
 		Address:               "bc1qexample",
 		RequiredConfirmations: 1,
 	})

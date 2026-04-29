@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentAddressStatusFinder struct {
@@ -82,7 +81,7 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		    AND a.id = $2
 		    AND a.allocation_status = 'issued'
 		  LIMIT 1`,
-		string(input.Chain),
+		input.Chain,
 		input.PaymentAddressID,
 	).Scan(
 		&paymentAddressID,
@@ -118,7 +117,7 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
 	}
 
-	chain, ok := valueobjects.ParseSupportedChain(rawChain)
+	chain, ok := outport.NormalizeSupportedChain(rawChain)
 	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
 			"%w: %s",
@@ -126,15 +125,15 @@ func (f *PaymentAddressStatusFinder) FindByID(
 			rawChain,
 		)
 	}
-	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
-	if err != nil {
+	parsedAddressPolicyID, ok := outport.NormalizeAddressPolicyID(addressPolicyID)
+	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
 			"%w: %s",
 			outport.ErrPaymentAddressStatusPersistedAddressPolicyIDInvalid,
 			strings.TrimSpace(addressPolicyID),
 		)
 	}
-	network, ok := valueobjects.ParseNetworkID(rawNetwork)
+	network, ok := outport.NormalizeNetworkID(rawNetwork)
 	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
 			"%w: %s",
@@ -145,7 +144,7 @@ func (f *PaymentAddressStatusFinder) FindByID(
 	if !receiptStatusRaw.Valid {
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
 	}
-	status, ok := valueobjects.ParsePaymentReceiptStatus(receiptStatusRaw.String)
+	status, ok := outport.NormalizePaymentReceiptStatus(receiptStatusRaw.String)
 	if !ok {
 		return outport.PaymentAddressStatusRecord{}, false, fmt.Errorf(
 			"%w: %s",
@@ -158,6 +157,11 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
 	}
 
+	normalizedScheme, ok := outport.NormalizeAddressScheme(scheme)
+	if !ok {
+		return outport.PaymentAddressStatusRecord{}, false, outport.ErrPaymentAddressStatusIncomplete
+	}
+
 	lastFailureReason := normalizePaymentReceiptTrackingFailureReason(lastError.String)
 
 	record := outport.PaymentAddressStatusRecord{
@@ -167,7 +171,7 @@ func (f *PaymentAddressStatusFinder) FindByID(
 		CustomerReference:       strings.TrimSpace(customerReference),
 		Chain:                   chain,
 		Network:                 network,
-		Scheme:                  valueobjects.AddressScheme(scheme).Normalize(),
+		Scheme:                  normalizedScheme,
 		Address:                 strings.TrimSpace(address),
 		PaymentStatus:           status,
 		ObservedTotalMinor:      observedTotalMinor.Int64,

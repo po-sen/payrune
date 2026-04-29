@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 )
 
@@ -43,7 +42,7 @@ func (h *WebhookDispatcherHandler) Handle(
 		return WebhookDispatcherResponse{}, errors.New("cloudflare worker webhook dispatcher use case is not configured")
 	}
 
-	output, err := h.useCase.Execute(ctx, dto.RunReceiptWebhookDispatchCycleInput{
+	output, err := h.useCase.Execute(ctx, inport.RunReceiptWebhookDispatchCycleInput{
 		BatchSize:   request.BatchSize,
 		DispatchTTL: request.DispatchTTL,
 		RetryDelay:  request.RetryDelay,

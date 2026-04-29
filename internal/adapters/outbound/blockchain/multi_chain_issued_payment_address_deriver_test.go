@@ -6,20 +6,17 @@ import (
 	"testing"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/policies"
-	"payrune/internal/domain/valueobjects"
 )
 
 type fakeChainSpecificIssuedPaymentAddressDeriver struct {
-	chain     valueobjects.SupportedChain
+	chain     string
 	output    outport.DeriveIssuedPaymentAddressOutput
 	err       error
 	lastInput outport.DeriveIssuedPaymentAddressInput
 	calls     int
 }
 
-func (f *fakeChainSpecificIssuedPaymentAddressDeriver) Chain() valueobjects.SupportedChain {
+func (f *fakeChainSpecificIssuedPaymentAddressDeriver) Chain() string {
 	return f.chain
 }
 
@@ -44,8 +41,8 @@ func TestNewMultiChainIssuedPaymentAddressDeriverRequiresDerivers(t *testing.T) 
 
 func TestNewMultiChainIssuedPaymentAddressDeriverRejectsDuplicateChains(t *testing.T) {
 	_, err := NewMultiChainIssuedPaymentAddressDeriver(
-		&fakeChainSpecificIssuedPaymentAddressDeriver{chain: valueobjects.SupportedChainBitcoin},
-		&fakeChainSpecificIssuedPaymentAddressDeriver{chain: valueobjects.SupportedChainBitcoin},
+		&fakeChainSpecificIssuedPaymentAddressDeriver{chain: outport.SupportedChainBitcoin},
+		&fakeChainSpecificIssuedPaymentAddressDeriver{chain: outport.SupportedChainBitcoin},
 	)
 	if err == nil {
 		t.Fatal("expected duplicate-chain error")
@@ -54,31 +51,31 @@ func TestNewMultiChainIssuedPaymentAddressDeriverRejectsDuplicateChains(t *testi
 
 func TestMultiChainIssuedPaymentAddressDeriverSupportsConfiguredChain(t *testing.T) {
 	deriver, err := NewMultiChainIssuedPaymentAddressDeriver(
-		&fakeChainSpecificIssuedPaymentAddressDeriver{chain: valueobjects.SupportedChainBitcoin},
+		&fakeChainSpecificIssuedPaymentAddressDeriver{chain: outport.SupportedChainBitcoin},
 	)
 	if err != nil {
 		t.Fatalf("NewMultiChainIssuedPaymentAddressDeriver returned error: %v", err)
 	}
 
-	if !deriver.SupportsChain(valueobjects.SupportedChainBitcoin) {
+	if !deriver.SupportsChain(outport.SupportedChainBitcoin) {
 		t.Fatal("expected bitcoin to be supported")
 	}
-	if deriver.SupportsChain(valueobjects.SupportedChainEthereum) {
+	if deriver.SupportsChain(outport.SupportedChainEthereum) {
 		t.Fatal("expected ethereum to be unsupported")
 	}
 }
 
 func TestMultiChainIssuedPaymentAddressDeriverDispatchesByChain(t *testing.T) {
 	bitcoinDeriver := &fakeChainSpecificIssuedPaymentAddressDeriver{
-		chain: valueobjects.SupportedChainBitcoin,
+		chain: outport.SupportedChainBitcoin,
 		output: outport.DeriveIssuedPaymentAddressOutput{
 			Address:         "bc1qissued",
-			IssuanceRefKind: valueobjects.IssuanceRefKindHDPathAbsolute,
+			IssuanceRefKind: outport.IssuanceRefKindHDPathAbsolute,
 			IssuanceRef:     "m/84'/0'/0'/0/8",
 		},
 	}
 	ethereumDeriver := &fakeChainSpecificIssuedPaymentAddressDeriver{
-		chain: valueobjects.SupportedChainEthereum,
+		chain: outport.SupportedChainEthereum,
 	}
 
 	deriver, err := NewMultiChainIssuedPaymentAddressDeriver(bitcoinDeriver, ethereumDeriver)
@@ -87,17 +84,15 @@ func TestMultiChainIssuedPaymentAddressDeriverDispatchesByChain(t *testing.T) {
 	}
 
 	output, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
-			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          valueobjects.AddressSchemeNativeSegwit,
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSpaceRef:   "xpub-main",
-				IssuanceRefPrefix: "m/84'/0'/0'",
-			},
+		Policy: outport.AddressIssuancePolicyRecord{
+			AddressPolicyID:   "bitcoin-mainnet-native-segwit",
+			Chain:             outport.SupportedChainBitcoin,
+			Network:           outport.NetworkIDMainnet,
+			Scheme:            outport.AddressSchemeNativeSegwit,
+			AddressSpaceRef:   "xpub-main",
+			IssuanceRefPrefix: "m/84'/0'/0'",
 		},
-		Allocation: entities.PaymentAddressAllocation{
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 88,
 			SlotIndex:        8,
 		},
@@ -118,7 +113,7 @@ func TestMultiChainIssuedPaymentAddressDeriverDispatchesByChain(t *testing.T) {
 
 func TestMultiChainIssuedPaymentAddressDeriverPropagatesChainSpecificError(t *testing.T) {
 	bitcoinDeriver := &fakeChainSpecificIssuedPaymentAddressDeriver{
-		chain: valueobjects.SupportedChainBitcoin,
+		chain: outport.SupportedChainBitcoin,
 		err:   errors.New("derive failed"),
 	}
 
@@ -128,11 +123,11 @@ func TestMultiChainIssuedPaymentAddressDeriverPropagatesChainSpecificError(t *te
 	}
 
 	_, err = deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
+		Policy: outport.AddressIssuancePolicyRecord{
 			AddressPolicyID: "bitcoin-mainnet-native-segwit",
-			Chain:           valueobjects.SupportedChainBitcoin,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          valueobjects.AddressSchemeNativeSegwit,
+			Chain:           outport.SupportedChainBitcoin,
+			Network:         outport.NetworkIDMainnet,
+			Scheme:          outport.AddressSchemeNativeSegwit,
 		},
 	})
 	if !errors.Is(err, outport.ErrIssuedPaymentAddressDerivationFailed) {

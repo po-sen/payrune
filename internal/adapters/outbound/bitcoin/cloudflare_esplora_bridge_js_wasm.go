@@ -8,8 +8,6 @@ import (
 	"errors"
 	"math"
 	"syscall/js"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 const (
@@ -27,11 +25,11 @@ func NewCloudflareEsploraBridge() cloudflareEsploraBridge {
 func (b *jsCloudflareEsploraBridge) FetchLatestBlockHeight(
 	ctx context.Context,
 	bridgeID string,
-	network valueobjects.NetworkID,
+	network string,
 ) (int64, error) {
 	value, err := awaitBitcoinPromise(
 		ctx,
-		js.Global().Call(jsFnBitcoinFetchLatestBlockHeight, bridgeID, string(network)),
+		js.Global().Call(jsFnBitcoinFetchLatestBlockHeight, bridgeID, network),
 	)
 	if err != nil {
 		return 0, err
@@ -47,24 +45,24 @@ func (b *jsCloudflareEsploraBridge) FetchLatestBlockHeight(
 func (b *jsCloudflareEsploraBridge) FetchAddressChainTransactions(
 	ctx context.Context,
 	bridgeID string,
-	network valueobjects.NetworkID,
+	network string,
 	address string,
 ) ([]esploraTransaction, error) {
 	return fetchBitcoinTransactions(
 		ctx,
-		js.Global().Call(jsFnBitcoinFetchAddressChainTransactions, bridgeID, string(network), address),
+		js.Global().Call(jsFnBitcoinFetchAddressChainTransactions, bridgeID, network, address),
 	)
 }
 
 func (b *jsCloudflareEsploraBridge) FetchAddressMempoolTransactions(
 	ctx context.Context,
 	bridgeID string,
-	network valueobjects.NetworkID,
+	network string,
 	address string,
 ) ([]esploraTransaction, error) {
 	return fetchBitcoinTransactions(
 		ctx,
-		js.Global().Call(jsFnBitcoinFetchAddressMempoolTxs, bridgeID, string(network), address),
+		js.Global().Call(jsFnBitcoinFetchAddressMempoolTxs, bridgeID, network, address),
 	)
 }
 

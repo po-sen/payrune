@@ -8,8 +8,6 @@ import (
 	"time"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentReceiptTrackingStore struct {
@@ -22,7 +20,7 @@ func NewPaymentReceiptTrackingStore(executor executor) *PaymentReceiptTrackingSt
 
 func (r *PaymentReceiptTrackingStore) Create(
 	ctx context.Context,
-	tracking entities.PaymentReceiptTracking,
+	tracking outport.PaymentReceiptTrackingRecord,
 	nextPollAt time.Time,
 ) error {
 	if nextPollAt.IsZero() {
@@ -60,15 +58,15 @@ func (r *PaymentReceiptTrackingStore) Create(
 		   ON CONFLICT (payment_address_id) DO NOTHING`,
 		tracking.PaymentAddressID,
 		tracking.AddressPolicyID,
-		string(tracking.Chain),
-		string(tracking.Network),
+		tracking.Chain,
+		tracking.Network,
 		tracking.Address,
 		nullIfEmpty(strings.TrimSpace(tracking.AssetReference)),
 		tracking.IssuedAt.UTC(),
 		nullableTimePointer(tracking.ExpiresAt),
 		tracking.ExpectedAmountMinor,
 		tracking.RequiredConfirmations,
-		string(tracking.Status),
+		tracking.Status,
 		tracking.ObservedTotalMinor,
 		tracking.ConfirmedTotalMinor,
 		tracking.UnconfirmedTotalMinor,
@@ -76,7 +74,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 		nullableTimePointer(tracking.FirstObservedAt),
 		nullableTimePointer(tracking.PaidAt),
 		nullableTimePointer(tracking.ConfirmedAt),
-		nullIfEmpty(string(tracking.LastFailureReason)),
+		nullIfEmpty(tracking.LastFailureReason),
 		nextPollAt.UTC(),
 	)
 	if err != nil {
@@ -96,7 +94,7 @@ func (r *PaymentReceiptTrackingStore) Create(
 func (r *PaymentReceiptTrackingStore) ClaimDue(
 	ctx context.Context,
 	input outport.ClaimPaymentReceiptTrackingsInput,
-) ([]entities.PaymentReceiptTracking, error) {
+) ([]outport.PaymentReceiptTrackingRecord, error) {
 	if input.Now.IsZero() {
 		return nil, outport.ErrPaymentReceiptTrackingClaimNowRequired
 	}
@@ -118,8 +116,8 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 		if status == "" {
 			return nil, outport.ErrPaymentReceiptTrackingClaimStatusRequired
 		}
-		statusFilters = append(statusFilters, string(status))
-		args = append(args, string(status))
+		statusFilters = append(statusFilters, status)
+		args = append(args, status)
 	}
 	args = append(args, chainFilter, networkFilter)
 
@@ -179,7 +177,7 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 	}
 	defer rows.Close()
 
-	trackings := make([]entities.PaymentReceiptTracking, 0, input.Limit)
+	trackings := make([]outport.PaymentReceiptTrackingRecord, 0, input.Limit)
 	for rows.Next() {
 		tracking, err := scanPaymentReceiptTracking(rows)
 		if err != nil {
@@ -196,7 +194,7 @@ func (r *PaymentReceiptTrackingStore) ClaimDue(
 
 func (r *PaymentReceiptTrackingStore) Save(
 	ctx context.Context,
-	tracking entities.PaymentReceiptTracking,
+	tracking outport.PaymentReceiptTrackingRecord,
 	polledAt time.Time,
 	nextPollAt time.Time,
 ) error {
@@ -226,7 +224,7 @@ func (r *PaymentReceiptTrackingStore) Save(
 		     updated_at = NOW()
 		 WHERE payment_address_id = $1`,
 		tracking.PaymentAddressID,
-		string(tracking.Status),
+		tracking.Status,
 		tracking.ObservedTotalMinor,
 		tracking.ConfirmedTotalMinor,
 		tracking.UnconfirmedTotalMinor,
@@ -235,7 +233,7 @@ func (r *PaymentReceiptTrackingStore) Save(
 		nullableTimePointer(tracking.PaidAt),
 		nullableTimePointer(tracking.ConfirmedAt),
 		nullableTimePointer(tracking.ExpiresAt),
-		nullIfEmpty(string(tracking.LastFailureReason)),
+		nullIfEmpty(tracking.LastFailureReason),
 		polledAt.UTC(),
 		nextPollAt.UTC(),
 	)
@@ -256,7 +254,7 @@ func (r *PaymentReceiptTrackingStore) Save(
 
 func scanPaymentReceiptTracking(scanner interface {
 	Scan(dest ...any) error
-}) (entities.PaymentReceiptTracking, error) {
+}) (outport.PaymentReceiptTrackingRecord, error) {
 	var trackingID int64
 	var paymentAddressID int64
 	var addressPolicyID string
@@ -300,33 +298,33 @@ func scanPaymentReceiptTracking(scanner interface {
 		&lastError,
 		&rawAssetReference,
 	); err != nil {
-		return entities.PaymentReceiptTracking{}, outport.ErrPaymentReceiptTrackingStoreFailed
+		return outport.PaymentReceiptTrackingRecord{}, outport.ErrPaymentReceiptTrackingStoreFailed
 	}
 
-	chain, ok := valueobjects.ParseChainID(chainRaw)
+	chain, ok := outport.NormalizeChainID(chainRaw)
 	if !ok {
-		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedChainInvalid, chainRaw)
+		return outport.PaymentReceiptTrackingRecord{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedChainInvalid, chainRaw)
 	}
-	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
-	if err != nil {
-		return entities.PaymentReceiptTracking{}, fmt.Errorf(
+	parsedAddressPolicyID, ok := outport.NormalizeAddressPolicyID(addressPolicyID)
+	if !ok {
+		return outport.PaymentReceiptTrackingRecord{}, fmt.Errorf(
 			"%w: %s",
 			outport.ErrPaymentReceiptTrackingPersistedAddressPolicyIDInvalid,
 			strings.TrimSpace(addressPolicyID),
 		)
 	}
-	network, ok := valueobjects.ParseNetworkID(networkRaw)
+	network, ok := outport.NormalizeNetworkID(networkRaw)
 	if !ok {
-		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedNetworkInvalid, networkRaw)
+		return outport.PaymentReceiptTrackingRecord{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedNetworkInvalid, networkRaw)
 	}
 	assetReference := strings.TrimSpace(rawAssetReference)
-	status, ok := valueobjects.ParsePaymentReceiptStatus(receiptStatusRaw)
+	status, ok := outport.NormalizePaymentReceiptStatus(receiptStatusRaw)
 	if !ok {
-		return entities.PaymentReceiptTracking{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedStatusInvalid, receiptStatusRaw)
+		return outport.PaymentReceiptTrackingRecord{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptTrackingPersistedStatusInvalid, receiptStatusRaw)
 	}
 	lastFailureReason := normalizePaymentReceiptTrackingFailureReason(lastError)
 
-	tracking := entities.PaymentReceiptTracking{
+	tracking := outport.PaymentReceiptTrackingRecord{
 		TrackingID:              trackingID,
 		PaymentAddressID:        paymentAddressID,
 		AddressPolicyID:         parsedAddressPolicyID,

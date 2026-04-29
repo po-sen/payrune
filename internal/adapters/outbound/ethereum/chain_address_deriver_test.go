@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 func TestBuildCreate2AddressSpaceRef(t *testing.T) {
@@ -86,8 +85,8 @@ func TestPredictCreate2AddressMatchesEIP1014Examples(t *testing.T) {
 func TestChainAddressDeriverDeriveAddressDeterministically(t *testing.T) {
 	deriver := NewChainAddressDeriver()
 	input := outport.DeriveChainAddressInput{
-		Chain:               valueobjects.SupportedChainEthereum,
-		Network:             valueobjects.NetworkIDMainnet,
+		Chain:               outport.SupportedChainEthereum,
+		Network:             outport.NetworkIDMainnet,
 		Scheme:              "create2",
 		AddressSpaceRef:     "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 		RelativeIssuanceRef: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -111,7 +110,7 @@ func TestChainAddressDeriverDeriveAddressDeterministically(t *testing.T) {
 	if first.RelativeIssuanceRef == "" {
 		t.Fatal("expected relative address reference")
 	}
-	if first.IssuanceRefKind != valueobjects.IssuanceRefKindCreate2Salt {
+	if first.IssuanceRefKind != outport.IssuanceRefKindCreate2Salt {
 		t.Fatalf("unexpected issuance ref kind: got %q", first.IssuanceRefKind)
 	}
 	if first.IssuanceRef != first.RelativeIssuanceRef {
@@ -138,29 +137,29 @@ func TestChainAddressDeriverRejectsInvalidInput(t *testing.T) {
 
 	tests := []outport.DeriveChainAddressInput{
 		{
-			Chain:               valueobjects.SupportedChainBitcoin,
-			Network:             valueobjects.NetworkIDMainnet,
+			Chain:               outport.SupportedChainBitcoin,
+			Network:             outport.NetworkIDMainnet,
 			Scheme:              "create2",
 			AddressSpaceRef:     "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			RelativeIssuanceRef: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
-			Chain:               valueobjects.SupportedChainEthereum,
-			Network:             valueobjects.NetworkIDMainnet,
+			Chain:               outport.SupportedChainEthereum,
+			Network:             outport.NetworkIDMainnet,
 			Scheme:              "legacy",
 			AddressSpaceRef:     "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			RelativeIssuanceRef: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
-			Chain:               valueobjects.SupportedChainEthereum,
-			Network:             valueobjects.NetworkIDMainnet,
+			Chain:               outport.SupportedChainEthereum,
+			Network:             outport.NetworkIDMainnet,
 			Scheme:              "create2",
 			AddressSpaceRef:     "",
 			RelativeIssuanceRef: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 		{
-			Chain:               valueobjects.SupportedChainEthereum,
-			Network:             valueobjects.NetworkIDMainnet,
+			Chain:               outport.SupportedChainEthereum,
+			Network:             outport.NetworkIDMainnet,
 			Scheme:              "create2",
 			AddressSpaceRef:     "create2.v1:factory=0x1111111111111111111111111111111111111111;collector=0x2222222222222222222222222222222222222222;init_code_hash=0x3333333333333333333333333333333333333333333333333333333333333333",
 			RelativeIssuanceRef: "",

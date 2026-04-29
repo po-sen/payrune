@@ -6,26 +6,25 @@ import (
 	"fmt"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type MultiChainReceiptObserver struct {
-	observers map[valueobjects.ChainID]outport.ChainReceiptObserver
+	observers map[string]outport.ChainReceiptObserver
 }
 
 func NewMultiChainReceiptObserver(
-	observers map[valueobjects.ChainID]outport.ChainReceiptObserver,
+	observers map[string]outport.ChainReceiptObserver,
 ) (*MultiChainReceiptObserver, error) {
 	if len(observers) == 0 {
 		return nil, errors.New("at least one chain observer is required")
 	}
 
-	normalized := make(map[valueobjects.ChainID]outport.ChainReceiptObserver, len(observers))
+	normalized := make(map[string]outport.ChainReceiptObserver, len(observers))
 	for chain, observer := range observers {
 		if observer == nil {
 			return nil, fmt.Errorf("observer is not configured for chain: %s", chain)
 		}
-		normalizedChain, ok := valueobjects.ParseChainID(string(chain))
+		normalizedChain, ok := outport.NormalizeChainID(chain)
 		if !ok {
 			return nil, fmt.Errorf("observer chain key is invalid: %s", chain)
 		}
@@ -71,8 +70,8 @@ func (o *MultiChainReceiptObserver) ObserveAddress(
 
 func (o *MultiChainReceiptObserver) FetchLatestBlockHeight(
 	ctx context.Context,
-	chain valueobjects.ChainID,
-	network valueobjects.NetworkID,
+	chain string,
+	network string,
 ) (int64, error) {
 	observer, normalizedNetwork, err := o.resolveObserver(chain, network)
 	if err != nil {
@@ -93,14 +92,14 @@ func (o *MultiChainReceiptObserver) FetchLatestBlockHeight(
 }
 
 func (o *MultiChainReceiptObserver) resolveObserver(
-	chain valueobjects.ChainID,
-	network valueobjects.NetworkID,
-) (outport.ChainReceiptObserver, valueobjects.NetworkID, error) {
-	normalizedChain, ok := valueobjects.ParseChainID(string(chain))
+	chain string,
+	network string,
+) (outport.ChainReceiptObserver, string, error) {
+	normalizedChain, ok := outport.NormalizeChainID(chain)
 	if !ok {
 		return nil, "", outport.ErrBlockchainReceiptObserverInputInvalid
 	}
-	normalizedNetwork, ok := valueobjects.ParseNetworkID(string(network))
+	normalizedNetwork, ok := outport.NormalizeNetworkID(network)
 	if !ok {
 		return nil, "", outport.ErrBlockchainReceiptObserverInputInvalid
 	}

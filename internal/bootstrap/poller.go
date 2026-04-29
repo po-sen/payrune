@@ -129,8 +129,8 @@ func RunPoller(ctx context.Context, config PollerConfig) error {
 			BatchSize:          config.BatchSize,
 			RescheduleInterval: config.RescheduleInterval,
 			ClaimTTL:           config.ClaimTTL,
-			Chain:              config.Chain,
-			Network:            config.Network,
+			Chain:              string(config.Chain),
+			Network:            string(config.Network),
 		})
 		if err != nil {
 			log.Printf("poll cycle failed: err=%v", err)
@@ -203,7 +203,7 @@ func newPollerContainer() (*pollerContainer, error) {
 	}
 
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
-	chainObservers := make(map[valueobjects.ChainID]outport.ChainReceiptObserver, 2)
+	chainObservers := make(map[string]outport.ChainReceiptObserver, 2)
 	if !scoped || scopeChain == valueobjects.ChainIDBitcoin {
 		bitcoinConfigs := loadBitcoinEsploraConfigsFromEnv()
 		if len(bitcoinConfigs) > 0 {
@@ -212,7 +212,7 @@ func newPollerContainer() (*pollerContainer, error) {
 				_ = db.Close()
 				return nil, err
 			}
-			chainObservers[valueobjects.ChainIDBitcoin] = bitcoinObserver
+			chainObservers[string(valueobjects.ChainIDBitcoin)] = bitcoinObserver
 		}
 	}
 	if !scoped || scopeChain == valueobjects.ChainIDEthereum {
@@ -223,7 +223,7 @@ func newPollerContainer() (*pollerContainer, error) {
 				_ = db.Close()
 				return nil, err
 			}
-			chainObservers[valueobjects.ChainIDEthereum] = ethereumObserver
+			chainObservers[string(valueobjects.ChainIDEthereum)] = ethereumObserver
 		}
 	}
 	receiptObserver, err := blockchainadapter.NewMultiChainReceiptObserver(chainObservers)
@@ -405,14 +405,14 @@ func loadBitcoinTestnet4EsploraConfigFromEnv() *bitcoin.BitcoinEsploraObserverCo
 	})
 }
 
-func loadBitcoinEsploraConfigsFromEnv() map[valueobjects.NetworkID]*bitcoin.BitcoinEsploraObserverConfig {
-	configs := make(map[valueobjects.NetworkID]*bitcoin.BitcoinEsploraObserverConfig, 2)
+func loadBitcoinEsploraConfigsFromEnv() map[string]*bitcoin.BitcoinEsploraObserverConfig {
+	configs := make(map[string]*bitcoin.BitcoinEsploraObserverConfig, 2)
 
 	if mainnetConfig := loadBitcoinMainnetEsploraConfigFromEnv(); mainnetConfig != nil {
-		configs[valueobjects.NetworkIDMainnet] = mainnetConfig
+		configs[string(valueobjects.NetworkIDMainnet)] = mainnetConfig
 	}
 	if testnet4Config := loadBitcoinTestnet4EsploraConfigFromEnv(); testnet4Config != nil {
-		configs[valueobjects.NetworkIDTestnet4] = testnet4Config
+		configs[string(valueobjects.NetworkIDTestnet4)] = testnet4Config
 	}
 
 	return configs
@@ -471,14 +471,14 @@ func loadEthereumSepoliaRPCConfigFromEnv() *ethereum.EthereumRPCObserverConfig {
 	})
 }
 
-func loadEthereumRPCConfigsFromEnv() map[valueobjects.NetworkID]*ethereum.EthereumRPCObserverConfig {
+func loadEthereumRPCConfigsFromEnv() map[string]*ethereum.EthereumRPCObserverConfig {
 	return loadEthereumRPCConfigsFromLookup(os.Getenv)
 }
 
 func loadEthereumRPCConfigsFromLookup(
 	lookup func(string) string,
-) map[valueobjects.NetworkID]*ethereum.EthereumRPCObserverConfig {
-	configs := make(map[valueobjects.NetworkID]*ethereum.EthereumRPCObserverConfig, 2)
+) map[string]*ethereum.EthereumRPCObserverConfig {
+	configs := make(map[string]*ethereum.EthereumRPCObserverConfig, 2)
 
 	if mainnetConfig := loadEthereumRPCConfigFromLookup(lookup, ethereumRPCEndpointEnvKeys{
 		url:            envEthereumMainnetRPCURL,
@@ -487,7 +487,7 @@ func loadEthereumRPCConfigsFromLookup(
 		timeout:        envEthereumMainnetRPCTimeout,
 		timeoutSeconds: envEthereumMainnetRPCTimeoutSeconds,
 	}); mainnetConfig != nil {
-		configs[valueobjects.NetworkIDMainnet] = mainnetConfig
+		configs[string(valueobjects.NetworkIDMainnet)] = mainnetConfig
 	}
 	if sepoliaConfig := loadEthereumRPCConfigFromLookup(lookup, ethereumRPCEndpointEnvKeys{
 		url:            envEthereumSepoliaRPCURL,
@@ -496,7 +496,7 @@ func loadEthereumRPCConfigsFromLookup(
 		timeout:        envEthereumSepoliaRPCTimeout,
 		timeoutSeconds: envEthereumSepoliaRPCTimeoutSeconds,
 	}); sepoliaConfig != nil {
-		configs[valueobjects.NetworkIDSepolia] = sepoliaConfig
+		configs[string(valueobjects.NetworkIDSepolia)] = sepoliaConfig
 	}
 
 	return configs

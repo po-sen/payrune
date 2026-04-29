@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
+	"payrune/internal/domain/valueobjects"
 )
 
 type getPaymentAddressStatusUseCase struct {
@@ -28,14 +28,19 @@ func NewGetPaymentAddressStatusUseCase(
 
 func (uc *getPaymentAddressStatusUseCase) Execute(
 	ctx context.Context,
-	input dto.GetPaymentAddressStatusInput,
-) (dto.GetPaymentAddressStatusResponse, error) {
+	input inport.GetPaymentAddressStatusInput,
+) (inport.GetPaymentAddressStatusResponse, error) {
 	if uc.finder == nil {
-		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressStatusFinderNotConfigured
+		return inport.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressStatusFinderNotConfigured
 	}
 	if uc.policyReader == nil {
-		return dto.GetPaymentAddressStatusResponse{}, inport.ErrAddressPolicyReaderNotConfigured
+		return inport.GetPaymentAddressStatusResponse{}, inport.ErrAddressPolicyReaderNotConfigured
 	}
+	normalizedChain, ok := valueobjects.ParseSupportedChain(input.Chain)
+	if !ok {
+		return inport.GetPaymentAddressStatusResponse{}, inport.ErrChainNotSupported
+	}
+	input.Chain = string(normalizedChain)
 
 	record, found, err := uc.finder.FindByID(ctx, outport.FindPaymentAddressStatusInput{
 		Chain:            input.Chain,
@@ -44,41 +49,41 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 	if err != nil {
 		switch {
 		case errors.Is(err, outport.ErrPaymentAddressStatusIncomplete):
-			return dto.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
+			return inport.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
 		case errors.Is(err, outport.ErrPaymentAddressStatusPersistedChainInvalid):
-			return dto.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
+			return inport.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
 		case errors.Is(err, outport.ErrPaymentAddressStatusPersistedNetworkInvalid):
-			return dto.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
+			return inport.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
 		case errors.Is(err, outport.ErrPaymentAddressStatusPersistedReceiptStatusInvalid):
-			return dto.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
+			return inport.GetPaymentAddressStatusResponse{}, inport.ErrInternalFailure
 		default:
-			return dto.GetPaymentAddressStatusResponse{}, inport.ErrDependencyFailure
+			return inport.GetPaymentAddressStatusResponse{}, inport.ErrDependencyFailure
 		}
 	}
 	if !found {
-		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressNotFound
+		return inport.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressNotFound
 	}
 
 	policy, ok, err := uc.policyReader.FindIssuanceByID(ctx, record.AddressPolicyID)
 	if err != nil {
-		return dto.GetPaymentAddressStatusResponse{}, inport.ErrDependencyFailure
+		return inport.GetPaymentAddressStatusResponse{}, inport.ErrDependencyFailure
 	}
 	if !ok || policy.Chain != input.Chain {
-		return dto.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressPolicyNotConfigured
+		return inport.GetPaymentAddressStatusResponse{}, inport.ErrPaymentAddressPolicyNotConfigured
 	}
 
-	return dto.GetPaymentAddressStatusResponse{
+	return inport.GetPaymentAddressStatusResponse{
 		PaymentAddressID:        strconv.FormatInt(record.PaymentAddressID, 10),
-		AddressPolicyID:         string(record.AddressPolicyID),
+		AddressPolicyID:         record.AddressPolicyID,
 		ExpectedAmountMinor:     record.ExpectedAmountMinor,
-		Chain:                   string(record.Chain),
-		Network:                 string(record.Network),
-		Scheme:                  string(record.Scheme),
+		Chain:                   record.Chain,
+		Network:                 record.Network,
+		Scheme:                  record.Scheme,
 		AssetReference:          strings.TrimSpace(policy.AssetReference),
 		Decimals:                policy.Decimals,
 		Address:                 record.Address,
 		CustomerReference:       record.CustomerReference,
-		PaymentStatus:           string(record.PaymentStatus),
+		PaymentStatus:           record.PaymentStatus,
 		ObservedTotalMinor:      record.ObservedTotalMinor,
 		ConfirmedTotalMinor:     record.ConfirmedTotalMinor,
 		UnconfirmedTotalMinor:   record.UnconfirmedTotalMinor,
@@ -89,6 +94,6 @@ func (uc *getPaymentAddressStatusUseCase) Execute(
 		PaidAt:                  record.PaidAt,
 		ConfirmedAt:             record.ConfirmedAt,
 		ExpiresAt:               record.ExpiresAt,
-		LastError:               record.LastFailureReason.Message(),
+		LastError:               outport.PaymentReceiptTrackingFailureReasonMessage(record.LastFailureReason),
 	}, nil
 }

@@ -11,12 +11,11 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 func newFindPaymentAddressStatusInput(paymentAddressID int64) outport.FindPaymentAddressStatusInput {
 	return outport.FindPaymentAddressStatusInput{
-		Chain:            valueobjects.SupportedChainBitcoin,
+		Chain:            outport.SupportedChainBitcoin,
 		PaymentAddressID: paymentAddressID,
 	}
 }
@@ -107,13 +106,13 @@ func TestPaymentAddressStatusFinderFindByIDSuccess(t *testing.T) {
 	if record.PaymentAddressID != 101 {
 		t.Fatalf("unexpected payment address id: got %d", record.PaymentAddressID)
 	}
-	if record.PaymentStatus != valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted {
+	if record.PaymentStatus != outport.PaymentReceiptStatusPaidUnconfirmedReverted {
 		t.Fatalf("unexpected payment status: got %q", record.PaymentStatus)
 	}
 	if record.FirstObservedAt == nil || !record.FirstObservedAt.Equal(firstObservedAt) {
 		t.Fatalf("unexpected first observed at: got %v", record.FirstObservedAt)
 	}
-	if record.LastFailureReason != valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired {
+	if record.LastFailureReason != outport.PaymentReceiptTrackingFailureReasonPaymentWindowExpired {
 		t.Fatalf("unexpected last failure reason: got %q", record.LastFailureReason)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {

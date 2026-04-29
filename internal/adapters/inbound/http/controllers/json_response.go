@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"payrune/internal/application/dto"
+	inport "payrune/internal/application/ports/inbound"
 )
 
 func writeJSON(w http.ResponseWriter, statusCode int, payload any) {
@@ -80,14 +80,14 @@ func writeErrorJSON(w http.ResponseWriter, statusCode int, message string) {
 	writeJSON(w, statusCode, errorResponse{Error: message})
 }
 
-func newHealthResponse(response dto.HealthResponse) healthResponse {
+func newHealthResponse(response inport.HealthResponse) healthResponse {
 	return healthResponse{
 		Status:    response.Status,
 		Timestamp: response.Timestamp.UTC().Format(time.RFC3339),
 	}
 }
 
-func newListAddressPoliciesResponse(response dto.ListAddressPoliciesResponse) listAddressPoliciesResponse {
+func newListAddressPoliciesResponse(response inport.ListAddressPoliciesResponse) listAddressPoliciesResponse {
 	policies := make([]addressPolicyResponse, 0, len(response.AddressPolicies))
 	for _, policy := range response.AddressPolicies {
 		policies = append(policies, addressPolicyResponse{
@@ -107,7 +107,7 @@ func newListAddressPoliciesResponse(response dto.ListAddressPoliciesResponse) li
 	}
 }
 
-func newAllocatePaymentAddressResponse(response dto.AllocatePaymentAddressResponse) allocatePaymentAddressResponse {
+func newAllocatePaymentAddressResponse(response inport.AllocatePaymentAddressResponse) allocatePaymentAddressResponse {
 	return allocatePaymentAddressResponse{
 		PaymentAddressID:    response.PaymentAddressID,
 		AddressPolicyID:     response.AddressPolicyID,
@@ -122,7 +122,7 @@ func newAllocatePaymentAddressResponse(response dto.AllocatePaymentAddressRespon
 	}
 }
 
-func newPaymentAddressStatusResponse(response dto.GetPaymentAddressStatusResponse) paymentAddressStatusResponse {
+func newPaymentAddressStatusResponse(response inport.GetPaymentAddressStatusResponse) paymentAddressStatusResponse {
 	return paymentAddressStatusResponse{
 		PaymentAddressID:        response.PaymentAddressID,
 		AddressPolicyID:         response.AddressPolicyID,

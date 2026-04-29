@@ -3,30 +3,29 @@ package postgres
 import (
 	"testing"
 
-	applicationoutbox "payrune/internal/application/outbox"
-	"payrune/internal/domain/valueobjects"
+	outport "payrune/internal/application/ports/outbound"
 )
 
 func TestNormalizePaymentReceiptTrackingFailureReason(t *testing.T) {
 	tests := []struct {
 		name string
 		raw  string
-		want valueobjects.PaymentReceiptTrackingFailureReason
+		want string
 	}{
 		{
 			name: "canonical code",
 			raw:  "observation_failed",
-			want: valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed,
+			want: outport.PaymentReceiptTrackingFailureReasonObservationFailed,
 		},
 		{
 			name: "legacy alias",
 			raw:  "payment window expired",
-			want: valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired,
+			want: outport.PaymentReceiptTrackingFailureReasonPaymentWindowExpired,
 		},
 		{
 			name: "unknown raw detail falls back",
 			raw:  "dial tcp timeout",
-			want: valueobjects.PaymentReceiptTrackingFailureReasonProcessingFailed,
+			want: outport.PaymentReceiptTrackingFailureReasonProcessingFailed,
 		},
 		{
 			name: "blank remains zero",
@@ -48,22 +47,22 @@ func TestNormalizePaymentReceiptNotificationDeliveryFailureReason(t *testing.T) 
 	tests := []struct {
 		name string
 		raw  string
-		want applicationoutbox.PaymentReceiptNotificationDeliveryFailureReason
+		want string
 	}{
 		{
 			name: "canonical code",
 			raw:  "delivery_failed",
-			want: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			want: outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 		{
 			name: "legacy alias",
 			raw:  "receipt webhook delivery failed",
-			want: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			want: outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 		{
 			name: "unknown raw detail falls back",
 			raw:  "webhook returned status 429",
-			want: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			want: outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 		{
 			name: "blank remains zero",
@@ -85,22 +84,22 @@ func TestNormalizePaymentAddressAllocationDerivationFailureReason(t *testing.T) 
 	tests := []struct {
 		name string
 		raw  string
-		want valueobjects.PaymentAddressAllocationDerivationFailureReason
+		want string
 	}{
 		{
 			name: "canonical code",
 			raw:  "derivation_failed",
-			want: valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
+			want: outport.PaymentAddressAllocationFailureDerivationFailed,
 		},
 		{
 			name: "legacy alias",
 			raw:  "derive failed",
-			want: valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
+			want: outport.PaymentAddressAllocationFailureDerivationFailed,
 		},
 		{
 			name: "unknown raw detail falls back",
 			raw:  "xpub parse exploded",
-			want: valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed,
+			want: outport.PaymentAddressAllocationFailureDerivationFailed,
 		},
 		{
 			name: "blank remains zero",

@@ -6,11 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/application/dto"
-	applicationoutbox "payrune/internal/application/outbox"
 	inport "payrune/internal/application/ports/inbound"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/events"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
 )
@@ -32,18 +29,18 @@ func (f *fakeReceiptWebhookDispatchClock) NowUTC() time.Time {
 }
 
 type fakeWebhookDispatchNotificationOutbox struct {
-	claimRows      []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage
+	claimRows      []outport.PaymentReceiptStatusNotificationOutboxMessage
 	claimErr       error
 	saveResultErr  error
 	lastClaimInput outport.ClaimPaymentReceiptStatusNotificationsInput
-	savedResults   []applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult
-	enqueueInputs  []events.PaymentReceiptStatusChanged
+	savedResults   []outport.PaymentReceiptStatusNotificationDeliveryResult
+	enqueueInputs  []outport.PaymentReceiptStatusChangedRecord
 	enqueueErr     error
 }
 
 func (f *fakeWebhookDispatchNotificationOutbox) EnqueueStatusChanged(
 	_ context.Context,
-	input events.PaymentReceiptStatusChanged,
+	input outport.PaymentReceiptStatusChangedRecord,
 ) error {
 	f.enqueueInputs = append(f.enqueueInputs, input)
 	return f.enqueueErr
@@ -52,19 +49,19 @@ func (f *fakeWebhookDispatchNotificationOutbox) EnqueueStatusChanged(
 func (f *fakeWebhookDispatchNotificationOutbox) ClaimPending(
 	_ context.Context,
 	input outport.ClaimPaymentReceiptStatusNotificationsInput,
-) ([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error) {
+) ([]outport.PaymentReceiptStatusNotificationOutboxMessage, error) {
 	f.lastClaimInput = input
 	if f.claimErr != nil {
 		return nil, f.claimErr
 	}
-	rows := make([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, len(f.claimRows))
+	rows := make([]outport.PaymentReceiptStatusNotificationOutboxMessage, len(f.claimRows))
 	copy(rows, f.claimRows)
 	return rows, nil
 }
 
 func (f *fakeWebhookDispatchNotificationOutbox) SaveDeliveryResult(
 	_ context.Context,
-	result applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
+	result outport.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	f.savedResults = append(f.savedResults, result)
 	return f.saveResultErr
@@ -122,14 +119,14 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 	claimNow := time.Date(2026, 3, 6, 18, 0, 0, 0, time.UTC)
 	deliveredAt := claimNow.Add(3 * time.Second)
 	outbox := &fakeWebhookDispatchNotificationOutbox{
-		claimRows: []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
+		claimRows: []outport.PaymentReceiptStatusNotificationOutboxMessage{
 			{
 				NotificationID:        1,
 				PaymentAddressID:      101,
-				AddressPolicyID:       valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
+				AddressPolicyID:       string(valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2),
 				CustomerReference:     "order-1",
-				PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
-				CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
+				PreviousStatus:        string(valueobjects.PaymentReceiptStatusWatching),
+				CurrentStatus:         string(valueobjects.PaymentReceiptStatusPaidConfirmed),
 				ObservedTotalMinor:    1000,
 				ConfirmedTotalMinor:   1000,
 				UnconfirmedTotalMinor: 0,
@@ -150,7 +147,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 		},
 	)
 
-	output, err := useCase.Execute(context.Background(), dto.RunReceiptWebhookDispatchCycleInput{
+	output, err := useCase.Execute(context.Background(), inport.RunReceiptWebhookDispatchCycleInput{
 		BatchSize:   10,
 		DispatchTTL: 15 * time.Second,
 		RetryDelay:  time.Minute,
@@ -165,7 +162,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteSuccess(t *testing.T) {
 	if got := len(outbox.savedResults); got != 1 {
 		t.Fatalf("unexpected saved result count: got %d", got)
 	}
-	if outbox.savedResults[0].Status != applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent {
+	if outbox.savedResults[0].Status != outport.PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected delivery status: got %q", outbox.savedResults[0].Status)
 	}
 	if outbox.savedResults[0].DeliveredAt == nil || !outbox.savedResults[0].DeliveredAt.Equal(deliveredAt) {
@@ -189,13 +186,13 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteRetry(t *testing.T) {
 	claimNow := time.Date(2026, 3, 6, 18, 5, 0, 0, time.UTC)
 	failedAt := claimNow.Add(7 * time.Second)
 	outbox := &fakeWebhookDispatchNotificationOutbox{
-		claimRows: []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
+		claimRows: []outport.PaymentReceiptStatusNotificationOutboxMessage{
 			{
 				NotificationID:   2,
 				PaymentAddressID: 202,
-				AddressPolicyID:  valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
-				PreviousStatus:   valueobjects.PaymentReceiptStatusWatching,
-				CurrentStatus:    valueobjects.PaymentReceiptStatusPartiallyPaid,
+				AddressPolicyID:  string(valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2),
+				PreviousStatus:   string(valueobjects.PaymentReceiptStatusWatching),
+				CurrentStatus:    string(valueobjects.PaymentReceiptStatusPartiallyPaid),
 				StatusChangedAt:  claimNow.Add(-time.Minute),
 				DeliveryAttempts: 1,
 			},
@@ -215,7 +212,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteRetry(t *testing.T) {
 		},
 	)
 
-	output, err := useCase.Execute(context.Background(), dto.RunReceiptWebhookDispatchCycleInput{
+	output, err := useCase.Execute(context.Background(), inport.RunReceiptWebhookDispatchCycleInput{
 		BatchSize:   10,
 		DispatchTTL: 20 * time.Second,
 		RetryDelay:  2 * time.Minute,
@@ -230,13 +227,13 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteRetry(t *testing.T) {
 	if got := len(outbox.savedResults); got != 1 {
 		t.Fatalf("unexpected saved result count: got %d", got)
 	}
-	if outbox.savedResults[0].Status != applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending {
+	if outbox.savedResults[0].Status != outport.PaymentReceiptNotificationDeliveryStatusPending {
 		t.Fatalf("unexpected delivery status: got %q", outbox.savedResults[0].Status)
 	}
 	if outbox.savedResults[0].Attempts != 2 {
 		t.Fatalf("unexpected attempts: got %d", outbox.savedResults[0].Attempts)
 	}
-	if outbox.savedResults[0].LastFailureReason != applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+	if outbox.savedResults[0].LastFailureReason != outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
 		t.Fatalf("unexpected delivery failure reason: got %q", outbox.savedResults[0].LastFailureReason)
 	}
 	expectedNextAttemptAt := failedAt.Add(2 * time.Minute)
@@ -249,13 +246,13 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteTerminalFailure(t *testing.
 	claimNow := time.Date(2026, 3, 6, 18, 10, 0, 0, time.UTC)
 	failedAt := claimNow.Add(5 * time.Second)
 	outbox := &fakeWebhookDispatchNotificationOutbox{
-		claimRows: []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
+		claimRows: []outport.PaymentReceiptStatusNotificationOutboxMessage{
 			{
 				NotificationID:   3,
 				PaymentAddressID: 303,
-				AddressPolicyID:  valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
-				PreviousStatus:   valueobjects.PaymentReceiptStatusWatching,
-				CurrentStatus:    valueobjects.PaymentReceiptStatusFailedExpired,
+				AddressPolicyID:  string(valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2),
+				PreviousStatus:   string(valueobjects.PaymentReceiptStatusWatching),
+				CurrentStatus:    string(valueobjects.PaymentReceiptStatusFailedExpired),
 				StatusChangedAt:  claimNow.Add(-time.Minute),
 				DeliveryAttempts: 2,
 			},
@@ -275,7 +272,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteTerminalFailure(t *testing.
 		},
 	)
 
-	output, err := useCase.Execute(context.Background(), dto.RunReceiptWebhookDispatchCycleInput{
+	output, err := useCase.Execute(context.Background(), inport.RunReceiptWebhookDispatchCycleInput{
 		BatchSize:   10,
 		DispatchTTL: 20 * time.Second,
 		RetryDelay:  2 * time.Minute,
@@ -290,13 +287,13 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteTerminalFailure(t *testing.
 	if got := len(outbox.savedResults); got != 1 {
 		t.Fatalf("unexpected saved result count: got %d", got)
 	}
-	if outbox.savedResults[0].Status != applicationoutbox.PaymentReceiptNotificationDeliveryStatusFailed {
+	if outbox.savedResults[0].Status != outport.PaymentReceiptNotificationDeliveryStatusFailed {
 		t.Fatalf("unexpected delivery status: got %q", outbox.savedResults[0].Status)
 	}
 	if outbox.savedResults[0].Attempts != 3 {
 		t.Fatalf("unexpected attempts: got %d", outbox.savedResults[0].Attempts)
 	}
-	if outbox.savedResults[0].LastFailureReason != applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
+	if outbox.savedResults[0].LastFailureReason != outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed {
 		t.Fatalf("unexpected delivery failure reason: got %q", outbox.savedResults[0].LastFailureReason)
 	}
 }
@@ -311,7 +308,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteValidation(t *testing.T) {
 		&fakeReceiptWebhookDispatchClock{now: time.Now().UTC()},
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.RunReceiptWebhookDispatchCycleInput{
+	_, err := useCase.Execute(context.Background(), inport.RunReceiptWebhookDispatchCycleInput{
 		BatchSize:   0,
 		RetryDelay:  time.Minute,
 		MaxAttempts: 3,
@@ -324,13 +321,13 @@ func TestRunReceiptWebhookDispatchCycleUseCaseExecuteValidation(t *testing.T) {
 func TestRunReceiptWebhookDispatchCycleUseCaseMapsOutboxFailure(t *testing.T) {
 	claimNow := time.Date(2026, 3, 6, 18, 20, 0, 0, time.UTC)
 	outbox := &fakeWebhookDispatchNotificationOutbox{
-		claimRows: []applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
+		claimRows: []outport.PaymentReceiptStatusNotificationOutboxMessage{
 			{
 				NotificationID:        7,
 				PaymentAddressID:      707,
-				AddressPolicyID:       valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
-				PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
-				CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
+				AddressPolicyID:       string(valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2),
+				PreviousStatus:        string(valueobjects.PaymentReceiptStatusWatching),
+				CurrentStatus:         string(valueobjects.PaymentReceiptStatusPaidConfirmed),
 				ObservedTotalMinor:    500,
 				ConfirmedTotalMinor:   500,
 				UnconfirmedTotalMinor: 0,
@@ -350,7 +347,7 @@ func TestRunReceiptWebhookDispatchCycleUseCaseMapsOutboxFailure(t *testing.T) {
 		},
 	)
 
-	_, err := useCase.Execute(context.Background(), dto.RunReceiptWebhookDispatchCycleInput{
+	_, err := useCase.Execute(context.Background(), inport.RunReceiptWebhookDispatchCycleInput{
 		BatchSize:   1,
 		DispatchTTL: 15 * time.Second,
 		RetryDelay:  time.Minute,

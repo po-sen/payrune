@@ -8,10 +8,7 @@ import (
 	"testing"
 	"time"
 
-	applicationoutbox "payrune/internal/application/outbox"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/events"
-	"payrune/internal/domain/valueobjects"
 )
 
 type stubSQLResult struct {
@@ -72,10 +69,10 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSuccess(t *te
 	}
 	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(executor)
 
-	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
+	err := outboxStore.EnqueueStatusChanged(context.Background(), outport.PaymentReceiptStatusChangedRecord{
 		PaymentAddressID:      101,
-		PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
-		CurrentStatus:         valueobjects.PaymentReceiptStatusPaidUnconfirmed,
+		PreviousStatus:        outport.PaymentReceiptStatusWatching,
+		CurrentStatus:         outport.PaymentReceiptStatusPaidUnconfirmed,
 		ObservedTotalMinor:    1000,
 		ConfirmedTotalMinor:   0,
 		UnconfirmedTotalMinor: 1000,
@@ -118,10 +115,10 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedSupportsRever
 	}
 	outboxStore := NewPaymentReceiptStatusNotificationOutboxStore(executor)
 
-	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
+	err := outboxStore.EnqueueStatusChanged(context.Background(), outport.PaymentReceiptStatusChangedRecord{
 		PaymentAddressID:      102,
-		PreviousStatus:        valueobjects.PaymentReceiptStatusPaidUnconfirmed,
-		CurrentStatus:         valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted,
+		PreviousStatus:        outport.PaymentReceiptStatusPaidUnconfirmed,
+		CurrentStatus:         outport.PaymentReceiptStatusPaidUnconfirmedReverted,
 		ObservedTotalMinor:    400,
 		ConfirmedTotalMinor:   0,
 		UnconfirmedTotalMinor: 400,
@@ -143,10 +140,10 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedAddressNotFou
 		execResult: stubSQLResult{rowsAffected: 0},
 	})
 
-	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
+	err := outboxStore.EnqueueStatusChanged(context.Background(), outport.PaymentReceiptStatusChangedRecord{
 		PaymentAddressID:      88,
-		PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
-		CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
+		PreviousStatus:        outport.PaymentReceiptStatusWatching,
+		CurrentStatus:         outport.PaymentReceiptStatusPaidConfirmed,
 		ObservedTotalMinor:    100,
 		ConfirmedTotalMinor:   100,
 		UnconfirmedTotalMinor: 0,
@@ -162,10 +159,10 @@ func TestPaymentReceiptStatusNotificationOutboxEnqueueStatusChangedExecError(t *
 		execErr: errors.New("db down"),
 	})
 
-	err := outboxStore.EnqueueStatusChanged(context.Background(), events.PaymentReceiptStatusChanged{
+	err := outboxStore.EnqueueStatusChanged(context.Background(), outport.PaymentReceiptStatusChangedRecord{
 		PaymentAddressID:      88,
-		PreviousStatus:        valueobjects.PaymentReceiptStatusWatching,
-		CurrentStatus:         valueobjects.PaymentReceiptStatusPaidConfirmed,
+		PreviousStatus:        outport.PaymentReceiptStatusWatching,
+		CurrentStatus:         outport.PaymentReceiptStatusPaidConfirmed,
 		ObservedTotalMinor:    100,
 		ConfirmedTotalMinor:   100,
 		UnconfirmedTotalMinor: 0,
@@ -233,10 +230,10 @@ func TestScanPaymentReceiptStatusNotificationSupportsDeliveryFields(t *testing.T
 	if err != nil {
 		t.Fatalf("scanPaymentReceiptStatusNotificationOutboxMessage returned error: %v", err)
 	}
-	if notification.DeliveryStatus != applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent {
+	if notification.DeliveryStatus != outport.PaymentReceiptNotificationDeliveryStatusSent {
 		t.Fatalf("unexpected delivery status: got %q", notification.DeliveryStatus)
 	}
-	if notification.AddressPolicyID != valueobjects.AddressPolicyIDEthereumMainnetCreate2 {
+	if notification.AddressPolicyID != "ethereum-mainnet-create2" {
 		t.Fatalf("unexpected address policy id: got %q", notification.AddressPolicyID)
 	}
 	if notification.DeliveredAt == nil || !notification.DeliveredAt.Equal(deliveredAt) {
@@ -269,10 +266,10 @@ func TestScanPaymentReceiptStatusNotificationSupportsRevertedStatus(t *testing.T
 	if err != nil {
 		t.Fatalf("scanPaymentReceiptStatusNotificationOutboxMessage returned error: %v", err)
 	}
-	if notification.PreviousStatus != valueobjects.PaymentReceiptStatusPaidUnconfirmed {
+	if notification.PreviousStatus != outport.PaymentReceiptStatusPaidUnconfirmed {
 		t.Fatalf("unexpected previous status: got %q", notification.PreviousStatus)
 	}
-	if notification.CurrentStatus != valueobjects.PaymentReceiptStatusPaidUnconfirmedReverted {
+	if notification.CurrentStatus != outport.PaymentReceiptStatusPaidUnconfirmedReverted {
 		t.Fatalf("unexpected current status: got %q", notification.CurrentStatus)
 	}
 }
@@ -282,8 +279,8 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
-		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
-			Status: applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent,
+		outport.PaymentReceiptStatusNotificationDeliveryResult{
+			Status: outport.PaymentReceiptNotificationDeliveryStatusSent,
 		},
 	)
 	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationDeliveredAtRequired) {
@@ -294,8 +291,8 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 
 	err = outboxStore.SaveDeliveryResult(
 		context.Background(),
-		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
-			Status: applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending,
+		outport.PaymentReceiptStatusNotificationDeliveryResult{
+			Status: outport.PaymentReceiptNotificationDeliveryStatusPending,
 		},
 	)
 	if !errors.Is(err, outport.ErrPaymentReceiptStatusNotificationNextAttemptRequired) {
@@ -304,7 +301,7 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultValidation(t *t
 
 	err = outboxStore.SaveDeliveryResult(
 		context.Background(),
-		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
+		outport.PaymentReceiptStatusNotificationDeliveryResult{
 			Status:        "mystery",
 			NextAttemptAt: &nextAttemptAt,
 		},
@@ -348,11 +345,11 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultPendingSuccess(
 
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
-		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
+		outport.PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID:    99,
-			Status:            applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending,
+			Status:            outport.PaymentReceiptNotificationDeliveryStatusPending,
 			Attempts:          2,
-			LastFailureReason: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			LastFailureReason: outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 			NextAttemptAt:     &nextAttemptAt,
 		},
 	)
@@ -372,11 +369,11 @@ func TestPaymentReceiptStatusNotificationOutboxSaveDeliveryResultFailedSuccess(t
 
 	err := outboxStore.SaveDeliveryResult(
 		context.Background(),
-		applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult{
+		outport.PaymentReceiptStatusNotificationDeliveryResult{
 			NotificationID:    99,
-			Status:            applicationoutbox.PaymentReceiptNotificationDeliveryStatusFailed,
+			Status:            outport.PaymentReceiptNotificationDeliveryStatusFailed,
 			Attempts:          3,
-			LastFailureReason: applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
+			LastFailureReason: outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed,
 		},
 	)
 	if err != nil {

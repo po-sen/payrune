@@ -81,14 +81,14 @@ func buildCloudflarePollerRuntime(
 
 	clock := system.NewClock()
 	unitOfWork := cloudflarepostgresadapter.NewUnitOfWork(postgresBridgeID, cloudflarepostgresinfra.NewJSBridge())
-	chainObservers := make(map[valueobjects.ChainID]outport.ChainReceiptObserver, 2)
-	if request.Chain == "" || request.Chain == valueobjects.ChainIDBitcoin {
-		chainObservers[valueobjects.ChainIDBitcoin] = bitcoin.NewCloudflareBitcoinEsploraReceiptObserver(
+	chainObservers := make(map[string]outport.ChainReceiptObserver, 2)
+	if request.Chain == "" || request.Chain == string(valueobjects.ChainIDBitcoin) {
+		chainObservers[string(valueobjects.ChainIDBitcoin)] = bitcoin.NewCloudflareBitcoinEsploraReceiptObserver(
 			bitcoinBridgeID,
 			bitcoin.NewCloudflareEsploraBridge(),
 		)
 	}
-	if request.Chain == "" || request.Chain == valueobjects.ChainIDEthereum {
+	if request.Chain == "" || request.Chain == string(valueobjects.ChainIDEthereum) {
 		if ethereumConfigs := loadEthereumRPCConfigsFromLookup(func(key string) string {
 			return env[key]
 		}); len(ethereumConfigs) > 0 {
@@ -96,7 +96,7 @@ func buildCloudflarePollerRuntime(
 			if err != nil {
 				return nil, scheduleradapter.PollerRequest{}, err
 			}
-			chainObservers[valueobjects.ChainIDEthereum] = ethereumObserver
+			chainObservers[string(valueobjects.ChainIDEthereum)] = ethereumObserver
 		}
 	}
 	receiptObserver, err := blockchainadapter.NewMultiChainReceiptObserver(chainObservers)
@@ -132,7 +132,7 @@ func buildCloudflarePollerRequest(env map[string]string) (scheduleradapter.Polle
 		BatchSize:          dispatchConfig.BatchSize,
 		RescheduleInterval: dispatchConfig.RescheduleInterval,
 		ClaimTTL:           dispatchConfig.ClaimTTL,
-		Chain:              dispatchConfig.Chain,
-		Network:            dispatchConfig.Network,
+		Chain:              string(dispatchConfig.Chain),
+		Network:            string(dispatchConfig.Network),
 	}, nil
 }

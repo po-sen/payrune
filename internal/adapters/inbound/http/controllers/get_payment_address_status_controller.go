@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 )
 
@@ -37,7 +36,7 @@ func (c *GetPaymentAddressStatusController) ServeHTTP(w http.ResponseWriter, r *
 		return
 	}
 
-	response, err := c.getPaymentStatus.Execute(r.Context(), dto.GetPaymentAddressStatusInput{
+	response, err := c.getPaymentStatus.Execute(r.Context(), inport.GetPaymentAddressStatusInput{
 		Chain:            chain,
 		PaymentAddressID: paymentAddressID,
 	})

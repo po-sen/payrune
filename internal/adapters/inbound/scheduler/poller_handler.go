@@ -5,17 +5,15 @@ import (
 	"errors"
 	"time"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type PollerRequest struct {
 	BatchSize          int
 	RescheduleInterval time.Duration
 	ClaimTTL           time.Duration
-	Chain              valueobjects.ChainID
-	Network            valueobjects.NetworkID
+	Chain              string
+	Network            string
 }
 
 type PollerResponse struct {
@@ -42,7 +40,7 @@ func (h *PollerHandler) Handle(ctx context.Context, request PollerRequest) (Poll
 		return PollerResponse{}, errors.New("cloudflare worker poller use case is not configured")
 	}
 
-	output, err := h.useCase.Execute(ctx, dto.RunReceiptPollingCycleInput{
+	output, err := h.useCase.Execute(ctx, inport.RunReceiptPollingCycleInput{
 		BatchSize:          request.BatchSize,
 		RescheduleInterval: request.RescheduleInterval,
 		ClaimTTL:           request.ClaimTTL,

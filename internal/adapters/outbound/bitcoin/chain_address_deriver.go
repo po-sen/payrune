@@ -4,7 +4,6 @@ import (
 	"context"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type addressDeriver interface {
@@ -26,12 +25,12 @@ func NewChainAddressDeriver(deriver addressDeriver) *ChainAddressDeriver {
 	return &ChainAddressDeriver{deriver: deriver}
 }
 
-func (g *ChainAddressDeriver) Chain() valueobjects.SupportedChain {
-	return valueobjects.SupportedChainBitcoin
+func (g *ChainAddressDeriver) Chain() string {
+	return outport.SupportedChainBitcoin
 }
 
-func (g *ChainAddressDeriver) SupportsChain(chain valueobjects.SupportedChain) bool {
-	return chain == valueobjects.SupportedChainBitcoin
+func (g *ChainAddressDeriver) SupportsChain(chain string) bool {
+	return chain == outport.SupportedChainBitcoin
 }
 
 func (g *ChainAddressDeriver) DeriveAddress(
@@ -41,7 +40,7 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	if g.deriver == nil {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDeriverNotConfigured
 	}
-	if input.Chain != valueobjects.SupportedChainBitcoin {
+	if input.Chain != outport.SupportedChainBitcoin {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 	network, ok := parseNetwork(input.Network)
@@ -80,7 +79,7 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	return outport.DeriveChainAddressOutput{
 		Address:             address,
 		RelativeIssuanceRef: relativeDerivationPath,
-		IssuanceRefKind:     valueobjects.IssuanceRefKindHDPathAbsolute,
+		IssuanceRefKind:     outport.IssuanceRefKindHDPathAbsolute,
 		IssuanceRef:         absoluteDerivationPath,
 	}, nil
 }

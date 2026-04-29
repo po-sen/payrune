@@ -224,8 +224,8 @@ func TestLoadReceiptExpiresAfterByScopeFromEnvNonPositive(t *testing.T) {
 func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetadata(t *testing.T) {
 	network := valueobjects.NetworkIDSepolia
 	collectorAddress := "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
-		network: "0x1111111111111111111111111111111111111111111111111111111111111111",
+	saltDeriver := ethereum.NewCreate2SaltDeriver(map[string]string{
+		string(network): "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata(string(network))
 	if !ok {
@@ -259,8 +259,8 @@ func TestNewEthereumCreate2AddressIssuancePolicyBuildsSourceRefFromFixtureMetada
 }
 
 func TestNewEthereumCreate2AddressIssuancePolicyRequiresCollectorAddress(t *testing.T) {
-	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
-		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
+	saltDeriver := ethereum.NewCreate2SaltDeriver(map[string]string{
+		string(valueobjects.NetworkIDMainnet): "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	policy := newEthereumCreate2AddressIssuancePolicy(valueobjects.NetworkIDMainnet, true, "", saltDeriver)
 	if policy.IssuanceConfig.AddressSpaceRef != "" {
@@ -287,8 +287,8 @@ func TestNewEthereumCreate2AddressIssuancePolicyRequiresSaltSecret(t *testing.T)
 }
 
 func TestBuildAddressIssuancePoliciesUsesProvidedEnvLookup(t *testing.T) {
-	saltDeriver := ethereum.NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
-		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
+	saltDeriver := ethereum.NewCreate2SaltDeriver(map[string]string{
+		string(valueobjects.NetworkIDMainnet): "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	env := map[string]string{
 		envBitcoinMainnetLegacyEnabled:     "true",

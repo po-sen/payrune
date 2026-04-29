@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 var (
@@ -16,7 +14,7 @@ var (
 
 type ObservePaymentAddressInput struct {
 	AssetReference        string
-	Network               valueobjects.NetworkID
+	Network               string
 	Address               string
 	IssuedAt              time.Time
 	ObservedTotalMinor    int64
@@ -29,8 +27,8 @@ type ObservePaymentAddressInput struct {
 
 type ObserveChainPaymentAddressInput struct {
 	AssetReference        string
-	Chain                 valueobjects.ChainID
-	Network               valueobjects.NetworkID
+	Chain                 string
+	Network               string
 	Address               string
 	IssuedAt              time.Time
 	ObservedTotalMinor    int64
@@ -49,11 +47,11 @@ type ObservePaymentAddressOutput struct {
 }
 
 type ChainReceiptObserver interface {
-	FetchLatestBlockHeight(ctx context.Context, network valueobjects.NetworkID) (int64, error)
+	FetchLatestBlockHeight(ctx context.Context, network string) (int64, error)
 	ObserveAddress(ctx context.Context, input ObservePaymentAddressInput) (ObservePaymentAddressOutput, error)
 }
 
 type BlockchainReceiptObserver interface {
-	FetchLatestBlockHeight(ctx context.Context, chain valueobjects.ChainID, network valueobjects.NetworkID) (int64, error)
+	FetchLatestBlockHeight(ctx context.Context, chain string, network string) (int64, error)
 	ObserveAddress(ctx context.Context, input ObserveChainPaymentAddressInput) (ObservePaymentAddressOutput, error)
 }

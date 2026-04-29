@@ -3,10 +3,6 @@ package outbound
 import (
 	"context"
 	"errors"
-
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/policies"
-	"payrune/internal/domain/valueobjects"
 )
 
 var (
@@ -16,19 +12,19 @@ var (
 )
 
 type DeriveIssuedPaymentAddressInput struct {
-	Policy     policies.AddressIssuancePolicy
-	Allocation entities.PaymentAddressAllocation
+	Policy     AddressIssuancePolicyRecord
+	Allocation PaymentAddressAllocationRecord
 }
 
 type DeriveIssuedPaymentAddressOutput struct {
 	Address         string
-	IssuanceRefKind valueobjects.IssuanceRefKind
+	IssuanceRefKind string
 	IssuanceRef     string
 	SweepMaterial   string
 }
 
 type IssuedPaymentAddressDeriver interface {
-	SupportsChain(chain valueobjects.SupportedChain) bool
+	SupportsChain(chain string) bool
 	DeriveIssuedAddress(
 		ctx context.Context,
 		input DeriveIssuedPaymentAddressInput,

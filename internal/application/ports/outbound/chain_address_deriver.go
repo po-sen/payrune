@@ -3,7 +3,6 @@ package outbound
 import (
 	"context"
 	"errors"
-	"payrune/internal/domain/valueobjects"
 )
 
 var (
@@ -13,9 +12,9 @@ var (
 )
 
 type DeriveChainAddressInput struct {
-	Chain               valueobjects.SupportedChain
-	Network             valueobjects.NetworkID
-	Scheme              valueobjects.AddressScheme
+	Chain               string
+	Network             string
+	Scheme              string
 	AddressSpaceRef     string
 	IssuanceRefPrefix   string
 	RelativeIssuanceRef string
@@ -25,11 +24,11 @@ type DeriveChainAddressInput struct {
 type DeriveChainAddressOutput struct {
 	Address             string
 	RelativeIssuanceRef string
-	IssuanceRefKind     valueobjects.IssuanceRefKind
+	IssuanceRefKind     string
 	IssuanceRef         string
 }
 
 type ChainAddressDeriver interface {
-	SupportsChain(chain valueobjects.SupportedChain) bool
+	SupportsChain(chain string) bool
 	DeriveAddress(ctx context.Context, input DeriveChainAddressInput) (DeriveChainAddressOutput, error)
 }

@@ -7,16 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 func TestChainAddressControllerGetPaymentStatusSuccess(t *testing.T) {
 	issuedAt := time.Date(2026, 3, 8, 11, 0, 0, 0, time.UTC)
 	firstObservedAt := issuedAt.Add(5 * time.Minute)
 	getStatusUC := &fakeGetPaymentAddressStatusUseCase{
-		response: dto.GetPaymentAddressStatusResponse{
+		response: inport.GetPaymentAddressStatusResponse{
 			PaymentAddressID:        "101",
 			AddressPolicyID:         "bitcoin-mainnet-native-segwit",
 			ExpectedAmountMinor:     120000,
@@ -50,7 +48,7 @@ func TestChainAddressControllerGetPaymentStatusSuccess(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if getStatusUC.lastInput.Chain != valueobjects.SupportedChainBitcoin {
+	if getStatusUC.lastInput.Chain != "bitcoin" {
 		t.Fatalf("unexpected chain in input: got %q", getStatusUC.lastInput.Chain)
 	}
 	if getStatusUC.lastInput.PaymentAddressID != 101 {

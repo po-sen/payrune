@@ -19,6 +19,7 @@ import (
 	postgresadapter "payrune/internal/adapters/outbound/persistence/postgres"
 	policyadapter "payrune/internal/adapters/outbound/policy"
 	"payrune/internal/adapters/outbound/system"
+	outport "payrune/internal/application/ports/outbound"
 	"payrune/internal/application/usecases"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
@@ -154,7 +155,7 @@ func newAPIContainer() (*apiContainer, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicies)
+	addressPolicyReader := policyadapter.NewAddressPolicyReader(addressIssuancePolicyRecords(addressIssuancePolicies))
 	listAddressPoliciesUseCase := usecases.NewListAddressPoliciesUseCase(addressPolicyReader)
 	unitOfWork := postgresadapter.NewUnitOfWork(db)
 	allocationIssuancePolicy := policies.NewPaymentAddressAllocationIssuancePolicy(
@@ -562,7 +563,7 @@ func validateEnabledEthereumIssuanceReadiness(
 		if normalized.Chain != valueobjects.SupportedChainEthereum || !normalized.Enabled {
 			continue
 		}
-		if err := checker.CheckIssuanceReadiness(ctx, normalized); err != nil {
+		if err := checker.CheckIssuanceReadiness(ctx, addressIssuancePolicyRecord(normalized)); err != nil {
 			return err
 		}
 	}
@@ -691,7 +692,7 @@ func newEthereumCreate2AddressIssuancePolicy(
 	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
 ) policies.AddressIssuancePolicy {
 	addressSpaceRef := ""
-	if ethereumCreate2SaltDeriver != nil && ethereumCreate2SaltDeriver.HasNetwork(network) {
+	if ethereumCreate2SaltDeriver != nil && ethereumCreate2SaltDeriver.HasNetwork(string(network)) {
 		addressSpaceRef = ethereumcreate2assets.BuildAddressSpaceRef(string(network), collectorAddress)
 	}
 
@@ -716,7 +717,7 @@ func newEthereumUSDTCreate2AddressIssuancePolicy(
 	ethereumCreate2SaltDeriver *ethereum.Create2SaltDeriver,
 ) policies.AddressIssuancePolicy {
 	addressSpaceRef := ""
-	if ethereumCreate2SaltDeriver != nil && ethereumCreate2SaltDeriver.HasNetwork(network) {
+	if ethereumCreate2SaltDeriver != nil && ethereumCreate2SaltDeriver.HasNetwork(string(network)) {
 		addressSpaceRef = ethereumcreate2assets.BuildAddressSpaceRef(string(network), collectorAddress)
 	}
 
@@ -737,10 +738,33 @@ func newEthereumUSDTCreate2AddressIssuancePolicy(
 func buildEthereumCreate2DerivationKeys(
 	mainnetKey string,
 	sepoliaKey string,
-) map[valueobjects.NetworkID]string {
-	return map[valueobjects.NetworkID]string{
-		valueobjects.NetworkIDMainnet: strings.TrimSpace(mainnetKey),
-		valueobjects.NetworkIDSepolia: strings.TrimSpace(sepoliaKey),
+) map[string]string {
+	return map[string]string{
+		string(valueobjects.NetworkIDMainnet): strings.TrimSpace(mainnetKey),
+		string(valueobjects.NetworkIDSepolia): strings.TrimSpace(sepoliaKey),
+	}
+}
+
+func addressIssuancePolicyRecords(policies []policies.AddressIssuancePolicy) []outport.AddressIssuancePolicyRecord {
+	records := make([]outport.AddressIssuancePolicyRecord, 0, len(policies))
+	for _, policy := range policies {
+		records = append(records, addressIssuancePolicyRecord(policy))
+	}
+	return records
+}
+
+func addressIssuancePolicyRecord(policy policies.AddressIssuancePolicy) outport.AddressIssuancePolicyRecord {
+	normalized := policy.Normalize()
+	return outport.AddressIssuancePolicyRecord{
+		AddressPolicyID:   string(normalized.AddressPolicyID),
+		Chain:             string(normalized.Chain),
+		Network:           string(normalized.Network),
+		Scheme:            string(normalized.Scheme),
+		AssetReference:    normalized.AssetReference,
+		Decimals:          normalized.Decimals,
+		Enabled:           normalized.Enabled,
+		AddressSpaceRef:   normalized.IssuanceConfig.AddressSpaceRef,
+		IssuanceRefPrefix: normalized.IssuanceConfig.IssuanceRefPrefix,
 	}
 }
 

@@ -15,7 +15,6 @@ import (
 	"time"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 var erc20BalanceOfSelector = []byte{0x70, 0xa0, 0x82, 0x31}
@@ -28,7 +27,7 @@ type EthereumRPCObserverConfig struct {
 }
 
 type EthereumRPCReceiptObserver struct {
-	clients map[valueobjects.NetworkID]*ethereumRPCClient
+	clients map[string]*ethereumRPCClient
 }
 
 type ethereumRPCClient struct {
@@ -58,11 +57,11 @@ type ethereumRPCError struct {
 }
 
 func NewEthereumRPCReceiptObserver(
-	configs map[valueobjects.NetworkID]*EthereumRPCObserverConfig,
+	configs map[string]*EthereumRPCObserverConfig,
 ) (*EthereumRPCReceiptObserver, error) {
-	clients := make(map[valueobjects.NetworkID]*ethereumRPCClient, len(configs))
+	clients := make(map[string]*ethereumRPCClient, len(configs))
 	for rawNetwork, config := range configs {
-		network, ok := valueobjects.ParseNetworkID(string(rawNetwork))
+		network, ok := outport.NormalizeNetworkID(rawNetwork)
 		if !ok {
 			return nil, fmt.Errorf("ethereum network is invalid: %s", rawNetwork)
 		}
@@ -159,7 +158,7 @@ func (o *EthereumRPCReceiptObserver) ObserveAddress(
 
 func (o *EthereumRPCReceiptObserver) FetchLatestBlockHeight(
 	ctx context.Context,
-	network valueobjects.NetworkID,
+	network string,
 ) (int64, error) {
 	client, err := o.selectClient(network)
 	if err != nil {
@@ -173,9 +172,9 @@ func (o *EthereumRPCReceiptObserver) FetchLatestBlockHeight(
 }
 
 func (o *EthereumRPCReceiptObserver) selectClient(
-	network valueobjects.NetworkID,
+	network string,
 ) (*ethereumRPCClient, error) {
-	normalizedNetwork, ok := valueobjects.ParseNetworkID(string(network))
+	normalizedNetwork, ok := outport.NormalizeNetworkID(network)
 	if !ok {
 		return nil, outport.ErrBlockchainReceiptObserverInputInvalid
 	}

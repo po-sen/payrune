@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 var (
@@ -18,20 +16,20 @@ var (
 )
 
 type FindPaymentAddressStatusInput struct {
-	Chain            valueobjects.SupportedChain
+	Chain            string
 	PaymentAddressID int64
 }
 
 type PaymentAddressStatusRecord struct {
 	PaymentAddressID        int64
-	AddressPolicyID         valueobjects.AddressPolicyID
+	AddressPolicyID         string
 	ExpectedAmountMinor     int64
 	CustomerReference       string
-	Chain                   valueobjects.SupportedChain
-	Network                 valueobjects.NetworkID
-	Scheme                  valueobjects.AddressScheme
+	Chain                   string
+	Network                 string
+	Scheme                  string
 	Address                 string
-	PaymentStatus           valueobjects.PaymentReceiptStatus
+	PaymentStatus           string
 	ObservedTotalMinor      int64
 	ConfirmedTotalMinor     int64
 	UnconfirmedTotalMinor   int64
@@ -42,7 +40,7 @@ type PaymentAddressStatusRecord struct {
 	PaidAt                  *time.Time
 	ConfirmedAt             *time.Time
 	ExpiresAt               *time.Time
-	LastFailureReason       valueobjects.PaymentReceiptTrackingFailureReason
+	LastFailureReason       string
 }
 
 type PaymentAddressStatusFinder interface {

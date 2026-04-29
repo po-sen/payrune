@@ -9,41 +9,39 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"payrune/internal/domain/valueobjects"
 )
 
 const create2SaltDerivationVersion = "ethereum-create2-salt.v1"
 
 type Create2SaltDeriver struct {
-	keyByNetwork map[valueobjects.NetworkID][]byte
+	keyByNetwork map[string][]byte
 }
 
 type DeriveCreate2AllocationSaltInput struct {
-	Network          valueobjects.NetworkID
-	AddressPolicyID  valueobjects.AddressPolicyID
+	Network          string
+	AddressPolicyID  string
 	PaymentAddressID int64
 	SlotIndex        uint32
 }
 
-func NewCreate2SaltDeriver(rawSecretsByNetwork map[valueobjects.NetworkID]string) *Create2SaltDeriver {
-	keyByNetwork := make(map[valueobjects.NetworkID][]byte, len(rawSecretsByNetwork))
+func NewCreate2SaltDeriver(rawSecretsByNetwork map[string]string) *Create2SaltDeriver {
+	keyByNetwork := make(map[string][]byte, len(rawSecretsByNetwork))
 	for network, rawSecret := range rawSecretsByNetwork {
 		_, secretKey, ok := normalizeCreate2SaltSecret(rawSecret)
 		if !ok {
 			continue
 		}
-		keyByNetwork[network] = secretKey
+		keyByNetwork[strings.ToLower(strings.TrimSpace(network))] = secretKey
 	}
 
 	return &Create2SaltDeriver{keyByNetwork: keyByNetwork}
 }
 
-func (d *Create2SaltDeriver) HasNetwork(network valueobjects.NetworkID) bool {
+func (d *Create2SaltDeriver) HasNetwork(network string) bool {
 	if d == nil {
 		return false
 	}
-	_, ok := d.keyByNetwork[network]
+	_, ok := d.keyByNetwork[strings.ToLower(strings.TrimSpace(network))]
 	return ok
 }
 
@@ -55,12 +53,13 @@ func (d *Create2SaltDeriver) DeriveAllocationSalt(
 		return "", errors.New("ethereum create2 salt deriver is not configured")
 	}
 
-	secretKey, ok := d.keyByNetwork[input.Network]
+	network := strings.ToLower(strings.TrimSpace(input.Network))
+	secretKey, ok := d.keyByNetwork[network]
 	if !ok {
 		return "", fmt.Errorf("ethereum create2 salt deriver is not configured for network: %s", input.Network)
 	}
-	addressPolicyID := input.AddressPolicyID.Normalize()
-	if addressPolicyID.IsZero() {
+	addressPolicyID := strings.ToLower(strings.TrimSpace(input.AddressPolicyID))
+	if addressPolicyID == "" {
 		return "", errors.New("address policy id is required")
 	}
 	if input.PaymentAddressID <= 0 {
@@ -70,9 +69,9 @@ func (d *Create2SaltDeriver) DeriveAllocationSalt(
 	mac := hmac.New(sha256.New, secretKey)
 	mac.Write([]byte(create2SaltDerivationVersion))
 	mac.Write([]byte{'\n'})
-	mac.Write([]byte(strings.TrimSpace(string(input.Network))))
+	mac.Write([]byte(network))
 	mac.Write([]byte{'\n'})
-	mac.Write([]byte(string(addressPolicyID)))
+	mac.Write([]byte(addressPolicyID))
 	mac.Write([]byte{'\n'})
 	mac.Write([]byte(strconv.FormatInt(input.PaymentAddressID, 10)))
 	mac.Write([]byte{'\n'})

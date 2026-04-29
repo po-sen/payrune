@@ -6,30 +6,29 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 )
 
 type fakeRunReceiptWebhookDispatchCycleUseCase struct {
-	input  dto.RunReceiptWebhookDispatchCycleInput
-	output dto.RunReceiptWebhookDispatchCycleOutput
+	input  inport.RunReceiptWebhookDispatchCycleInput
+	output inport.RunReceiptWebhookDispatchCycleOutput
 	err    error
 }
 
 func (f *fakeRunReceiptWebhookDispatchCycleUseCase) Execute(
 	_ context.Context,
-	input dto.RunReceiptWebhookDispatchCycleInput,
-) (dto.RunReceiptWebhookDispatchCycleOutput, error) {
+	input inport.RunReceiptWebhookDispatchCycleInput,
+) (inport.RunReceiptWebhookDispatchCycleOutput, error) {
 	f.input = input
 	if f.err != nil {
-		return dto.RunReceiptWebhookDispatchCycleOutput{}, f.err
+		return inport.RunReceiptWebhookDispatchCycleOutput{}, f.err
 	}
 	return f.output, nil
 }
 
 func TestWebhookDispatcherHandlerHandle(t *testing.T) {
 	useCase := &fakeRunReceiptWebhookDispatchCycleUseCase{
-		output: dto.RunReceiptWebhookDispatchCycleOutput{
+		output: inport.RunReceiptWebhookDispatchCycleOutput{
 			ClaimedCount: 3,
 			SentCount:    2,
 			RetriedCount: 1,

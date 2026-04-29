@@ -6,10 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	applicationoutbox "payrune/internal/application/outbox"
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/events"
-	"payrune/internal/domain/valueobjects"
 )
 
 type PaymentReceiptStatusNotificationOutboxStore struct {
@@ -22,7 +19,7 @@ func NewPaymentReceiptStatusNotificationOutboxStore(executor executor) *PaymentR
 
 func (r *PaymentReceiptStatusNotificationOutboxStore) EnqueueStatusChanged(
 	ctx context.Context,
-	event events.PaymentReceiptStatusChanged,
+	event outport.PaymentReceiptStatusChangedRecord,
 ) error {
 	result, err := r.executor.ExecContext(
 		ctx,
@@ -49,8 +46,8 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) EnqueueStatusChanged(
 		   FROM address_policy_allocations a
 		   WHERE a.id = $1`,
 		event.PaymentAddressID,
-		string(event.PreviousStatus),
-		string(event.CurrentStatus),
+		event.PreviousStatus,
+		event.CurrentStatus,
 		event.ObservedTotalMinor,
 		event.ConfirmedTotalMinor,
 		event.UnconfirmedTotalMinor,
@@ -66,7 +63,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) EnqueueStatusChanged(
 func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 	ctx context.Context,
 	input outport.ClaimPaymentReceiptStatusNotificationsInput,
-) ([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error) {
+) ([]outport.PaymentReceiptStatusNotificationOutboxMessage, error) {
 	if input.Now.IsZero() {
 		return nil, outport.ErrPaymentReceiptStatusNotificationClaimNowRequired
 	}
@@ -120,7 +117,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 	}
 	defer rows.Close()
 
-	notifications := make([]applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, 0, input.Limit)
+	notifications := make([]outport.PaymentReceiptStatusNotificationOutboxMessage, 0, input.Limit)
 	for rows.Next() {
 		notification, err := scanPaymentReceiptStatusNotificationOutboxMessage(rows)
 		if err != nil {
@@ -137,10 +134,10 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) ClaimPending(
 
 func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 	ctx context.Context,
-	result applicationoutbox.PaymentReceiptStatusNotificationDeliveryResult,
+	result outport.PaymentReceiptStatusNotificationDeliveryResult,
 ) error {
 	switch result.Status {
-	case applicationoutbox.PaymentReceiptNotificationDeliveryStatusSent:
+	case outport.PaymentReceiptNotificationDeliveryStatusSent:
 		if result.DeliveredAt == nil {
 			return outport.ErrPaymentReceiptStatusNotificationDeliveredAtRequired
 		}
@@ -160,7 +157,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 		}
 		return ensureNotificationRowsAffected(execResult)
-	case applicationoutbox.PaymentReceiptNotificationDeliveryStatusPending:
+	case outport.PaymentReceiptNotificationDeliveryStatusPending:
 		if result.NextAttemptAt == nil {
 			return outport.ErrPaymentReceiptStatusNotificationNextAttemptRequired
 		}
@@ -177,13 +174,13 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			result.NotificationID,
 			result.Attempts,
 			result.NextAttemptAt.UTC(),
-			string(result.LastFailureReason),
+			result.LastFailureReason,
 		)
 		if err != nil {
 			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 		}
 		return ensureNotificationRowsAffected(execResult)
-	case applicationoutbox.PaymentReceiptNotificationDeliveryStatusFailed:
+	case outport.PaymentReceiptNotificationDeliveryStatusFailed:
 		execResult, err := r.executor.ExecContext(
 			ctx,
 			`UPDATE payment_receipt_status_notifications
@@ -195,7 +192,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 			 WHERE id = $1`,
 			result.NotificationID,
 			result.Attempts,
-			string(result.LastFailureReason),
+			result.LastFailureReason,
 		)
 		if err != nil {
 			return outport.ErrPaymentReceiptStatusNotificationOutboxFailed
@@ -208,7 +205,7 @@ func (r *PaymentReceiptStatusNotificationOutboxStore) SaveDeliveryResult(
 
 func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 	Scan(dest ...any) error
-}) (applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage, error) {
+}) (outport.PaymentReceiptStatusNotificationOutboxMessage, error) {
 	var (
 		notificationID        int64
 		paymentAddressID      int64
@@ -244,34 +241,34 @@ func scanPaymentReceiptStatusNotificationOutboxMessage(scanner interface {
 		&lastError,
 		&deliveredAt,
 	); err != nil {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, outport.ErrPaymentReceiptStatusNotificationOutboxFailed
+		return outport.PaymentReceiptStatusNotificationOutboxMessage{}, outport.ErrPaymentReceiptStatusNotificationOutboxFailed
 	}
 
-	parsedAddressPolicyID, err := valueobjects.NewAddressPolicyID(addressPolicyID)
-	if err != nil {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf(
+	parsedAddressPolicyID, ok := outport.NormalizeAddressPolicyID(addressPolicyID)
+	if !ok {
+		return outport.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf(
 			"%w: %s",
 			outport.ErrPaymentReceiptStatusNotificationPersistedAddressPolicyIDInvalid,
 			addressPolicyID,
 		)
 	}
 
-	previousStatus, ok := valueobjects.ParsePaymentReceiptStatus(previousStatusRaw)
+	previousStatus, ok := outport.NormalizePaymentReceiptStatus(previousStatusRaw)
 	if !ok {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedPreviousStatusInvalid, previousStatusRaw)
+		return outport.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedPreviousStatusInvalid, previousStatusRaw)
 	}
-	currentStatus, ok := valueobjects.ParsePaymentReceiptStatus(currentStatusRaw)
+	currentStatus, ok := outport.NormalizePaymentReceiptStatus(currentStatusRaw)
 	if !ok {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedCurrentStatusInvalid, currentStatusRaw)
+		return outport.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedCurrentStatusInvalid, currentStatusRaw)
 	}
-	deliveryStatus, ok := applicationoutbox.ParsePaymentReceiptNotificationDeliveryStatus(deliveryStatusRaw)
+	deliveryStatus, ok := outport.NormalizePaymentReceiptNotificationDeliveryStatus(deliveryStatusRaw)
 	if !ok {
-		return applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedDeliveryStatusInvalid, deliveryStatusRaw)
+		return outport.PaymentReceiptStatusNotificationOutboxMessage{}, fmt.Errorf("%w: %s", outport.ErrPaymentReceiptStatusNotificationPersistedDeliveryStatusInvalid, deliveryStatusRaw)
 	}
 
 	lastFailureReason := normalizePaymentReceiptNotificationDeliveryFailureReason(lastError)
 
-	notification := applicationoutbox.PaymentReceiptStatusNotificationOutboxMessage{
+	notification := outport.PaymentReceiptStatusNotificationOutboxMessage{
 		NotificationID:        notificationID,
 		PaymentAddressID:      paymentAddressID,
 		AddressPolicyID:       parsedAddressPolicyID,

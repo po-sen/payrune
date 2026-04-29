@@ -6,16 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 func TestChainAddressControllerListSuccess(t *testing.T) {
 	listUC := &fakeListAddressPoliciesUseCase{
-		response: dto.ListAddressPoliciesResponse{
+		response: inport.ListAddressPoliciesResponse{
 			Chain: "bitcoin",
-			AddressPolicies: []dto.AddressPolicy{{
+			AddressPolicies: []inport.AddressPolicy{{
 				AddressPolicyID: "bitcoin-mainnet-legacy",
 				Chain:           "bitcoin",
 				Network:         "mainnet",
@@ -36,7 +34,7 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if listUC.lastChain != valueobjects.SupportedChainBitcoin {
+	if listUC.lastChain != "bitcoin" {
 		t.Fatalf("unexpected chain passed to use case: got %q", listUC.lastChain)
 	}
 
@@ -54,9 +52,9 @@ func TestChainAddressControllerListSuccess(t *testing.T) {
 
 func TestChainAddressControllerListEthereumSuccess(t *testing.T) {
 	listUC := &fakeListAddressPoliciesUseCase{
-		response: dto.ListAddressPoliciesResponse{
+		response: inport.ListAddressPoliciesResponse{
 			Chain: "ethereum",
-			AddressPolicies: []dto.AddressPolicy{{
+			AddressPolicies: []inport.AddressPolicy{{
 				AddressPolicyID: "ethereum-mainnet-create2",
 				Chain:           "ethereum",
 				Network:         "mainnet",
@@ -77,7 +75,7 @@ func TestChainAddressControllerListEthereumSuccess(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d", rr.Code)
 	}
-	if listUC.lastChain != valueobjects.SupportedChainEthereum {
+	if listUC.lastChain != "ethereum" {
 		t.Fatalf("unexpected chain passed to use case: got %q", listUC.lastChain)
 	}
 }

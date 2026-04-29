@@ -6,30 +6,29 @@ import (
 	"testing"
 	"time"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 )
 
 type fakeRunReceiptPollingCycleUseCase struct {
-	input  dto.RunReceiptPollingCycleInput
-	output dto.RunReceiptPollingCycleOutput
+	input  inport.RunReceiptPollingCycleInput
+	output inport.RunReceiptPollingCycleOutput
 	err    error
 }
 
 func (f *fakeRunReceiptPollingCycleUseCase) Execute(
 	_ context.Context,
-	input dto.RunReceiptPollingCycleInput,
-) (dto.RunReceiptPollingCycleOutput, error) {
+	input inport.RunReceiptPollingCycleInput,
+) (inport.RunReceiptPollingCycleOutput, error) {
 	f.input = input
 	if f.err != nil {
-		return dto.RunReceiptPollingCycleOutput{}, f.err
+		return inport.RunReceiptPollingCycleOutput{}, f.err
 	}
 	return f.output, nil
 }
 
 func TestPollerHandlerHandle(t *testing.T) {
 	useCase := &fakeRunReceiptPollingCycleUseCase{
-		output: dto.RunReceiptPollingCycleOutput{
+		output: inport.RunReceiptPollingCycleOutput{
 			ClaimedCount:         3,
 			UpdatedCount:         2,
 			TerminalFailedCount:  1,

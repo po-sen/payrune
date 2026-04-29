@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 type CloudflareBitcoinEsploraReceiptObserver struct {
@@ -82,7 +81,7 @@ func (o *CloudflareBitcoinEsploraReceiptObserver) ObserveAddress(
 
 func (o *CloudflareBitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 	ctx context.Context,
-	network valueobjects.NetworkID,
+	network string,
 ) (int64, error) {
 	if _, err := o.validateNetwork(network); err != nil {
 		return 0, err
@@ -98,7 +97,7 @@ func (o *CloudflareBitcoinEsploraReceiptObserver) FetchLatestBlockHeight(
 }
 
 func (o *CloudflareBitcoinEsploraReceiptObserver) validateNetwork(
-	network valueobjects.NetworkID,
+	network string,
 ) (network, error) {
 	if strings.TrimSpace(o.bridgeID) == "" {
 		return "", outport.ErrBlockchainReceiptObserverInputInvalid

@@ -6,16 +6,13 @@ import (
 	"testing"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/policies"
-	"payrune/internal/domain/valueobjects"
 	ethereumcreate2assets "payrune/internal/infrastructure/ethereumcreate2assets"
 )
 
 func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) {
 	chainDeriver := NewChainAddressDeriver()
-	create2SaltDeriver := NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
-		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
+	create2SaltDeriver := NewCreate2SaltDeriver(map[string]string{
+		outport.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	deriver := NewIssuedPaymentAddressDeriver(chainDeriver, create2SaltDeriver)
 	collectorAddress := "0x2222222222222222222222222222222222222222"
@@ -25,18 +22,16 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 	}
 
 	output, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
-			AddressPolicyID: "ethereum-mainnet-create2",
-			Chain:           valueobjects.SupportedChainEthereum,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          "create2",
-			Enabled:         true,
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSpaceRef:   addressSpaceRef,
-				IssuanceRefPrefix: "ethereum-mainnet-create2",
-			},
-		}.Normalize(),
-		Allocation: entities.PaymentAddressAllocation{
+		Policy: outport.AddressIssuancePolicyRecord{
+			AddressPolicyID:   "ethereum-mainnet-create2",
+			Chain:             outport.SupportedChainEthereum,
+			Network:           outport.NetworkIDMainnet,
+			Scheme:            "create2",
+			Enabled:           true,
+			AddressSpaceRef:   addressSpaceRef,
+			IssuanceRefPrefix: "ethereum-mainnet-create2",
+		},
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 145,
 			SlotIndex:        11,
 		},
@@ -50,7 +45,7 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 	if output.IssuanceRef == "" {
 		t.Fatal("expected address reference")
 	}
-	if output.IssuanceRefKind != valueobjects.IssuanceRefKindCreate2Salt {
+	if output.IssuanceRefKind != outport.IssuanceRefKindCreate2Salt {
 		t.Fatalf("unexpected issuance ref kind: got %q", output.IssuanceRefKind)
 	}
 	metadata, ok := ethereumcreate2assets.LookupDeploymentMetadata("mainnet")
@@ -82,8 +77,8 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumCreate2Address(t *testing.T) 
 
 func TestIssuedPaymentAddressDeriverDerivesEthereumUSDTCreate2Address(t *testing.T) {
 	chainDeriver := NewChainAddressDeriver()
-	create2SaltDeriver := NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
-		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
+	create2SaltDeriver := NewCreate2SaltDeriver(map[string]string{
+		outport.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	deriver := NewIssuedPaymentAddressDeriver(chainDeriver, create2SaltDeriver)
 	collectorAddress := "0x2222222222222222222222222222222222222222"
@@ -93,18 +88,16 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumUSDTCreate2Address(t *testing
 	}
 
 	output, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
-			AddressPolicyID: valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
-			Chain:           valueobjects.SupportedChainEthereum,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          valueobjects.AddressSchemeCreate2,
+		Policy: outport.AddressIssuancePolicyRecord{
+			AddressPolicyID: "ethereum-mainnet-usdt-create2",
+			Chain:           outport.SupportedChainEthereum,
+			Network:         outport.NetworkIDMainnet,
+			Scheme:          outport.AddressSchemeCreate2,
 			AssetReference:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
 			Enabled:         true,
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSpaceRef: addressSpaceRef,
-			},
-		}.Normalize(),
-		Allocation: entities.PaymentAddressAllocation{
+			AddressSpaceRef: addressSpaceRef,
+		},
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 245,
 			SlotIndex:        12,
 		},
@@ -149,8 +142,8 @@ func TestIssuedPaymentAddressDeriverDerivesEthereumUSDTCreate2Address(t *testing
 
 func TestIssuedPaymentAddressDeriverKeepsETHAndUSDTAddressesDistinctWithSharedReceiverArtifact(t *testing.T) {
 	chainDeriver := NewChainAddressDeriver()
-	create2SaltDeriver := NewCreate2SaltDeriver(map[valueobjects.NetworkID]string{
-		valueobjects.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
+	create2SaltDeriver := NewCreate2SaltDeriver(map[string]string{
+		outport.NetworkIDMainnet: "0x1111111111111111111111111111111111111111111111111111111111111111",
 	})
 	deriver := NewIssuedPaymentAddressDeriver(chainDeriver, create2SaltDeriver)
 	collectorAddress := "0x2222222222222222222222222222222222222222"
@@ -160,17 +153,15 @@ func TestIssuedPaymentAddressDeriverKeepsETHAndUSDTAddressesDistinctWithSharedRe
 	}
 
 	nativeOutput, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
-			AddressPolicyID: valueobjects.AddressPolicyIDEthereumMainnetCreate2,
-			Chain:           valueobjects.SupportedChainEthereum,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          valueobjects.AddressSchemeCreate2,
+		Policy: outport.AddressIssuancePolicyRecord{
+			AddressPolicyID: "ethereum-mainnet-create2",
+			Chain:           outport.SupportedChainEthereum,
+			Network:         outport.NetworkIDMainnet,
+			Scheme:          outport.AddressSchemeCreate2,
 			Enabled:         true,
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSpaceRef: addressSpaceRef,
-			},
-		}.Normalize(),
-		Allocation: entities.PaymentAddressAllocation{
+			AddressSpaceRef: addressSpaceRef,
+		},
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 901,
 			SlotIndex:        1,
 		},
@@ -180,18 +171,16 @@ func TestIssuedPaymentAddressDeriverKeepsETHAndUSDTAddressesDistinctWithSharedRe
 	}
 
 	usdtOutput, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
-			AddressPolicyID: valueobjects.AddressPolicyIDEthereumMainnetUSDTCreate2,
-			Chain:           valueobjects.SupportedChainEthereum,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          valueobjects.AddressSchemeCreate2,
+		Policy: outport.AddressIssuancePolicyRecord{
+			AddressPolicyID: "ethereum-mainnet-usdt-create2",
+			Chain:           outport.SupportedChainEthereum,
+			Network:         outport.NetworkIDMainnet,
+			Scheme:          outport.AddressSchemeCreate2,
 			AssetReference:  "0xdAC17F958D2ee523a2206206994597C13D831ec7",
 			Enabled:         true,
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSpaceRef: addressSpaceRef,
-			},
-		}.Normalize(),
-		Allocation: entities.PaymentAddressAllocation{
+			AddressSpaceRef: addressSpaceRef,
+		},
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 901,
 			SlotIndex:        1,
 		},
@@ -209,18 +198,16 @@ func TestIssuedPaymentAddressDeriverRequiresCreate2SaltDeriver(t *testing.T) {
 	deriver := NewIssuedPaymentAddressDeriver(NewChainAddressDeriver(), nil)
 
 	_, err := deriver.DeriveIssuedAddress(context.Background(), outport.DeriveIssuedPaymentAddressInput{
-		Policy: policies.AddressIssuancePolicy{
-			AddressPolicyID: "ethereum-mainnet-create2",
-			Chain:           valueobjects.SupportedChainEthereum,
-			Network:         valueobjects.NetworkIDMainnet,
-			Scheme:          "create2",
-			Enabled:         true,
-			IssuanceConfig: valueobjects.AddressIssuanceConfig{
-				AddressSpaceRef:   "configured",
-				IssuanceRefPrefix: "ethereum-mainnet-create2",
-			},
-		}.Normalize(),
-		Allocation: entities.PaymentAddressAllocation{
+		Policy: outport.AddressIssuancePolicyRecord{
+			AddressPolicyID:   "ethereum-mainnet-create2",
+			Chain:             outport.SupportedChainEthereum,
+			Network:           outport.NetworkIDMainnet,
+			Scheme:            "create2",
+			Enabled:           true,
+			AddressSpaceRef:   "configured",
+			IssuanceRefPrefix: "ethereum-mainnet-create2",
+		},
+		Allocation: outport.PaymentAddressAllocationRecord{
 			PaymentAddressID: 145,
 			SlotIndex:        11,
 		},

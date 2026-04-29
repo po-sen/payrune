@@ -10,7 +10,6 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	outport "payrune/internal/application/ports/outbound"
-	"payrune/internal/domain/valueobjects"
 )
 
 const create2SourceRefVersion = "create2.v1"
@@ -57,18 +56,22 @@ func BuildCreate2AddressSpaceRef(
 	), nil
 }
 
-func (g *ChainAddressDeriver) Chain() valueobjects.SupportedChain {
-	return valueobjects.SupportedChainEthereum
+func (g *ChainAddressDeriver) Chain() string {
+	return outport.SupportedChainEthereum
+}
+
+func (g *ChainAddressDeriver) SupportsChain(chain string) bool {
+	return chain == outport.SupportedChainEthereum
 }
 
 func (g *ChainAddressDeriver) DeriveAddress(
 	_ context.Context,
 	input outport.DeriveChainAddressInput,
 ) (outport.DeriveChainAddressOutput, error) {
-	if input.Chain != valueobjects.SupportedChainEthereum {
+	if input.Chain != outport.SupportedChainEthereum {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
-	if !input.Scheme.Normalize().IsCreate2() {
+	if input.Scheme != outport.AddressSchemeCreate2 {
 		return outport.DeriveChainAddressOutput{}, outport.ErrChainAddressDerivationInputInvalid
 	}
 
@@ -95,7 +98,7 @@ func (g *ChainAddressDeriver) DeriveAddress(
 	return outport.DeriveChainAddressOutput{
 		Address:             predictedAddress,
 		RelativeIssuanceRef: normalizedSaltHex,
-		IssuanceRefKind:     valueobjects.IssuanceRefKindCreate2Salt,
+		IssuanceRefKind:     outport.IssuanceRefKindCreate2Salt,
 		IssuanceRef:         normalizedSaltHex,
 	}, nil
 }

@@ -3,71 +3,70 @@ package cloudflarepostgres
 import (
 	"strings"
 
-	applicationoutbox "payrune/internal/application/outbox"
-	"payrune/internal/domain/valueobjects"
+	outport "payrune/internal/application/ports/outbound"
 )
 
-func normalizePaymentReceiptTrackingFailureReason(raw string) valueobjects.PaymentReceiptTrackingFailureReason {
+func normalizePaymentReceiptTrackingFailureReason(raw string) string {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" {
 		return ""
 	}
-	if reason, ok := valueobjects.ParsePaymentReceiptTrackingFailureReason(normalized); ok {
+	if reason, ok := outport.NormalizePaymentReceiptTrackingFailureReason(normalized); ok {
 		return reason
 	}
 
 	switch normalized {
 	case "receipt tracking is invalid", "issued at is required":
-		return valueobjects.PaymentReceiptTrackingFailureReasonTrackingInvalid
+		return outport.PaymentReceiptTrackingFailureReasonTrackingInvalid
 	case "latest block height unavailable", "tip height timeout":
-		return valueobjects.PaymentReceiptTrackingFailureReasonLatestBlockHeightUnavailable
+		return outport.PaymentReceiptTrackingFailureReasonLatestBlockHeightUnavailable
 	case "receipt observation failed", "rpc timeout":
-		return valueobjects.PaymentReceiptTrackingFailureReasonObservationFailed
+		return outport.PaymentReceiptTrackingFailureReasonObservationFailed
 	case "receipt tracking update failed":
-		return valueobjects.PaymentReceiptTrackingFailureReasonTrackingUpdateFailed
+		return outport.PaymentReceiptTrackingFailureReasonTrackingUpdateFailed
 	case "payment window expired":
-		return valueobjects.PaymentReceiptTrackingFailureReasonPaymentWindowExpired
+		return outport.PaymentReceiptTrackingFailureReasonPaymentWindowExpired
 	case "receipt processing failed":
-		return valueobjects.PaymentReceiptTrackingFailureReasonProcessingFailed
+		return outport.PaymentReceiptTrackingFailureReasonProcessingFailed
 	default:
-		return valueobjects.PaymentReceiptTrackingFailureReasonProcessingFailed
+		return outport.PaymentReceiptTrackingFailureReasonProcessingFailed
 	}
 }
 
 func normalizePaymentReceiptNotificationDeliveryFailureReason(
 	raw string,
-) applicationoutbox.PaymentReceiptNotificationDeliveryFailureReason {
+) string {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" {
 		return ""
 	}
-	if reason, ok := applicationoutbox.ParsePaymentReceiptNotificationDeliveryFailureReason(normalized); ok {
+	if reason, ok := outport.NormalizePaymentReceiptNotificationDeliveryFailureReason(normalized); ok {
 		return reason
 	}
 
 	switch normalized {
 	case "receipt webhook delivery failed", "timeout", "webhook returned status 500":
-		return applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed
+		return outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed
 	default:
-		return applicationoutbox.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed
+		return outport.PaymentReceiptNotificationDeliveryFailureReasonDeliveryFailed
 	}
 }
 
 func normalizePaymentAddressAllocationDerivationFailureReason(
 	raw string,
-) valueobjects.PaymentAddressAllocationDerivationFailureReason {
+) string {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	if normalized == "" {
 		return ""
 	}
-	if reason, ok := valueobjects.ParsePaymentAddressAllocationDerivationFailureReason(normalized); ok {
+	if reason, ok := outport.NormalizePaymentAddressAllocationDerivationFailureReason(normalized); ok {
 		return reason
 	}
 
 	switch normalized {
 	case "derive failed", "derivation failed", "address derivation failed", "payment address derivation failed":
-		return valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed
+		return outport.PaymentAddressAllocationFailureDerivationFailed
 	default:
-		return valueobjects.PaymentAddressAllocationDerivationFailureReasonDerivationFailed
+		return outport.PaymentAddressAllocationFailureDerivationFailed
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"payrune/internal/application/dto"
 	inport "payrune/internal/application/ports/inbound"
 	"payrune/internal/domain/policies"
 	"payrune/internal/domain/valueobjects"
@@ -33,7 +32,7 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 	})
 	useCase := NewListAddressPoliciesUseCase(catalog)
 
-	response, err := useCase.Execute(context.Background(), valueobjects.SupportedChainBitcoin)
+	response, err := useCase.Execute(context.Background(), string(valueobjects.SupportedChainBitcoin))
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
 	}
@@ -46,7 +45,7 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 	}
 
 	first := response.AddressPolicies[0]
-	if first != (dto.AddressPolicy{
+	if first != (inport.AddressPolicy{
 		AddressPolicyID: "bitcoin-mainnet-legacy",
 		Chain:           "bitcoin",
 		Network:         "mainnet",
@@ -65,11 +64,11 @@ func TestListAddressPoliciesUseCaseSuccess(t *testing.T) {
 func TestListAddressPoliciesUseCaseReturnsEmptyResultForUnconfiguredChain(t *testing.T) {
 	useCase := NewListAddressPoliciesUseCase(newInMemoryAddressPolicyReader(nil))
 
-	response, err := useCase.Execute(context.Background(), valueobjects.SupportedChain("eth"))
+	response, err := useCase.Execute(context.Background(), string(valueobjects.SupportedChainEthereum))
 	if err != nil {
 		t.Fatalf("Execute returned error: %v", err)
 	}
-	if response.Chain != "eth" {
+	if response.Chain != "ethereum" {
 		t.Fatalf("unexpected chain: got %q", response.Chain)
 	}
 	if len(response.AddressPolicies) != 0 {
@@ -80,7 +79,7 @@ func TestListAddressPoliciesUseCaseReturnsEmptyResultForUnconfiguredChain(t *tes
 func TestListAddressPoliciesUseCaseValidationMissingPolicyReader(t *testing.T) {
 	useCase := &listAddressPoliciesUseCase{}
 
-	_, err := useCase.Execute(context.Background(), valueobjects.SupportedChainBitcoin)
+	_, err := useCase.Execute(context.Background(), string(valueobjects.SupportedChainBitcoin))
 	if !errors.Is(err, inport.ErrAddressPolicyReaderNotConfigured) {
 		t.Fatalf("unexpected error: got %v", err)
 	}
@@ -91,7 +90,7 @@ func TestListAddressPoliciesUseCaseMapsReaderFailure(t *testing.T) {
 	reader.listErr = errors.New("query failed")
 	useCase := NewListAddressPoliciesUseCase(reader)
 
-	_, err := useCase.Execute(context.Background(), valueobjects.SupportedChainBitcoin)
+	_, err := useCase.Execute(context.Background(), string(valueobjects.SupportedChainBitcoin))
 	if !errors.Is(err, inport.ErrDependencyFailure) {
 		t.Fatalf("expected ErrDependencyFailure, got %v", err)
 	}

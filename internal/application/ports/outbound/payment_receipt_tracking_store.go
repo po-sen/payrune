@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"payrune/internal/domain/entities"
-	"payrune/internal/domain/valueobjects"
 )
 
 var (
@@ -27,28 +24,51 @@ var (
 	ErrPaymentReceiptTrackingPersistedStatusInvalid          = errors.New("persisted receipt tracking status is invalid")
 )
 
+type PaymentReceiptTrackingRecord struct {
+	TrackingID              int64
+	PaymentAddressID        int64
+	AddressPolicyID         string
+	Chain                   string
+	Network                 string
+	Address                 string
+	AssetReference          string
+	IssuedAt                time.Time
+	ExpectedAmountMinor     int64
+	RequiredConfirmations   int32
+	Status                  string
+	ObservedTotalMinor      int64
+	ConfirmedTotalMinor     int64
+	UnconfirmedTotalMinor   int64
+	LastObservedBlockHeight int64
+	FirstObservedAt         *time.Time
+	PaidAt                  *time.Time
+	ConfirmedAt             *time.Time
+	ExpiresAt               *time.Time
+	LastFailureReason       string
+}
+
 type ClaimPaymentReceiptTrackingsInput struct {
 	Now        time.Time
 	Limit      int
 	ClaimUntil time.Time
 	Chain      string
 	Network    string
-	Statuses   []valueobjects.PaymentReceiptStatus
+	Statuses   []string
 }
 
 type PaymentReceiptTrackingStore interface {
 	Create(
 		ctx context.Context,
-		tracking entities.PaymentReceiptTracking,
+		tracking PaymentReceiptTrackingRecord,
 		nextPollAt time.Time,
 	) error
 	ClaimDue(
 		ctx context.Context,
 		input ClaimPaymentReceiptTrackingsInput,
-	) ([]entities.PaymentReceiptTracking, error)
+	) ([]PaymentReceiptTrackingRecord, error)
 	Save(
 		ctx context.Context,
-		tracking entities.PaymentReceiptTracking,
+		tracking PaymentReceiptTrackingRecord,
 		polledAt time.Time,
 		nextPollAt time.Time,
 	) error
